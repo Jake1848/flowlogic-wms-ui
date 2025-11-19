@@ -1,9 +1,21 @@
-import { LayoutDashboard, Package, FileText, Settings, Menu, X } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Package,
+  FileText,
+  Settings,
+  Menu,
+  X,
+  TruckIcon,
+  ClipboardList,
+  ShoppingCart,
+  Users,
+  PackageX
+} from 'lucide-react'
 import { useWMSStore } from '../store/useWMSStore'
 
 interface SidebarProps {
   currentPage: string
-  onNavigate: (page: 'dashboard' | 'inventory' | 'reports' | 'settings') => void
+  onNavigate: (page: 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'reports' | 'settings') => void
 }
 
 export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
@@ -11,7 +23,12 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'receiving', label: 'Receiving', icon: TruckIcon },
+    { id: 'picking', label: 'Picking', icon: ClipboardList },
+    { id: 'orders', label: 'Orders', icon: ShoppingCart },
     { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'returns', label: 'Returns', icon: PackageX },
+    { id: 'labor', label: 'Labor', icon: Users },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]

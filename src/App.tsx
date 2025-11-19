@@ -5,9 +5,14 @@ import Dashboard from './pages/Dashboard'
 import Inventory from './pages/Inventory'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import Receiving from './pages/Receiving'
+import Picking from './pages/Picking'
+import Orders from './pages/Orders'
+import Labor from './pages/Labor'
+import Returns from './pages/Returns'
 import { useWMSStore } from './store/useWMSStore'
 
-type Page = 'dashboard' | 'inventory' | 'reports' | 'settings'
+type Page = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'reports' | 'settings'
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
@@ -17,8 +22,18 @@ function App() {
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />
+      case 'receiving':
+        return <Receiving />
+      case 'picking':
+        return <Picking />
+      case 'orders':
+        return <Orders />
       case 'inventory':
         return <Inventory />
+      case 'returns':
+        return <Returns />
+      case 'labor':
+        return <Labor />
       case 'reports':
         return <Reports />
       case 'settings':
