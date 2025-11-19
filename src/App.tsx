@@ -10,9 +10,14 @@ import Picking from './pages/Picking'
 import Orders from './pages/Orders'
 import Labor from './pages/Labor'
 import Returns from './pages/Returns'
+import Integrations from './pages/Integrations'
+import Warehouse from './pages/Warehouse'
+import QualityControl from './pages/QualityControl'
+import Replenishment from './pages/Replenishment'
+import MobileScanner from './pages/MobileScanner'
 import { useWMSStore } from './store/useWMSStore'
 
-type Page = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'reports' | 'settings'
+type Page = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'integrations' | 'reports' | 'settings'
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
@@ -34,6 +39,16 @@ function App() {
         return <Returns />
       case 'labor':
         return <Labor />
+      case 'warehouse':
+        return <Warehouse />
+      case 'quality':
+        return <QualityControl />
+      case 'replenishment':
+        return <Replenishment />
+      case 'mobile':
+        return <MobileScanner />
+      case 'integrations':
+        return <Integrations />
       case 'reports':
         return <Reports />
       case 'settings':

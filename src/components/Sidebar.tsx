@@ -9,13 +9,18 @@ import {
   ClipboardList,
   ShoppingCart,
   Users,
-  PackageX
+  PackageX,
+  ArrowRightLeft,
+  Grid3x3,
+  ClipboardCheck,
+  ArrowUp,
+  Smartphone
 } from 'lucide-react'
 import { useWMSStore } from '../store/useWMSStore'
 
 interface SidebarProps {
   currentPage: string
-  onNavigate: (page: 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'reports' | 'settings') => void
+  onNavigate: (page: 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'integrations' | 'reports' | 'settings') => void
 }
 
 export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
@@ -29,6 +34,11 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'returns', label: 'Returns', icon: PackageX },
     { id: 'labor', label: 'Labor', icon: Users },
+    { id: 'warehouse', label: 'Warehouse', icon: Grid3x3 },
+    { id: 'quality', label: 'Quality', icon: ClipboardCheck },
+    { id: 'replenishment', label: 'Replenishment', icon: ArrowUp },
+    { id: 'mobile', label: 'Mobile/Scanner', icon: Smartphone },
+    { id: 'integrations', label: 'Integrations', icon: ArrowRightLeft },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]
