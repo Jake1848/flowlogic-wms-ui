@@ -14,13 +14,17 @@ import {
   Grid3x3,
   ClipboardCheck,
   ArrowUp,
-  Smartphone
+  Smartphone,
+  AlertTriangle,
+  MapPin,
+  Search,
+  Boxes
 } from 'lucide-react'
 import { useWMSStore } from '../store/useWMSStore'
 
 interface SidebarProps {
   currentPage: string
-  onNavigate: (page: 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'integrations' | 'reports' | 'settings') => void
+  onNavigate: (page: 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'abandon' | 'locations' | 'markout' | 'casepack' | 'integrations' | 'reports' | 'settings') => void
 }
 
 export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
@@ -38,6 +42,10 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     { id: 'quality', label: 'Quality', icon: ClipboardCheck },
     { id: 'replenishment', label: 'Replenishment', icon: ArrowUp },
     { id: 'mobile', label: 'Mobile/Scanner', icon: Smartphone },
+    { id: 'abandon', label: 'Abandon Codes', icon: AlertTriangle },
+    { id: 'locations', label: 'IIPAA Locations', icon: MapPin },
+    { id: 'markout', label: 'Mark Out', icon: Search },
+    { id: 'casepack', label: 'Case Pack', icon: Boxes },
     { id: 'integrations', label: 'Integrations', icon: ArrowRightLeft },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },

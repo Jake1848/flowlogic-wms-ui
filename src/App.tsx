@@ -15,9 +15,13 @@ import Warehouse from './pages/Warehouse'
 import QualityControl from './pages/QualityControl'
 import Replenishment from './pages/Replenishment'
 import MobileScanner from './pages/MobileScanner'
+import AbandonCodes from './pages/AbandonCodes'
+import LocationAssignments from './pages/LocationAssignments'
+import MarkoutProcess from './pages/MarkoutProcess'
+import CasePackManagement from './pages/CasePackManagement'
 import { useWMSStore } from './store/useWMSStore'
 
-type Page = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'integrations' | 'reports' | 'settings'
+type Page = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'abandon' | 'locations' | 'markout' | 'casepack' | 'integrations' | 'reports' | 'settings'
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
@@ -47,6 +51,14 @@ function App() {
         return <Replenishment />
       case 'mobile':
         return <MobileScanner />
+      case 'abandon':
+        return <AbandonCodes />
+      case 'locations':
+        return <LocationAssignments />
+      case 'markout':
+        return <MarkoutProcess />
+      case 'casepack':
+        return <CasePackManagement />
       case 'integrations':
         return <Integrations />
       case 'reports':
