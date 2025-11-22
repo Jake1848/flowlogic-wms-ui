@@ -18,13 +18,21 @@ import {
   AlertTriangle,
   MapPin,
   Search,
-  Boxes
+  Boxes,
+  ListChecks,
+  Send,
+  DoorOpen,
+  Container,
+  ListTodo,
+  Hash,
+  Layers,
+  Bell
 } from 'lucide-react'
 import { useWMSStore } from '../store/useWMSStore'
 
 interface SidebarProps {
   currentPage: string
-  onNavigate: (page: 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'abandon' | 'locations' | 'markout' | 'casepack' | 'integrations' | 'reports' | 'settings') => void
+  onNavigate: (page: 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'abandon' | 'locations' | 'markout' | 'casepack' | 'cycle' | 'shipping' | 'dock' | 'yard' | 'tasks' | 'lots' | 'waves' | 'alerts' | 'integrations' | 'reports' | 'settings') => void
 }
 
 export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
@@ -46,6 +54,14 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     { id: 'locations', label: 'IIPAA Locations', icon: MapPin },
     { id: 'markout', label: 'Mark Out', icon: Search },
     { id: 'casepack', label: 'Case Pack', icon: Boxes },
+    { id: 'cycle', label: 'Cycle Counting', icon: ListChecks },
+    { id: 'shipping', label: 'Shipping', icon: Send },
+    { id: 'dock', label: 'Dock Schedule', icon: DoorOpen },
+    { id: 'yard', label: 'Yard Mgmt', icon: Container },
+    { id: 'tasks', label: 'Task Queue', icon: ListTodo },
+    { id: 'lots', label: 'Lot Tracking', icon: Hash },
+    { id: 'waves', label: 'Wave Planning', icon: Layers },
+    { id: 'alerts', label: 'Alerts', icon: Bell },
     { id: 'integrations', label: 'Integrations', icon: ArrowRightLeft },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -78,7 +94,7 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
         )}
       </div>
 
-      <nav className="mt-6">
+      <nav className="mt-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
         {menuItems.map((item) => {
           const Icon = item.icon
           const isActive = currentPage === item.id

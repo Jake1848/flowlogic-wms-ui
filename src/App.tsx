@@ -19,9 +19,17 @@ import AbandonCodes from './pages/AbandonCodes'
 import LocationAssignments from './pages/LocationAssignments'
 import MarkoutProcess from './pages/MarkoutProcess'
 import CasePackManagement from './pages/CasePackManagement'
+import CycleCounting from './pages/CycleCounting'
+import Shipping from './pages/Shipping'
+import DockScheduling from './pages/DockScheduling'
+import YardManagement from './pages/YardManagement'
+import TaskManagement from './pages/TaskManagement'
+import LotTracking from './pages/LotTracking'
+import WavePlanning from './pages/WavePlanning'
+import Alerts from './pages/Alerts'
 import { useWMSStore } from './store/useWMSStore'
 
-type Page = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'abandon' | 'locations' | 'markout' | 'casepack' | 'integrations' | 'reports' | 'settings'
+type Page = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'abandon' | 'locations' | 'markout' | 'casepack' | 'cycle' | 'shipping' | 'dock' | 'yard' | 'tasks' | 'lots' | 'waves' | 'alerts' | 'integrations' | 'reports' | 'settings'
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
@@ -59,6 +67,22 @@ function App() {
         return <MarkoutProcess />
       case 'casepack':
         return <CasePackManagement />
+      case 'cycle':
+        return <CycleCounting />
+      case 'shipping':
+        return <Shipping />
+      case 'dock':
+        return <DockScheduling />
+      case 'yard':
+        return <YardManagement />
+      case 'tasks':
+        return <TaskManagement />
+      case 'lots':
+        return <LotTracking />
+      case 'waves':
+        return <WavePlanning />
+      case 'alerts':
+        return <Alerts />
       case 'integrations':
         return <Integrations />
       case 'reports':
