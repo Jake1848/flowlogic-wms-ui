@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   Package,
@@ -79,12 +80,12 @@ import {
   Circle,
 } from 'lucide-react'
 import { useWMSStore } from '../store/useWMSStore'
+import { pageIdToPath } from '../routes'
 
 type PageType = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'abandon' | 'locations' | 'markout' | 'casepack' | 'cycle' | 'shipping' | 'dock' | 'yard' | 'tasks' | 'lots' | 'waves' | 'alerts' | 'slotting' | 'cartonization' | 'loadplan' | 'audit' | 'users' | 'kitting' | 'crossdock' | 'asn' | 'vendors' | 'pos' | 'billing' | 'customers' | 'items' | 'adjustments' | 'equipment' | 'compliance' | 'zones' | 'carriers' | 'workorders' | 'promotions' | 'edi' | 'appointments' | 'pallets' | 'parcel' | 'documents' | 'rma' | 'forecast' | 'serials' | 'freightaudit' | 'sla' | 'safety' | 'workforce' | 'capacity' | 'inbound' | 'outbound' | 'clientportal' | 'costanalytics' | 'productivity' | 'notifications' | 'systemhealth' | 'hazmat' | 'vas' | 'storagelocation' | 'inventorybalance' | 'orderreceipt' | 'itemconfig' | 'warehousecontrols' | 'pickperformance' | 'packagespecs' | 'facilityassignment' | 'dimensionquery' | 'locationmaintenance' | 'productboh' | 'locationstatus' | 'locationhistory' | 'locationbrowser' | 'availablelocation' | 'batchslotadjust' | 'supplierreturns' | 'adjustmenthistory' | 'movementaudit' | 'integrations' | 'reports' | 'settings'
 
 interface SidebarProps {
   currentPage: string
-  onNavigate: (page: PageType) => void
 }
 
 interface MenuItem {
@@ -337,13 +338,20 @@ const menuGroups: MenuGroup[] = [
   },
 ]
 
-export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
+export default function Sidebar({ currentPage }: SidebarProps) {
+  const navigate = useNavigate()
   const { sidebarOpen, toggleSidebar } = useWMSStore()
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['dashboard']))
   const [commandInput, setCommandInput] = useState('')
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
   const commandInputRef = useRef<HTMLInputElement>(null)
+
+  // Navigate to a page using React Router
+  const navigateTo = (pageId: PageType) => {
+    const path = pageIdToPath[pageId] || '/dashboard'
+    navigate(path)
+  }
 
   // Find which group contains the current page and expand it
   useEffect(() => {
@@ -404,7 +412,7 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     const suggestions = getFilteredSuggestions()
     if (suggestions.length > 0) {
       const [, page] = suggestions[selectedSuggestionIndex] || suggestions[0]
-      onNavigate(page)
+      navigateTo(page)
       setCommandInput('')
       setShowCommandPalette(false)
       setSelectedSuggestionIndex(0)
@@ -423,7 +431,7 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   }
 
   const handleSuggestionClick = (page: PageType) => {
-    onNavigate(page)
+    navigateTo(page)
     setCommandInput('')
     setShowCommandPalette(false)
     setSelectedSuggestionIndex(0)
@@ -601,7 +609,7 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
               <div key={group.id} className="mb-1">
                 {/* Group Header */}
                 <button
-                  onClick={() => sidebarOpen ? toggleGroup(group.id) : onNavigate(group.items[0].id)}
+                  onClick={() => sidebarOpen ? toggleGroup(group.id) : navigateTo(group.items[0].id)}
                   className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 ${
                     sidebarOpen ? 'px-3 py-2.5' : 'p-3 justify-center'
                   } ${
@@ -640,7 +648,7 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                         return (
                           <button
                             key={item.id}
-                            onClick={() => onNavigate(item.id)}
+                            onClick={() => navigateTo(item.id)}
                             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 ${
                               isActive
                                 ? 'bg-gradient-to-r from-blue-600/20 to-cyan-600/20 text-white border-l-2 border-blue-400 -ml-[2px]'
