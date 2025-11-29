@@ -194,7 +194,7 @@ export default function DockScheduling() {
   const [selectedDock, setSelectedDock] = useState<string | null>(null);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
   const [showAppointmentDetail, setShowAppointmentDetail] = useState<Appointment | null>(null);
-  const [dockDoors, setDockDoors] = useState<DockDoor[]>(DEFAULT_DOCK_DOORS);
+  const [dockDoors] = useState<DockDoor[]>(DEFAULT_DOCK_DOORS);
   const [appointments, setAppointments] = useState<Appointment[]>(INITIAL_APPOINTMENTS);
   const [summary, setSummary] = useState<AppointmentSummary | null>(INITIAL_SUMMARY);
   const [isLoading, setIsLoading] = useState(false);

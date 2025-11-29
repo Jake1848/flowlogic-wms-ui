@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react'
-import { RouteObject } from 'react-router-dom'
+import { lazy, Suspense, type FC, type ReactNode } from 'react'
+import type { RouteObject } from 'react-router-dom'
 
 // Loading component for lazy-loaded routes
 const PageLoader = () => (
@@ -98,7 +98,7 @@ const AdjustmentHistoryBrowser = lazy(() => import('../pages/AdjustmentHistoryBr
 const MovementAuditLog = lazy(() => import('../pages/MovementAuditLog'))
 
 // Wrap lazy components with Suspense
-const withSuspense = (Component: React.LazyExoticComponent<() => JSX.Element>) => (
+const withSuspense = (Component: React.LazyExoticComponent<FC>): ReactNode => (
   <Suspense fallback={<PageLoader />}>
     <Component />
   </Suspense>

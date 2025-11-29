@@ -8,8 +8,6 @@ import {
   X,
   AlertTriangle,
   Package,
-  Building2,
-  ClipboardList,
   Printer,
 } from 'lucide-react'
 
@@ -45,7 +43,8 @@ interface VendorReturn {
   lines: VendorReturnLine[]
 }
 
-const RETURN_REASONS = [
+// Return reason codes (kept for future dropdown implementation)
+export const RETURN_REASONS = [
   { code: 'DEF', label: 'Defective Product' },
   { code: 'DMG', label: 'Damaged in Transit' },
   { code: 'EXP', label: 'Expired/Near Expiry' },
@@ -115,7 +114,7 @@ const mockReturns: VendorReturn[] = [
 
 export default function SupplierReturns() {
   const [activeTab, setActiveTab] = useState<'list' | 'create' | 'query'>('list')
-  const [returns, setReturns] = useState<VendorReturn[]>(mockReturns)
+  const [returns] = useState<VendorReturn[]>(mockReturns)
   const [selectedReturn, setSelectedReturn] = useState<VendorReturn | null>(null)
   const [showQueryModal, setShowQueryModal] = useState(false)
 

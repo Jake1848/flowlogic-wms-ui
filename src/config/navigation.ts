@@ -71,7 +71,7 @@ import {
   Box,
   BarChart3,
   Cog,
-  LucideIcon,
+  type LucideIcon,
 } from 'lucide-react'
 
 export type PageType = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'abandon' | 'locations' | 'markout' | 'casepack' | 'cycle' | 'shipping' | 'dock' | 'yard' | 'tasks' | 'lots' | 'waves' | 'alerts' | 'slotting' | 'cartonization' | 'loadplan' | 'audit' | 'users' | 'kitting' | 'crossdock' | 'asn' | 'vendors' | 'pos' | 'billing' | 'customers' | 'items' | 'adjustments' | 'equipment' | 'compliance' | 'zones' | 'carriers' | 'workorders' | 'promotions' | 'edi' | 'appointments' | 'pallets' | 'parcel' | 'documents' | 'rma' | 'forecast' | 'serials' | 'freightaudit' | 'sla' | 'safety' | 'workforce' | 'capacity' | 'inbound' | 'outbound' | 'clientportal' | 'costanalytics' | 'productivity' | 'notifications' | 'systemhealth' | 'hazmat' | 'vas' | 'storagelocation' | 'inventorybalance' | 'orderreceipt' | 'itemconfig' | 'warehousecontrols' | 'pickperformance' | 'packagespecs' | 'facilityassignment' | 'dimensionquery' | 'locationmaintenance' | 'productboh' | 'locationstatus' | 'locationhistory' | 'locationbrowser' | 'availablelocation' | 'batchslotadjust' | 'supplierreturns' | 'adjustmenthistory' | 'movementaudit' | 'integrations' | 'reports' | 'settings'

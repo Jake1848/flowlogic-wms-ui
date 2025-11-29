@@ -1,4 +1,5 @@
-import { useWMSStore, Alert, SKUData } from '../../store/useWMSStore'
+import { useWMSStore } from '../../store/useWMSStore'
+import type { Alert, SKUData } from '../../store/useWMSStore'
 
 // Reset store before each test
 beforeEach(() => {
