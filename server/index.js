@@ -16,6 +16,9 @@ import dockRoutes from './routes/docks.js';
 // Import tools for AI
 import { tools, createToolExecutor } from './tools.js';
 
+// Import middleware
+import { errorHandler, notFoundHandler, asyncHandler } from './middleware/errorHandler.js';
+
 dotenv.config();
 
 const app = express();
@@ -512,6 +515,16 @@ app.get('/api/users', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
+
+// ==========================================
+// Error Handling Middleware (must be last)
+// ==========================================
+
+// 404 handler for undefined routes
+app.use(notFoundHandler);
+
+// Centralized error handler
+app.use(errorHandler);
 
 // ==========================================
 // Server Startup
