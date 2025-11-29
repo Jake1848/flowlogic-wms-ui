@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for FlowLogic WMS
+  postgres:
+    image: postgres:16-alpine
+    container_name: flowlogic-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: flowlogic
+      POSTGRES_PASSWORD: flowlogic123
+      POSTGRES_DB: flowlogic_wms
+    volumes:
+      - flowlogic_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowlogic -d flowlogic_wms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin for database management (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: flowlogic-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@flowlogic.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    depends_on:
+      - postgres
+    profiles:
+      - tools
+
+volumes:
+  flowlogic_data:
+    name: flowlogic_postgres_data
