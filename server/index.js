@@ -12,6 +12,11 @@ import locationRoutes from './routes/locations.js';
 import taskRoutes from './routes/tasks.js';
 import alertRoutes from './routes/alerts.js';
 import dockRoutes from './routes/docks.js';
+import chatRoutes from './routes/chat.js';
+import authRoutes from './routes/auth.js';
+
+// Import auth middleware
+import { optionalAuth } from './middleware/auth.js';
 
 // Import tools for AI
 import { tools, createToolExecutor } from './tools.js';
@@ -51,6 +56,9 @@ const anthropic = new Anthropic({
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// Apply optional auth to all routes (user info available if logged in)
+app.use(optionalAuth);
 
 // Store conversation history per session
 const conversations = new Map();
@@ -159,6 +167,8 @@ app.use('/api/locations', locationRoutes(prisma));
 app.use('/api/tasks', taskRoutes(prisma));
 app.use('/api/alerts', alertRoutes(prisma));
 app.use('/api/docks', dockRoutes(prisma));
+app.use('/api/chat-history', chatRoutes(prisma));
+app.use('/api/auth', authRoutes(prisma));
 
 // Dashboard summary endpoint using $queryRawUnsafe to avoid prepared statement issues
 app.get('/api/dashboard', async (req, res) => {

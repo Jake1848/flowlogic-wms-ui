@@ -1689,3 +1689,59 @@ model SystemSetting {
 
   @@map("system_settings")
 }
+
+// ============================================
+// AI CHAT SESSIONS
+// ============================================
+
+model ChatSession {
+  id          String   @id @default(uuid())
+  sessionId   String   @unique // Client-facing session ID
+  title       String?  // Generated title from first message
+
+  userId      String?  // Optional user association
+
+  // Stats
+  messageCount Int     @default(0)
+  lastMessageAt DateTime?
+
+  // Settings
+  isArchived  Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    ChatMessage[]
+
+  @@index([userId, createdAt])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  sessionId   String
+  session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role        ChatRole
+  content     String
+
+  // AI-specific fields
+  toolsUsed   String[] // Array of tool names used
+  analysis    Json?    // Structured analysis data
+  actions     Json?    // Suggested actions
+
+  // Metadata
+  tokenCount  Int?     // For usage tracking
+  modelId     String?  // Which model was used
+
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@map("chat_messages")
+}
+
+enum ChatRole {
+  user
+  assistant
+  system
+}

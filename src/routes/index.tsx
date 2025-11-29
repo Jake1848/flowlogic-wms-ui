@@ -8,6 +8,9 @@ const PageLoader = () => (
   </div>
 )
 
+// Lazy load Login page separately (public route)
+const Login = lazy(() => import('../pages/Login'))
+
 // Lazy load all page components for better performance
 const Dashboard = lazy(() => import('../pages/Dashboard'))
 const Inventory = lazy(() => import('../pages/Inventory'))
@@ -104,8 +107,13 @@ const withSuspense = (Component: React.LazyExoticComponent<FC>): ReactNode => (
   </Suspense>
 )
 
-// Route configuration with paths matching page IDs
-export const routes: RouteObject[] = [
+// Public routes (no authentication required)
+export const publicRoutes: RouteObject[] = [
+  { path: '/login', element: withSuspense(Login) },
+]
+
+// Protected routes (authentication required)
+export const protectedRoutes: RouteObject[] = [
   { path: '/', element: withSuspense(Dashboard) },
   { path: '/dashboard', element: withSuspense(Dashboard) },
   { path: '/receiving', element: withSuspense(Receiving) },
@@ -194,6 +202,12 @@ export const routes: RouteObject[] = [
   { path: '/integrations', element: withSuspense(Integrations) },
   { path: '/reports', element: withSuspense(Reports) },
   { path: '/settings', element: withSuspense(Settings) },
+]
+
+// All routes combined (for backwards compatibility)
+export const routes: RouteObject[] = [
+  ...publicRoutes,
+  ...protectedRoutes,
   // Catch-all route redirects to dashboard
   { path: '*', element: withSuspense(Dashboard) },
 ]

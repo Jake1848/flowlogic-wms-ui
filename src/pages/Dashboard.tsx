@@ -3,45 +3,28 @@ import { Activity, AlertTriangle, TrendingUp, CheckCircle } from 'lucide-react'
 import DashboardCard from '../components/DashboardCard'
 import AlertsPanel from '../components/AlertsPanel'
 import ProductionGraph from '../components/ProductionGraph'
-import { useFetch } from '../hooks/useFetch'
+import { useDashboard } from '../hooks/useDashboard'
 import { useWMSStore } from '../store/useWMSStore'
-import type { Metrics } from '../store/useWMSStore'
 
 export default function Dashboard() {
   const { updateMetrics, addAlert } = useWMSStore()
+  const { metrics, alerts, skippedLocations, frequentAdjustments } = useDashboard()
 
-  // Fetch metrics with auto-refresh every 15 seconds
-  const { data: metricsData } = useFetch<Metrics>('/api/metrics', {
-    autoRefresh: true,
-    refreshInterval: 15000,
-  })
-
-  // Fetch alerts
-  const { data: alertsData } = useFetch('/api/alerts', {
-    autoRefresh: true,
-    refreshInterval: 15000,
-  })
-
+  // Sync metrics to global store
   useEffect(() => {
-    if (metricsData) {
-      updateMetrics(metricsData)
+    if (metrics) {
+      updateMetrics(metrics)
     }
-  }, [metricsData, updateMetrics])
+  }, [metrics, updateMetrics])
 
+  // Sync alerts to global store
   useEffect(() => {
-    if (alertsData && Array.isArray(alertsData)) {
-      alertsData.forEach((alert: any) => {
+    if (alerts && Array.isArray(alerts)) {
+      alerts.forEach((alert) => {
         addAlert(alert)
       })
     }
-  }, [alertsData, addAlert])
-
-  const metrics: Metrics = metricsData ?? {
-    variancePercent: 0,
-    auditCompletion: 0,
-    errorRate: 0,
-    cycleCountStatus: 'Loading...',
-  }
+  }, [alerts, addAlert])
 
   return (
     <div className="space-y-6">
@@ -109,14 +92,14 @@ export default function Dashboard() {
             Top 5 Skipped Locations
           </h3>
           <div className="space-y-3">
-            {['A-12-34', 'B-05-21', 'C-18-09', 'D-03-45', 'A-22-11'].map((location, idx) => (
+            {skippedLocations.map((item) => (
               <div
-                key={location}
+                key={item.location}
                 className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
               >
-                <span className="font-medium text-gray-900 dark:text-gray-100">{location}</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">{item.location}</span>
                 <span className="px-3 py-1 text-sm font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 rounded-full">
-                  {5 - idx} skips
+                  {item.skipCount} skips
                 </span>
               </div>
             ))}
@@ -128,14 +111,14 @@ export default function Dashboard() {
             Most Frequently Adjusted SKUs
           </h3>
           <div className="space-y-3">
-            {['SKU-1023', 'SKU-2045', 'SKU-3012', 'SKU-1234', 'SKU-5678'].map((sku, idx) => (
+            {frequentAdjustments.map((item) => (
               <div
-                key={sku}
+                key={item.sku}
                 className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
               >
-                <span className="font-medium text-gray-900 dark:text-gray-100">{sku}</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">{item.sku}</span>
                 <span className="px-3 py-1 text-sm font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 rounded-full">
-                  {8 - idx} adjustments
+                  {item.adjustmentCount} adjustments
                 </span>
               </div>
             ))}

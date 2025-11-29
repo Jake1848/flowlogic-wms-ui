@@ -1,14 +1,19 @@
 import { useRoutes, useLocation } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import AIAssistant from './components/AIAssistant'
+import ProtectedRoute from './components/ProtectedRoute'
 import { useWMSStore } from './store/useWMSStore'
-import { routes, pathToPageId } from './routes'
+import { publicRoutes, protectedRoutes, pathToPageId } from './routes'
+import { queryClient } from './lib/queryClient'
 
-function App() {
+// Layout for authenticated pages
+function AuthenticatedLayout() {
   const { sidebarOpen } = useWMSStore()
   const location = useLocation()
-  const routeElement = useRoutes(routes)
+  const routeElement = useRoutes(protectedRoutes)
 
   // Determine current page from URL path
   const currentPage = pathToPageId[location.pathname] || 'dashboard'
@@ -24,6 +29,38 @@ function App() {
       </div>
       <AIAssistant />
     </div>
+  )
+}
+
+// Main app content with conditional routing
+function AppContent() {
+  const location = useLocation()
+
+  // Check if current path is a public route
+  const isPublicRoute = publicRoutes.some(route => route.path === location.pathname)
+
+  // Render public routes without protection
+  const publicRouteElement = useRoutes(publicRoutes)
+
+  // If on a public route, just render it
+  if (isPublicRoute) {
+    return <>{publicRouteElement}</>
+  }
+
+  // For protected routes, wrap with ProtectedRoute
+  return (
+    <ProtectedRoute>
+      <AuthenticatedLayout />
+    </ProtectedRoute>
+  )
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   )
 }
 
