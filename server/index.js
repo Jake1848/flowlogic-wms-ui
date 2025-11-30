@@ -19,6 +19,12 @@ import shippingRoutes from './routes/shipping.js';
 import cycleCountRoutes from './routes/cycleCounts.js';
 import laborRoutes from './routes/labor.js';
 import replenishmentRoutes from './routes/replenishment.js';
+import customerRoutes from './routes/customers.js';
+import vendorRoutes from './routes/vendors.js';
+import userRoutes from './routes/users.js';
+import carrierRoutes from './routes/carriers.js';
+import warehouseRoutes from './routes/warehouses.js';
+import reportRoutes from './routes/reports.js';
 
 // Import auth middleware
 import { optionalAuth } from './middleware/auth.js';
@@ -179,6 +185,12 @@ app.use('/api/shipping', shippingRoutes(prisma));
 app.use('/api/cycle-counts', cycleCountRoutes(prisma));
 app.use('/api/labor', laborRoutes(prisma));
 app.use('/api/replenishment', replenishmentRoutes(prisma));
+app.use('/api/customers', customerRoutes(prisma));
+app.use('/api/vendors', vendorRoutes(prisma));
+app.use('/api/users', userRoutes(prisma));
+app.use('/api/carriers', carrierRoutes(prisma));
+app.use('/api/warehouses', warehouseRoutes(prisma));
+app.use('/api/reports', reportRoutes(prisma));
 
 // Dashboard summary endpoint using $queryRawUnsafe to avoid prepared statement issues
 app.get('/api/dashboard', async (req, res) => {
@@ -583,6 +595,12 @@ async function startServer() {
 ║   • /api/cycle-counts   - Cycle counting & adjustments        ║
 ║   • /api/labor          - Labor tracking & productivity       ║
 ║   • /api/replenishment  - Replenishment rules & tasks         ║
+║   • /api/customers      - Customer management                 ║
+║   • /api/vendors        - Vendor management                   ║
+║   • /api/users          - User & role management              ║
+║   • /api/carriers       - Carrier & services                  ║
+║   • /api/warehouses     - Warehouse & zone management         ║
+║   • /api/reports        - Reports & analytics                 ║
 ║                                                               ║
 ║   AI Endpoints:                                               ║
 ║   • POST /api/chat      - Flow AI Assistant                   ║
