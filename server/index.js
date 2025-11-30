@@ -14,6 +14,11 @@ import alertRoutes from './routes/alerts.js';
 import dockRoutes from './routes/docks.js';
 import chatRoutes from './routes/chat.js';
 import authRoutes from './routes/auth.js';
+import receivingRoutes from './routes/receiving.js';
+import shippingRoutes from './routes/shipping.js';
+import cycleCountRoutes from './routes/cycleCounts.js';
+import laborRoutes from './routes/labor.js';
+import replenishmentRoutes from './routes/replenishment.js';
 
 // Import auth middleware
 import { optionalAuth } from './middleware/auth.js';
@@ -169,6 +174,11 @@ app.use('/api/alerts', alertRoutes(prisma));
 app.use('/api/docks', dockRoutes(prisma));
 app.use('/api/chat-history', chatRoutes(prisma));
 app.use('/api/auth', authRoutes(prisma));
+app.use('/api/receiving', receivingRoutes(prisma));
+app.use('/api/shipping', shippingRoutes(prisma));
+app.use('/api/cycle-counts', cycleCountRoutes(prisma));
+app.use('/api/labor', laborRoutes(prisma));
+app.use('/api/replenishment', replenishmentRoutes(prisma));
 
 // Dashboard summary endpoint using $queryRawUnsafe to avoid prepared statement issues
 app.get('/api/dashboard', async (req, res) => {
@@ -568,6 +578,11 @@ async function startServer() {
 ║   • /api/tasks          - Task management                     ║
 ║   • /api/alerts         - Alert system                        ║
 ║   • /api/docks          - Dock scheduling & appointments      ║
+║   • /api/receiving      - Inbound/PO management               ║
+║   • /api/shipping       - Outbound/carrier management         ║
+║   • /api/cycle-counts   - Cycle counting & adjustments        ║
+║   • /api/labor          - Labor tracking & productivity       ║
+║   • /api/replenishment  - Replenishment rules & tasks         ║
 ║                                                               ║
 ║   AI Endpoints:                                               ║
 ║   • POST /api/chat      - Flow AI Assistant                   ║
