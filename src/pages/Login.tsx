@@ -27,18 +27,18 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4" role="main">
       <div className="max-w-md w-full space-y-8">
         {/* Logo and Title */}
         <div className="text-center">
           <div className="flex justify-center">
             <div className="p-3 bg-blue-600 rounded-2xl shadow-lg">
-              <Boxes className="w-12 h-12 text-white" />
+              <Boxes className="w-12 h-12 text-white" aria-hidden="true" />
             </div>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
             FlowLogic WMS
-          </h2>
+          </h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Sign in to your account
           </p>
@@ -46,11 +46,11 @@ export default function Login() {
 
         {/* Login Form */}
         <div className="bg-white dark:bg-gray-800 py-8 px-10 shadow-xl rounded-2xl">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit} aria-label="Login form">
             {/* Error Message */}
             {error && (
-              <div className="flex items-center gap-2 p-3 text-sm text-red-700 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-lg">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <div className="flex items-center gap-2 p-3 text-sm text-red-700 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-lg" role="alert" aria-live="assertive">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
                 <span>{error}</span>
               </div>
             )}
@@ -72,6 +72,7 @@ export default function Login() {
                          placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                          dark:bg-gray-700 dark:text-white transition-colors"
                 placeholder="Enter your username"
+                aria-required="true"
               />
             </div>
 
@@ -92,6 +93,7 @@ export default function Login() {
                          placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                          dark:bg-gray-700 dark:text-white transition-colors"
                 placeholder="Enter your password"
+                aria-required="true"
               />
             </div>
 
@@ -103,16 +105,17 @@ export default function Login() {
                        text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700
                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
                        disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-busy={isLoading}
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Signing in...
+                  <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                  <span>Signing in...</span>
                 </>
               ) : (
                 <>
-                  <LogIn className="w-5 h-5" />
-                  Sign in
+                  <LogIn className="w-5 h-5" aria-hidden="true" />
+                  <span>Sign in</span>
                 </>
               )}
             </button>
@@ -131,6 +134,6 @@ export default function Login() {
           FlowLogic Warehouse Management System
         </p>
       </div>
-    </div>
+    </main>
   )
 }

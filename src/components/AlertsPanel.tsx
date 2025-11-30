@@ -29,32 +29,34 @@ export default function AlertsPanel() {
 
   if (alerts.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
+      <section className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6" aria-label="Alerts panel">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Alerts
         </h3>
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <Info className="w-12 h-12 mx-auto mb-2 opacity-50" />
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400" role="status">
+          <Info className="w-12 h-12 mx-auto mb-2 opacity-50" aria-hidden="true" />
           <p>No active alerts</p>
         </div>
-      </div>
+      </section>
     )
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+    <section className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6" aria-label="Alerts panel">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4" id="alerts-heading">
         Alerts ({alerts.length})
       </h3>
-      <div className="space-y-3 max-h-96 overflow-y-auto scrollbar-hide">
+      <ul className="space-y-3 max-h-96 overflow-y-auto scrollbar-hide" role="list" aria-labelledby="alerts-heading" aria-live="polite">
         {alerts.map((alert) => (
-          <div
+          <li
             key={alert.id}
             className={`flex items-start space-x-3 p-4 rounded-lg border ${getAlertStyles(
               alert.type
             )}`}
+            role="alert"
+            aria-atomic="true"
           >
-            <div className="flex-shrink-0 mt-0.5">{getAlertIcon(alert.type)}</div>
+            <div className="flex-shrink-0 mt-0.5" aria-hidden="true">{getAlertIcon(alert.type)}</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{alert.message}</p>
               <div className="flex items-center space-x-2 mt-1 text-xs opacity-75">
@@ -66,12 +68,13 @@ export default function AlertsPanel() {
             <button
               onClick={() => removeAlert(alert.id)}
               className="flex-shrink-0 p-1 rounded hover:bg-black/10 transition-colors"
+              aria-label={`Dismiss alert: ${alert.message}`}
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
-          </div>
+          </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </section>
   )
 }
