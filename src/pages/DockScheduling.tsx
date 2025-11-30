@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calendar,
@@ -333,7 +333,7 @@ export default function DockScheduling() {
     ];
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = useCallback((status: string) => {
     const s = status.toLowerCase();
     switch (s) {
       case 'available': return 'bg-green-100 border-green-300';
@@ -343,9 +343,9 @@ export default function DockScheduling() {
       case 'maintenance': return 'bg-red-100 border-red-300';
       default: return 'bg-gray-100 border-gray-300';
     }
-  };
+  }, []);
 
-  const getAppointmentColor = (status: string) => {
+  const getAppointmentColor = useCallback((status: string) => {
     const s = status.toLowerCase();
     switch (s) {
       case 'checked_in': return 'bg-blue-500';
@@ -359,9 +359,9 @@ export default function DockScheduling() {
       case 'shipped': return 'bg-gray-400';
       default: return 'bg-gray-300';
     }
-  };
+  }, []);
 
-  const getAppointmentStatusLabel = (status: string) => {
+  const getAppointmentStatusLabel = useCallback((status: string) => {
     const s = status.toLowerCase();
     switch (s) {
       case 'checked_in': return 'Checked In';
@@ -375,30 +375,41 @@ export default function DockScheduling() {
       case 'shipped': return 'Shipped';
       default: return status;
     }
-  };
+  }, []);
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  };
+  const formattedDate = useMemo(
+    () => selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+    [selectedDate]
+  );
 
-  const formatTime = (isoString: string) => {
+  const formatTime = useCallback((isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-  };
+  }, []);
 
-  const navigateDate = (days: number) => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + days);
-    setSelectedDate(newDate);
-  };
-
-  const getAppointmentForSlot = (dockCode: string, time: string) => {
-    return appointments.find(apt => {
-      if (!apt.dock || apt.dock.code !== dockCode) return false;
-      const aptTime = formatTime(apt.scheduledTime);
-      return aptTime === time;
+  const navigateDate = useCallback((days: number) => {
+    setSelectedDate(prevDate => {
+      const newDate = new Date(prevDate);
+      newDate.setDate(newDate.getDate() + days);
+      return newDate;
     });
-  };
+  }, []);
+
+  // Memoize appointment lookup map for O(1) slot lookup
+  const appointmentsBySlot = useMemo(() => {
+    const map = new Map<string, Appointment>();
+    appointments.forEach(apt => {
+      if (apt.dock) {
+        const time = formatTime(apt.scheduledTime);
+        map.set(`${apt.dock.code}-${time}`, apt);
+      }
+    });
+    return map;
+  }, [appointments, formatTime]);
+
+  const getAppointmentForSlot = useCallback((dockCode: string, time: string) => {
+    return appointmentsBySlot.get(`${dockCode}-${time}`);
+  }, [appointmentsBySlot]);
 
   return (
     <div className="space-y-6">
@@ -585,7 +596,7 @@ export default function DockScheduling() {
           </button>
           <div className="flex items-center gap-3">
             <Calendar className="w-5 h-5 text-gray-400" />
-            <span className="font-medium text-gray-900">{formatDate(selectedDate)}</span>
+            <span className="font-medium text-gray-900">{formattedDate}</span>
           </div>
           <button
             onClick={() => navigateDate(1)}

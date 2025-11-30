@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { ChevronDown, ChevronUp, Search } from 'lucide-react'
 import type { SKUData } from '../store/useWMSStore'
 
@@ -17,45 +17,57 @@ export default function InventoryTable({ data, onRowClick }: InventoryTableProps
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
+  const handleSort = useCallback((field: SortField) => {
+    setSortField(prevField => {
+      if (prevField === field) {
+        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+        return prevField
+      }
       setSortDirection('asc')
-    }
-  }
+      return field
+    })
+  }, [])
 
-  const filteredData = data.filter(
-    (item) =>
-      item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.location.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredData = useMemo(() =>
+    data.filter(
+      (item) =>
+        item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.location.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    [data, searchTerm]
   )
 
-  const sortedData = [...filteredData].sort((a, b) => {
-    const multiplier = sortDirection === 'asc' ? 1 : -1
-    if (sortField === 'sku' || sortField === 'location') {
-      return multiplier * a[sortField].localeCompare(b[sortField])
-    }
-    return multiplier * (a[sortField] - b[sortField])
-  })
-
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage)
-  const paginatedData = sortedData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  const sortedData = useMemo(() =>
+    [...filteredData].sort((a, b) => {
+      const multiplier = sortDirection === 'asc' ? 1 : -1
+      if (sortField === 'sku' || sortField === 'location') {
+        return multiplier * a[sortField].localeCompare(b[sortField])
+      }
+      return multiplier * (a[sortField] - b[sortField])
+    }),
+    [filteredData, sortField, sortDirection]
   )
 
-  const SortIcon = ({ field }: { field: SortField }) => {
+  const totalPages = useMemo(() => Math.ceil(sortedData.length / itemsPerPage), [sortedData.length])
+
+  const paginatedData = useMemo(() =>
+    sortedData.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    ),
+    [sortedData, currentPage]
+  )
+
+  const SortIcon = useCallback(({ field }: { field: SortField }) => {
     if (sortField !== field) return null
     return sortDirection === 'asc' ? (
       <ChevronUp className="w-4 h-4" />
     ) : (
       <ChevronDown className="w-4 h-4" />
     )
-  }
+  }, [sortField, sortDirection])
 
-  const getEPStatusColor = (status: SKUData['epStatus']) => {
+  const getEPStatusColor = useCallback((status: SKUData['epStatus']) => {
     switch (status) {
       case 'critical':
         return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
@@ -64,7 +76,7 @@ export default function InventoryTable({ data, onRowClick }: InventoryTableProps
       default:
         return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
     }
-  }
+  }, [])
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md">

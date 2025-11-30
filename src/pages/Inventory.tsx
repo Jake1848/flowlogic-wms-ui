@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from 'react'
 import { X, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react'
 import InventoryTable from '../components/InventoryTable'
 import { useFetch } from '../hooks/useFetch'
@@ -13,6 +14,23 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
+// Generate historical data outside component to avoid recreating on every render
+const generateHistoricalData = (skuId: string) => {
+  // Use SKU id as seed for consistent data per SKU
+  const seed = skuId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  const data = []
+  for (let i = 30; i >= 0; i--) {
+    data.push({
+      date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      }),
+      quantity: Math.floor(((seed * (i + 1) * 9301 + 49297) % 233280) / 233280 * 200) + 800,
+    })
+  }
+  return data
+}
+
 export default function Inventory() {
   const { selectedSKU, setSelectedSKU } = useWMSStore()
   const { data: inventoryData } = useFetch<SKUData[]>('/api/inventory', {
@@ -20,22 +38,14 @@ export default function Inventory() {
     refreshInterval: 30000,
   })
 
-  // Mock historical data for selected SKU
-  const getHistoricalData = () => {
-    const data = []
-    for (let i = 30; i >= 0; i--) {
-      data.push({
-        date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        }),
-        quantity: Math.floor(Math.random() * 200) + 800,
-      })
-    }
-    return data
-  }
+  // Memoize historical data based on selected SKU
+  const historicalData = useMemo(
+    () => selectedSKU ? generateHistoricalData(selectedSKU.id) : [],
+    [selectedSKU?.id]
+  )
 
-  const historicalData = getHistoricalData()
+  const handleRowClick = useCallback((sku: SKUData) => setSelectedSKU(sku), [setSelectedSKU])
+  const handleClosePanel = useCallback(() => setSelectedSKU(null), [setSelectedSKU])
 
   return (
     <div className="space-y-6">
@@ -58,7 +68,7 @@ export default function Inventory() {
 
       <InventoryTable
         data={inventoryData || []}
-        onRowClick={(sku) => setSelectedSKU(sku)}
+        onRowClick={handleRowClick}
       />
 
       {/* Side Panel for Selected SKU */}
@@ -67,7 +77,7 @@ export default function Inventory() {
           <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">SKU Details</h2>
             <button
-              onClick={() => setSelectedSKU(null)}
+              onClick={handleClosePanel}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               <X className="w-5 h-5" />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   LineChart,
   Line,
@@ -16,25 +16,26 @@ interface DataPoint {
   completion: number
 }
 
+// Generate initial data outside component for consistency
+const generateInitialData = (): DataPoint[] => {
+  const data: DataPoint[] = []
+  const now = new Date()
+  for (let i = 11; i >= 0; i--) {
+    const time = new Date(now.getTime() - i * 5 * 60 * 1000)
+    data.push({
+      time: time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      accuracy: 95 + Math.random() * 4,
+      completion: 70 + Math.random() * 20,
+    })
+  }
+  return data
+}
+
 export default function ProductionGraph() {
-  const [data, setData] = useState<DataPoint[]>([])
+  const [data, setData] = useState<DataPoint[]>(generateInitialData)
 
+  // Update data every 15 seconds
   useEffect(() => {
-    // Initialize with some data
-    const initialData: DataPoint[] = []
-    const now = new Date()
-
-    for (let i = 11; i >= 0; i--) {
-      const time = new Date(now.getTime() - i * 5 * 60 * 1000)
-      initialData.push({
-        time: time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        accuracy: 95 + Math.random() * 4,
-        completion: 70 + Math.random() * 20,
-      })
-    }
-    setData(initialData)
-
-    // Update data every 15 seconds
     const interval = setInterval(() => {
       setData((prevData) => {
         const newData = [...prevData]
@@ -50,6 +51,13 @@ export default function ProductionGraph() {
 
     return () => clearInterval(interval)
   }, [])
+
+  // Memoize tooltip style to avoid recreation on each render
+  const tooltipStyle = useMemo(() => ({
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+  }), [])
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
@@ -74,13 +82,7 @@ export default function ProductionGraph() {
             tick={{ fontSize: 12 }}
             domain={[0, 100]}
           />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-            }}
-          />
+          <Tooltip contentStyle={tooltipStyle} />
           <Legend />
           <Line
             type="monotone"

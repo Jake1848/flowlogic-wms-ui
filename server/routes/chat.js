@@ -112,47 +112,52 @@ export default function chatRoutes(prisma) {
       return res.status(400).json({ error: 'role and content are required' });
     }
 
-    // Find or create session
-    let session = await prisma.chatSession.findUnique({
-      where: { sessionId },
-    });
-
-    if (!session) {
-      session = await prisma.chatSession.create({
-        data: { sessionId },
+    // Use transaction for atomic message creation and session update
+    const message = await prisma.$transaction(async (tx) => {
+      // Find or create session
+      let session = await tx.chatSession.findUnique({
+        where: { sessionId },
       });
-    }
 
-    // Create message
-    const message = await prisma.chatMessage.create({
-      data: {
-        sessionId: session.id,
-        role,
-        content,
-        toolsUsed: toolsUsed || [],
-        analysis,
-        actions,
-        tokenCount,
-        modelId,
-      },
-    });
+      if (!session) {
+        session = await tx.chatSession.create({
+          data: { sessionId },
+        });
+      }
 
-    // Update session stats
-    const updateData = {
-      messageCount: { increment: 1 },
-      lastMessageAt: new Date(),
-    };
+      // Create message
+      const newMessage = await tx.chatMessage.create({
+        data: {
+          sessionId: session.id,
+          role,
+          content,
+          toolsUsed: toolsUsed || [],
+          analysis,
+          actions,
+          tokenCount,
+          modelId,
+        },
+      });
 
-    // Generate title from first user message if not set
-    if (!session.title && role === 'user') {
-      updateData.title = content.length > 50
-        ? content.substring(0, 50) + '...'
-        : content;
-    }
+      // Update session stats
+      const updateData = {
+        messageCount: { increment: 1 },
+        lastMessageAt: new Date(),
+      };
 
-    await prisma.chatSession.update({
-      where: { id: session.id },
-      data: updateData,
+      // Generate title from first user message if not set
+      if (!session.title && role === 'user') {
+        updateData.title = content.length > 50
+          ? content.substring(0, 50) + '...'
+          : content;
+      }
+
+      await tx.chatSession.update({
+        where: { id: session.id },
+        data: updateData,
+      });
+
+      return newMessage;
     });
 
     res.status(201).json(message);

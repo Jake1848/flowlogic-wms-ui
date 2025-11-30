@@ -335,74 +335,78 @@ export default function orderRoutes(prisma) {
         return res.status(400).json({ error: 'Order cannot be allocated in current status' });
       }
 
-      // Check inventory and allocate
-      const allocationResults = [];
+      // Use transaction for atomic inventory allocation
+      const allocationResults = await prisma.$transaction(async (tx) => {
+        const results = [];
 
-      for (const line of order.lines) {
-        // Find available inventory
-        const inventory = await prisma.inventory.findMany({
-          where: {
-            warehouseId: order.warehouseId,
-            productId: line.productId,
-            quantityAvailable: { gt: 0 },
-            status: 'AVAILABLE',
-          },
-          orderBy: [
-            { expirationDate: 'asc' },
-            { createdAt: 'asc' },
-          ],
-        });
+        for (const line of order.lines) {
+          // Find available inventory
+          const inventory = await tx.inventory.findMany({
+            where: {
+              warehouseId: order.warehouseId,
+              productId: line.productId,
+              quantityAvailable: { gt: 0 },
+              status: 'AVAILABLE',
+            },
+            orderBy: [
+              { expirationDate: 'asc' },
+              { createdAt: 'asc' },
+            ],
+          });
 
-        let remaining = line.quantityOrdered - line.quantityAllocated;
-        let allocated = 0;
+          let remaining = line.quantityOrdered - line.quantityAllocated;
+          let allocated = 0;
 
-        for (const inv of inventory) {
-          if (remaining <= 0) break;
+          for (const inv of inventory) {
+            if (remaining <= 0) break;
 
-          const toAllocate = Math.min(remaining, inv.quantityAvailable);
+            const toAllocate = Math.min(remaining, inv.quantityAvailable);
 
-          await prisma.inventory.update({
-            where: { id: inv.id },
+            await tx.inventory.update({
+              where: { id: inv.id },
+              data: {
+                quantityAllocated: { increment: toAllocate },
+                quantityAvailable: { decrement: toAllocate },
+              },
+            });
+
+            allocated += toAllocate;
+            remaining -= toAllocate;
+          }
+
+          await tx.orderLine.update({
+            where: { id: line.id },
             data: {
-              quantityAllocated: { increment: toAllocate },
-              quantityAvailable: { decrement: toAllocate },
+              quantityAllocated: { increment: allocated },
+              status: allocated >= line.quantityOrdered ? 'ALLOCATED' : 'PARTIAL_ALLOCATED',
             },
           });
 
-          allocated += toAllocate;
-          remaining -= toAllocate;
+          results.push({
+            lineNumber: line.lineNumber,
+            productSku: line.product.sku,
+            requested: line.quantityOrdered,
+            allocated,
+            shortage: remaining,
+          });
         }
 
-        await prisma.orderLine.update({
-          where: { id: line.id },
+        // Update order status
+        const fullyAllocated = results.every(r => r.shortage === 0);
+        await tx.order.update({
+          where: { id },
           data: {
-            quantityAllocated: { increment: allocated },
-            status: allocated >= line.quantityOrdered ? 'ALLOCATED' : 'PARTIAL_ALLOCATED',
+            status: fullyAllocated ? 'ALLOCATED' : 'BACKORDERED',
           },
         });
 
-        allocationResults.push({
-          lineNumber: line.lineNumber,
-          productSku: line.product.sku,
-          requested: line.quantityOrdered,
-          allocated,
-          shortage: remaining,
-        });
-      }
-
-      // Update order status
-      const fullyAllocated = allocationResults.every(r => r.shortage === 0);
-      await prisma.order.update({
-        where: { id },
-        data: {
-          status: fullyAllocated ? 'ALLOCATED' : 'BACKORDERED',
-        },
+        return { results, fullyAllocated };
       });
 
       res.json({
         success: true,
-        fullyAllocated,
-        allocations: allocationResults,
+        fullyAllocated: allocationResults.fullyAllocated,
+        allocations: allocationResults.results,
       });
     } catch (error) {
       console.error('Allocate order error:', error);
@@ -429,51 +433,54 @@ export default function orderRoutes(prisma) {
         return res.status(400).json({ error: 'Cannot cancel shipped/delivered order' });
       }
 
-      // Deallocate inventory
-      for (const line of order.lines) {
-        if (line.quantityAllocated > 0) {
-          // Find allocations and release them
-          const inventories = await prisma.inventory.findMany({
-            where: {
-              productId: line.productId,
-              warehouseId: order.warehouseId,
-              quantityAllocated: { gt: 0 },
-            },
-          });
-
-          let toRelease = line.quantityAllocated;
-          for (const inv of inventories) {
-            if (toRelease <= 0) break;
-            const release = Math.min(toRelease, inv.quantityAllocated);
-            await prisma.inventory.update({
-              where: { id: inv.id },
-              data: {
-                quantityAllocated: { decrement: release },
-                quantityAvailable: { increment: release },
+      // Use transaction for atomic cancellation and inventory release
+      await prisma.$transaction(async (tx) => {
+        // Deallocate inventory for each line
+        for (const line of order.lines) {
+          if (line.quantityAllocated > 0) {
+            // Find allocations and release them
+            const inventories = await tx.inventory.findMany({
+              where: {
+                productId: line.productId,
+                warehouseId: order.warehouseId,
+                quantityAllocated: { gt: 0 },
               },
             });
-            toRelease -= release;
+
+            let toRelease = line.quantityAllocated;
+            for (const inv of inventories) {
+              if (toRelease <= 0) break;
+              const release = Math.min(toRelease, inv.quantityAllocated);
+              await tx.inventory.update({
+                where: { id: inv.id },
+                data: {
+                  quantityAllocated: { decrement: release },
+                  quantityAvailable: { increment: release },
+                },
+              });
+              toRelease -= release;
+            }
           }
         }
-      }
 
-      // Update order and lines
-      await prisma.$transaction([
-        prisma.orderLine.updateMany({
+        // Update order lines to cancelled
+        await tx.orderLine.updateMany({
           where: { orderId: id },
           data: {
             status: 'CANCELLED',
             quantityCancelled: { increment: 1 },
           },
-        }),
-        prisma.order.update({
+        });
+
+        // Update order status
+        await tx.order.update({
           where: { id },
           data: {
             status: 'CANCELLED',
             notes: reason ? `Cancelled: ${reason}` : 'Order cancelled',
           },
-        }),
-      ]);
+        });
+      });
 
       res.json({ success: true, message: 'Order cancelled successfully' });
     } catch (error) {
