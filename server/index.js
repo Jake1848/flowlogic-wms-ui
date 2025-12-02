@@ -25,6 +25,8 @@ import userRoutes from './routes/users.js';
 import carrierRoutes from './routes/carriers.js';
 import warehouseRoutes from './routes/warehouses.js';
 import reportRoutes from './routes/reports.js';
+import palletRoutes from './routes/pallets.js';
+import physicalInventoryRoutes from './routes/physicalInventory.js';
 
 // Import auth middleware
 import { optionalAuth } from './middleware/auth.js';
@@ -191,6 +193,8 @@ app.use('/api/users', userRoutes(prisma));
 app.use('/api/carriers', carrierRoutes(prisma));
 app.use('/api/warehouses', warehouseRoutes(prisma));
 app.use('/api/reports', reportRoutes(prisma));
+app.use('/api/pallets', palletRoutes(prisma));
+app.use('/api/physical-inventory', physicalInventoryRoutes(prisma));
 
 // Dashboard summary endpoint using $queryRawUnsafe to avoid prepared statement issues
 app.get('/api/dashboard', async (req, res) => {
@@ -601,6 +605,8 @@ async function startServer() {
 ║   • /api/carriers       - Carrier & services                  ║
 ║   • /api/warehouses     - Warehouse & zone management         ║
 ║   • /api/reports        - Reports & analytics                 ║
+║   • /api/pallets        - Pallet management & moves           ║
+║   • /api/physical-inventory - Physical inventory counts       ║
 ║                                                               ║
 ║   AI Endpoints:                                               ║
 ║   • POST /api/chat      - Flow AI Assistant                   ║
