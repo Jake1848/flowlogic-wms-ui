@@ -33,6 +33,11 @@ import asnRoutes from './routes/asn.js';
 import integrationRoutes from './routes/integrations.js';
 import settingsRoutes from './routes/settings.js';
 import auditLogRoutes from './routes/auditLogs.js';
+import containerRoutes from './routes/containers.js';
+import appointmentRoutes from './routes/appointments.js';
+import purchaseOrderRoutes from './routes/purchaseOrders.js';
+import gateRoutes from './routes/gate.js';
+import shipNoticeRoutes from './routes/shipNotices.js';
 
 // Import auth middleware
 import { optionalAuth } from './middleware/auth.js';
@@ -207,6 +212,11 @@ app.use('/api/asn', asnRoutes(prisma));
 app.use('/api/integrations', integrationRoutes(prisma));
 app.use('/api/settings', settingsRoutes(prisma));
 app.use('/api/audit-logs', auditLogRoutes(prisma));
+app.use('/api/containers', containerRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/purchase-orders', purchaseOrderRoutes);
+app.use('/api/gate', gateRoutes);
+app.use('/api/ship-notices', shipNoticeRoutes);
 
 // Dashboard summary endpoint using $queryRawUnsafe to avoid prepared statement issues
 app.get('/api/dashboard', async (req, res) => {
@@ -625,6 +635,11 @@ async function startServer() {
 ║   • /api/integrations   - EDI & trading partners             ║
 ║   • /api/settings       - System configuration               ║
 ║   • /api/audit-logs     - Audit trail & compliance           ║
+║   • /api/containers     - Container receiving & tracking     ║
+║   • /api/appointments   - Dock appointments & scheduling     ║
+║   • /api/purchase-orders - PO management & analysis         ║
+║   • /api/gate           - Gate in/out & compliance          ║
+║   • /api/ship-notices   - ASN/Ship notice management        ║
 ║                                                               ║
 ║   AI Endpoints:                                               ║
 ║   • POST /api/chat      - Flow AI Assistant                   ║

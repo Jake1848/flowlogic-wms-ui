@@ -811,6 +811,532 @@ export default function createPhysicalInventoryRoutes(prisma) {
   }));
 
   // ============================================
+  // CIPIA - Physical Inventory Data Entry
+  // Data Entry and Out of Book Mode
+  // ============================================
+
+  // Get data entry screen for a count book page
+  router.get('/:id/books/:bookId/data-entry', asyncHandler(async (req, res) => {
+    const { bookId } = req.params;
+    const { page = 1, pageSize = 20 } = req.query;
+
+    const book = await prisma.countBook.findUnique({
+      where: { id: bookId },
+      include: {
+        physicalInventory: {
+          select: { piNumber: true, blindCount: true, status: true }
+        },
+        assignedTo: { select: { fullName: true, username: true } },
+      }
+    });
+
+    if (!book) {
+      return res.status(404).json({ error: 'Count book not found' });
+    }
+
+    if (!['ASSIGNED', 'IN_PROGRESS'].includes(book.status)) {
+      return res.status(400).json({
+        error: 'Count book must be assigned or in progress for data entry'
+      });
+    }
+
+    const offset = (parseInt(page) - 1) * parseInt(pageSize);
+
+    const [lines, total] = await Promise.all([
+      prisma.countBookLine.findMany({
+        where: { countBookId: bookId },
+        include: {
+          location: { select: { code: true, aisle: true, bay: true, level: true } },
+          product: { select: { sku: true, name: true, uom: true } },
+        },
+        orderBy: { lineNumber: 'asc' },
+        skip: offset,
+        take: parseInt(pageSize)
+      }),
+      prisma.countBookLine.count({ where: { countBookId: bookId } })
+    ]);
+
+    const totalPages = Math.ceil(total / parseInt(pageSize));
+
+    res.json({
+      book: {
+        id: book.id,
+        bookNumber: book.bookNumber,
+        status: book.status,
+        assignedTo: book.assignedTo?.fullName,
+        piNumber: book.physicalInventory.piNumber,
+        blindCount: book.physicalInventory.blindCount
+      },
+      page: parseInt(page),
+      pageSize: parseInt(pageSize),
+      totalPages,
+      totalLines: total,
+      hasNextPage: parseInt(page) < totalPages,
+      hasPrevPage: parseInt(page) > 1,
+      lines: lines.map(line => ({
+        id: line.id,
+        lineNumber: line.lineNumber,
+        locationCode: line.location?.code,
+        locationDetail: line.location ? `${line.location.aisle}-${line.location.bay}-${line.location.level}` : null,
+        productSku: line.product?.sku,
+        productName: line.product?.name,
+        uom: line.product?.uom || 'EA',
+        lpn: line.lpn,
+        lotNumber: line.lotNumber,
+        expectedQuantity: book.physicalInventory.blindCount ? null : line.expectedQuantity,
+        countedQuantity: line.countedQuantity,
+        status: line.status
+      }))
+    });
+  }));
+
+  // Submit data entry page (batch entry for CIPIA)
+  router.post('/:id/books/:bookId/data-entry', asyncHandler(async (req, res) => {
+    const { id, bookId } = req.params;
+    const { entries, userId } = req.body;
+
+    if (!entries || !Array.isArray(entries)) {
+      return res.status(400).json({ error: 'entries array is required' });
+    }
+
+    const book = await prisma.countBook.findUnique({
+      where: { id: bookId },
+      include: {
+        physicalInventory: {
+          select: {
+            varianceThresholdQty: true,
+            varianceThresholdPct: true,
+            status: true
+          }
+        }
+      }
+    });
+
+    if (!book) {
+      return res.status(404).json({ error: 'Count book not found' });
+    }
+
+    const results = await prisma.$transaction(async (tx) => {
+      const processed = [];
+
+      for (const entry of entries) {
+        const line = await tx.countBookLine.findUnique({
+          where: { id: entry.lineId }
+        });
+
+        if (!line || line.countBookId !== bookId) {
+          processed.push({ lineId: entry.lineId, error: 'Line not found' });
+          continue;
+        }
+
+        const qty = parseInt(entry.countedQuantity);
+        const expected = line.expectedQuantity || 0;
+        const variance = qty - expected;
+        const variancePct = expected > 0
+          ? (Math.abs(variance) / expected) * 100
+          : (qty > 0 ? 100 : 0);
+
+        const pi = book.physicalInventory;
+        const needsRecount =
+          Math.abs(variance) > (pi.varianceThresholdQty || 5) &&
+          variancePct > (pi.varianceThresholdPct || 5);
+
+        const updated = await tx.countBookLine.update({
+          where: { id: entry.lineId },
+          data: {
+            countedQuantity: qty,
+            variance,
+            variancePct,
+            countedById: userId,
+            countedAt: new Date(),
+            status: needsRecount ? 'RECOUNT_REQUIRED' : 'COUNTED',
+            notes: entry.notes
+          }
+        });
+
+        processed.push({
+          lineId: entry.lineId,
+          countedQuantity: qty,
+          variance,
+          status: updated.status,
+          needsRecount
+        });
+      }
+
+      // Update book progress
+      const countedLines = await tx.countBookLine.count({
+        where: {
+          countBookId: bookId,
+          status: { in: ['COUNTED', 'RECOUNT_REQUIRED', 'APPROVED'] }
+        }
+      });
+
+      const totalLines = await tx.countBookLine.count({
+        where: { countBookId: bookId }
+      });
+
+      await tx.countBook.update({
+        where: { id: bookId },
+        data: {
+          countedLocations: countedLines,
+          status: 'IN_PROGRESS'
+        }
+      });
+
+      // Update PI status if needed
+      await tx.physicalInventory.updateMany({
+        where: { id, status: 'SCHEDULED' },
+        data: { status: 'IN_PROGRESS', startedAt: new Date() }
+      });
+
+      return { processed, countedLines, totalLines };
+    });
+
+    res.json({
+      success: true,
+      pageCompleted: true,
+      entriesProcessed: results.processed.length,
+      bookProgress: `${results.countedLines}/${results.totalLines}`,
+      percentComplete: Math.round((results.countedLines / results.totalLines) * 100),
+      entries: results.processed
+    });
+  }));
+
+  // Out of Book Entry (CIPIA Out of Book Mode)
+  router.post('/:id/out-of-book', asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { locationId, productId, countedQuantity, lpn, lotNumber, userId, notes } = req.body;
+
+    const pi = await prisma.physicalInventory.findUnique({
+      where: { id },
+      select: {
+        status: true,
+        piNumber: true,
+        varianceThresholdQty: true,
+        varianceThresholdPct: true
+      }
+    });
+
+    if (!pi) {
+      return res.status(404).json({ error: 'Physical inventory not found' });
+    }
+
+    if (!['IN_PROGRESS'].includes(pi.status)) {
+      return res.status(400).json({
+        error: 'Out of book entries only allowed when PI is in progress'
+      });
+    }
+
+    // Get expected quantity from inventory
+    const inventory = await prisma.inventory.findFirst({
+      where: { locationId, productId }
+    });
+    const expectedQty = inventory?.quantityOnHand || 0;
+
+    const qty = parseInt(countedQuantity);
+    const variance = qty - expectedQty;
+    const variancePct = expectedQty > 0
+      ? (Math.abs(variance) / expectedQty) * 100
+      : (qty > 0 ? 100 : 0);
+
+    // Find or create an out-of-book count book
+    let outOfBookBook = await prisma.countBook.findFirst({
+      where: {
+        physicalInventoryId: id,
+        bookNumber: { startsWith: 'OOB-' }
+      }
+    });
+
+    if (!outOfBookBook) {
+      const location = await prisma.location.findUnique({
+        where: { id: locationId },
+        select: { zoneId: true }
+      });
+
+      outOfBookBook = await prisma.countBook.create({
+        data: {
+          physicalInventoryId: id,
+          bookNumber: `OOB-${Date.now()}`,
+          zoneId: location?.zoneId,
+          status: 'IN_PROGRESS',
+          totalLocations: 0,
+          countedLocations: 0
+        }
+      });
+    }
+
+    // Create the out-of-book line
+    const maxLine = await prisma.countBookLine.aggregate({
+      where: { countBookId: outOfBookBook.id },
+      _max: { lineNumber: true }
+    });
+
+    const entry = await prisma.countBookLine.create({
+      data: {
+        countBookId: outOfBookBook.id,
+        lineNumber: (maxLine._max?.lineNumber || 0) + 1,
+        locationId,
+        productId,
+        lpn,
+        lotNumber,
+        expectedQuantity: expectedQty,
+        countedQuantity: qty,
+        variance,
+        variancePct,
+        countedById: userId,
+        countedAt: new Date(),
+        status: Math.abs(variance) > pi.varianceThresholdQty ? 'RECOUNT_REQUIRED' : 'COUNTED',
+        notes: `Out of Book Entry: ${notes || ''}`
+      },
+      include: {
+        location: { select: { code: true } },
+        product: { select: { sku: true, name: true } }
+      }
+    });
+
+    // Update book totals
+    await prisma.countBook.update({
+      where: { id: outOfBookBook.id },
+      data: {
+        totalLocations: { increment: 1 },
+        countedLocations: { increment: 1 }
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      outOfBookEntry: entry,
+      bookNumber: outOfBookBook.bookNumber,
+      piNumber: pi.piNumber
+    });
+  }));
+
+  // ============================================
+  // IIPIB/IPVUA - Count Book Summary & Assignment Status
+  // Supervisor screens for managing count books
+  // ============================================
+
+  // Get count book summary list (IIPIB)
+  router.get('/:id/books/summary', asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { status, zone, assignedTo, page = 1, limit = 50 } = req.query;
+
+    const where = { physicalInventoryId: id };
+    if (status) where.status = status;
+    if (zone) where.zoneId = zone;
+    if (assignedTo) where.assignedToId = assignedTo;
+
+    const [books, total, pi] = await Promise.all([
+      prisma.countBook.findMany({
+        where,
+        include: {
+          zone: { select: { code: true, name: true } },
+          assignedTo: { select: { id: true, fullName: true, username: true } },
+          _count: { select: { lines: true } }
+        },
+        orderBy: { bookNumber: 'asc' },
+        skip: (parseInt(page) - 1) * parseInt(limit),
+        take: parseInt(limit)
+      }),
+      prisma.countBook.count({ where }),
+      prisma.physicalInventory.findUnique({
+        where: { id },
+        select: { piNumber: true, status: true, name: true }
+      })
+    ]);
+
+    // Get status summary
+    const statusSummary = await prisma.countBook.groupBy({
+      by: ['status'],
+      where: { physicalInventoryId: id },
+      _count: { id: true }
+    });
+
+    res.json({
+      physicalInventory: pi,
+      statusSummary: statusSummary.reduce((acc, s) => {
+        acc[s.status] = s._count.id;
+        return acc;
+      }, {}),
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit))
+      },
+      books: books.map(book => ({
+        id: book.id,
+        bookNumber: book.bookNumber,
+        zone: book.zone?.code,
+        zoneName: book.zone?.name,
+        status: book.status,
+        assignedTo: book.assignedTo?.fullName,
+        assignedToId: book.assignedToId,
+        totalLocations: book.totalLocations,
+        countedLocations: book.countedLocations,
+        lineCount: book._count.lines,
+        percentComplete: book.totalLocations > 0
+          ? Math.round((book.countedLocations / book.totalLocations) * 100)
+          : 0,
+        assignedAt: book.assignedAt,
+        startedAt: book.startedAt,
+        completedAt: book.completedAt
+      }))
+    });
+  }));
+
+  // Update count book status (IIPIB supervisor function)
+  router.patch('/:id/books/:bookId/status', asyncHandler(async (req, res) => {
+    const { bookId } = req.params;
+    const { status, priority, printQueue, operatorInitials, notes } = req.body;
+
+    const validStatuses = ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'CANCELLED'];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    const updateData = {};
+    if (status) updateData.status = status;
+    if (priority !== undefined) updateData.priority = parseInt(priority);
+    if (printQueue !== undefined) updateData.printQueue = printQueue;
+    if (operatorInitials !== undefined) updateData.operatorInitials = operatorInitials;
+    if (notes !== undefined) updateData.notes = notes;
+
+    const book = await prisma.countBook.update({
+      where: { id: bookId },
+      data: updateData,
+      include: {
+        zone: { select: { code: true } },
+        assignedTo: { select: { fullName: true } }
+      }
+    });
+
+    res.json(book);
+  }));
+
+  // Get count book assignment status (IPVUA)
+  router.get('/:id/assignment-status', asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { showAll = false } = req.query;
+
+    const where = { physicalInventoryId: id };
+    if (!showAll) {
+      where.status = { in: ['NEW', 'ASSIGNED', 'IN_PROGRESS'] };
+    }
+
+    const books = await prisma.countBook.findMany({
+      where,
+      include: {
+        zone: { select: { code: true, name: true } },
+        assignedTo: { select: { id: true, fullName: true, username: true } }
+      },
+      orderBy: [
+        { priority: 'asc' },
+        { bookNumber: 'asc' }
+      ]
+    });
+
+    // Get counter workload summary
+    const counterWorkload = await prisma.countBook.groupBy({
+      by: ['assignedToId'],
+      where: {
+        physicalInventoryId: id,
+        assignedToId: { not: null },
+        status: { in: ['ASSIGNED', 'IN_PROGRESS'] }
+      },
+      _count: { id: true },
+      _sum: { totalLocations: true, countedLocations: true }
+    });
+
+    // Get user details
+    const userIds = counterWorkload.map(w => w.assignedToId).filter(Boolean);
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, fullName: true, username: true }
+    });
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    res.json({
+      books: books.map(book => ({
+        id: book.id,
+        bookNumber: book.bookNumber,
+        zone: book.zone?.code,
+        status: book.status,
+        priority: book.priority || 5,
+        counterName: book.assignedTo?.fullName || 'Unassigned',
+        counterId: book.assignedToId,
+        totalLocations: book.totalLocations,
+        countedLocations: book.countedLocations,
+        percentComplete: book.totalLocations > 0
+          ? Math.round((book.countedLocations / book.totalLocations) * 100)
+          : 0
+      })),
+      counterWorkload: counterWorkload.map(w => ({
+        counter: userMap.get(w.assignedToId),
+        booksAssigned: w._count.id,
+        totalLocations: w._sum?.totalLocations || 0,
+        countedLocations: w._sum?.countedLocations || 0
+      }))
+    });
+  }));
+
+  // Batch assign count books (IPVUA)
+  router.post('/:id/batch-assign', asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { assignments } = req.body;
+
+    if (!assignments || !Array.isArray(assignments)) {
+      return res.status(400).json({ error: 'assignments array is required' });
+    }
+
+    const results = await prisma.$transaction(async (tx) => {
+      const updated = [];
+
+      for (const { bookId, userId, priority } of assignments) {
+        const book = await tx.countBook.update({
+          where: { id: bookId },
+          data: {
+            assignedToId: userId,
+            assignedAt: new Date(),
+            status: 'ASSIGNED',
+            priority: priority !== undefined ? parseInt(priority) : undefined
+          },
+          select: { id: true, bookNumber: true, assignedToId: true }
+        });
+        updated.push(book);
+      }
+
+      return updated;
+    });
+
+    res.json({
+      success: true,
+      assignmentsUpdated: results.length,
+      books: results
+    });
+  }));
+
+  // Change count book priority (IPVUA)
+  router.patch('/:id/books/:bookId/priority', asyncHandler(async (req, res) => {
+    const { bookId } = req.params;
+    const { priority } = req.body;
+
+    if (priority === undefined) {
+      return res.status(400).json({ error: 'priority is required' });
+    }
+
+    const book = await prisma.countBook.update({
+      where: { id: bookId },
+      data: { priority: parseInt(priority) },
+      select: { id: true, bookNumber: true, priority: true }
+    });
+
+    res.json(book);
+  }));
+
+  // ============================================
   // SUMMARY & REPORTS
   // ============================================
 
