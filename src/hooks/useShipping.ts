@@ -44,15 +44,15 @@ export interface ShipmentPackage {
   }[]
 }
 
-export interface Carrier {
+export interface ShippingCarrier {
   id: string
   name: string
   code: string
-  services: CarrierService[]
+  services: ShippingCarrierService[]
   isActive: boolean
 }
 
-export interface CarrierService {
+export interface ShippingCarrierService {
   id: string
   name: string
   code: string
@@ -125,11 +125,11 @@ export function useShipment(id: string) {
   })
 }
 
-// Fetch carriers
-export function useCarriers() {
+// Fetch carriers for shipping
+export function useShippingCarriers() {
   return useQuery({
     queryKey: shippingKeys.carriers(),
-    queryFn: () => apiFetch<Carrier[]>('/api/shipping/carriers'),
+    queryFn: () => apiFetch<ShippingCarrier[]>('/api/shipping/carriers'),
     staleTime: 1000 * 60 * 60, // 1 hour - carriers don't change often
   })
 }

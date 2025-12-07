@@ -1,11 +1,20 @@
 // Order Routes - FlowLogic WMS
 import express from 'express';
+import {
+  validateRequired,
+  validateUUID,
+  validatePagination,
+  validateEnum,
+  validateDateRange,
+  sanitizeFields,
+  wmsValidators,
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
 export default function orderRoutes(prisma) {
   // Get all orders with filters
-  router.get('/', async (req, res) => {
+  router.get('/', validatePagination, validateDateRange('dateFrom', 'dateTo'), async (req, res) => {
     try {
       const {
         warehouseId,
@@ -163,7 +172,7 @@ export default function orderRoutes(prisma) {
   });
 
   // Get single order with details
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', validateUUID('id'), async (req, res) => {
     try {
       const order = await prisma.order.findUnique({
         where: { id: req.params.id },
@@ -217,7 +226,10 @@ export default function orderRoutes(prisma) {
   });
 
   // Create new order
-  router.post('/', async (req, res) => {
+  router.post('/',
+    validateRequired(['warehouseId', 'customerId']),
+    sanitizeFields('notes', 'customerPO', 'specialInstructions'),
+    async (req, res) => {
     try {
       const orderData = req.body;
 
@@ -267,7 +279,10 @@ export default function orderRoutes(prisma) {
   });
 
   // Update order
-  router.put('/:id', async (req, res) => {
+  router.put('/:id',
+    validateUUID('id'),
+    sanitizeFields('notes', 'customerPO', 'specialInstructions'),
+    async (req, res) => {
     try {
       const { id } = req.params;
       const updateData = req.body;
@@ -292,7 +307,11 @@ export default function orderRoutes(prisma) {
   });
 
   // Update order status
-  router.patch('/:id/status', async (req, res) => {
+  router.patch('/:id/status',
+    validateUUID('id'),
+    validateRequired(['status']),
+    validateEnum('status', wmsValidators.orderStatus),
+    async (req, res) => {
     try {
       const { id } = req.params;
       const { status, notes } = req.body;
