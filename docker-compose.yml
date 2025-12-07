@@ -1,0 +1,155 @@
+# FlowLogic WMS - Docker Compose
+# One-command deployment: docker-compose up -d
+#
+# Works on: Linux, Unix, Windows, macOS
+# Includes: PostgreSQL, Redis, FlowLogic WMS
+
+version: '3.8'
+
+services:
+  # ===========================================
+  # FlowLogic WMS Application
+  # ===========================================
+  flowlogic:
+    build: .
+    container_name: flowlogic-wms
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://flowlogic:${DB_PASSWORD:-flowlogic123}@db:5432/flowlogic_wms
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-change_this_in_production}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # ERP Integration (configure as needed)
+      - SAP_HOST=${SAP_HOST:-}
+      - SAP_CLIENT=${SAP_CLIENT:-}
+      - SAP_USER=${SAP_USER:-}
+      - SAP_PASSWORD=${SAP_PASSWORD:-}
+      - ORACLE_HOST=${ORACLE_HOST:-}
+      - ORACLE_PORT=${ORACLE_PORT:-}
+      - ORACLE_SERVICE=${ORACLE_SERVICE:-}
+      - ORACLE_USER=${ORACLE_USER:-}
+      - ORACLE_PASSWORD=${ORACLE_PASSWORD:-}
+      - NETSUITE_ACCOUNT_ID=${NETSUITE_ACCOUNT_ID:-}
+      - NETSUITE_CONSUMER_KEY=${NETSUITE_CONSUMER_KEY:-}
+      - NETSUITE_CONSUMER_SECRET=${NETSUITE_CONSUMER_SECRET:-}
+      - DYNAMICS_TENANT_ID=${DYNAMICS_TENANT_ID:-}
+      - DYNAMICS_CLIENT_ID=${DYNAMICS_CLIENT_ID:-}
+      - DYNAMICS_CLIENT_SECRET=${DYNAMICS_CLIENT_SECRET:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - flowlogic-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  db:
+    image: postgres:15-alpine
+    container_name: flowlogic-db
+    environment:
+      - POSTGRES_USER=flowlogic
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-flowlogic123}
+      - POSTGRES_DB=flowlogic_wms
+    volumes:
+      - flowlogic_postgres_data:/var/lib/postgresql/data
+      - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    restart: unless-stopped
+    networks:
+      - flowlogic-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowlogic -d flowlogic_wms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # Redis (for caching & job queues)
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: flowlogic-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - flowlogic_redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    restart: unless-stopped
+    networks:
+      - flowlogic-network
+
+  # ===========================================
+  # Nginx Reverse Proxy (optional)
+  # ===========================================
+  nginx:
+    image: nginx:alpine
+    container_name: flowlogic-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - flowlogic
+    restart: unless-stopped
+    networks:
+      - flowlogic-network
+    profiles:
+      - production
+
+  # ===========================================
+  # EDI File Processor (for FTP/SFTP integration)
+  # ===========================================
+  edi-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile.edi
+    container_name: flowlogic-edi
+    environment:
+      - DATABASE_URL=postgresql://flowlogic:${DB_PASSWORD:-flowlogic123}@db:5432/flowlogic_wms
+      - REDIS_URL=redis://redis:6379
+      - EDI_FTP_HOST=${EDI_FTP_HOST:-}
+      - EDI_FTP_USER=${EDI_FTP_USER:-}
+      - EDI_FTP_PASSWORD=${EDI_FTP_PASSWORD:-}
+      - EDI_SFTP_HOST=${EDI_SFTP_HOST:-}
+      - EDI_SFTP_USER=${EDI_SFTP_USER:-}
+      - EDI_SFTP_KEY=${EDI_SFTP_KEY:-}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - flowlogic-network
+    profiles:
+      - edi
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  flowlogic-network:
+    driver: bridge
+
+# ===========================================
+# Volumes
+# ===========================================
+volumes:
+  flowlogic_postgres_data:
+    driver: local
+  flowlogic_redis_data:
+    driver: local

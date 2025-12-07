@@ -99,6 +99,7 @@ const BatchSlotAdjust = lazy(() => import('../pages/BatchSlotAdjust'))
 const SupplierReturns = lazy(() => import('../pages/SupplierReturns'))
 const AdjustmentHistoryBrowser = lazy(() => import('../pages/AdjustmentHistoryBrowser'))
 const MovementAuditLog = lazy(() => import('../pages/MovementAuditLog'))
+const Setup = lazy(() => import('../pages/Setup'))
 
 // Wrap lazy components with Suspense
 const withSuspense = (Component: React.LazyExoticComponent<FC>): ReactNode => (
@@ -110,6 +111,7 @@ const withSuspense = (Component: React.LazyExoticComponent<FC>): ReactNode => (
 // Public routes (no authentication required)
 export const publicRoutes: RouteObject[] = [
   { path: '/login', element: withSuspense(Login) },
+  { path: '/setup', element: withSuspense(Setup) },
 ]
 
 // Protected routes (authentication required)
