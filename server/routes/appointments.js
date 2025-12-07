@@ -1,8 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient();
 
 // Helper for async route handlers
 const asyncHandler = (fn) => (req, res, next) => {
@@ -1066,4 +1064,4 @@ router.get('/reference/types', asyncHandler(async (req, res) => {
   });
 }));
 
-module.exports = router;
+export default router;
