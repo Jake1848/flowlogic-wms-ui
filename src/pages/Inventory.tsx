@@ -1,7 +1,7 @@
-import { useMemo, useCallback } from 'react'
-import { X, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
+import { X, TrendingUp, TrendingDown, AlertCircle, RefreshCw, Package, MapPin } from 'lucide-react'
 import InventoryTable from '../components/InventoryTable'
-import { useFetch } from '../hooks/useFetch'
+import { useInventoryList, useInventorySummary, type InventoryItem } from '../hooks/useInventory'
 import { useWMSStore } from '../store/useWMSStore'
 import type { SKUData } from '../store/useWMSStore'
 import {
@@ -33,10 +33,39 @@ const generateHistoricalData = (skuId: string) => {
 
 export default function Inventory() {
   const { selectedSKU, setSelectedSKU } = useWMSStore()
-  const { data: inventoryData } = useFetch<SKUData[]>('/api/inventory', {
-    autoRefresh: true,
-    refreshInterval: 30000,
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [page, setPage] = useState(1)
+
+  // Use React Query hooks for real API data
+  const { data: inventoryResponse, isLoading, error, refetch } = useInventoryList({
+    search: searchTerm || undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    page,
+    limit: 50,
   })
+
+  const { data: summary } = useInventorySummary()
+
+  // Transform API data to match the InventoryTable expected format
+  const inventoryData = useMemo(() => {
+    if (!inventoryResponse) return []
+    const items = Array.isArray(inventoryResponse) ? inventoryResponse : inventoryResponse.data || []
+    return items.map((item: InventoryItem): SKUData => ({
+      id: item.id,
+      sku: item.sku,
+      location: item.locationCode,
+      quantity: item.quantity,
+      abnCount: item.reservedQty || 0,
+      variance: Math.round(((item.quantity - item.availableQty) / (item.quantity || 1)) * 100),
+      epStatus: item.status === 'DAMAGED' || item.status === 'QUARANTINE'
+        ? 'critical'
+        : item.status === 'EXPIRED'
+          ? 'flagged'
+          : 'clear',
+      lastAudit: item.lastCountDate || new Date().toISOString(),
+    }))
+  }, [inventoryResponse])
 
   // Memoize historical data based on selected SKU
   const historicalData = useMemo(
@@ -57,19 +86,148 @@ export default function Inventory() {
           </p>
         </div>
         <div className="flex items-center space-x-4">
-          <div className="text-right">
-            <div className="text-sm text-gray-600 dark:text-gray-400">Total SKUs</div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {inventoryData?.length || 0}
+          <button
+            onClick={() => refetch()}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Total SKUs</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
+                {summary?.totalItems || inventoryData.length}
+              </p>
+            </div>
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+              <Package className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Locations</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
+                {summary?.totalLocations || 0}
+              </p>
+            </div>
+            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+              <MapPin className="w-8 h-8 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Low Stock</p>
+              <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">
+                {summary?.lowStockItems || 0}
+              </p>
+            </div>
+            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl">
+              <TrendingDown className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Expiring Soon</p>
+              <p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">
+                {summary?.expiringSoon || 0}
+              </p>
+            </div>
+            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
+              <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
             </div>
           </div>
         </div>
       </div>
 
-      <InventoryTable
-        data={inventoryData || []}
-        onRowClick={handleRowClick}
-      />
+      {/* Filters */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+          <div className="relative flex-1 max-w-md">
+            <input
+              type="text"
+              placeholder="Search by SKU or location..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+          >
+            <option value="all">All Status</option>
+            <option value="AVAILABLE">Available</option>
+            <option value="RESERVED">Reserved</option>
+            <option value="DAMAGED">Damaged</option>
+            <option value="QUARANTINE">Quarantine</option>
+            <option value="EXPIRED">Expired</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Loading/Error States */}
+      {isLoading && (
+        <div className="flex justify-center items-center py-12">
+          <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+          <span className="ml-3 text-gray-600 dark:text-gray-400">Loading inventory...</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
+          <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
+          <p className="text-red-600 dark:text-red-400">Failed to load inventory. Using cached data.</p>
+        </div>
+      )}
+
+      {!isLoading && (
+        <InventoryTable
+          data={inventoryData}
+          onRowClick={handleRowClick}
+        />
+      )}
+
+      {/* Pagination */}
+      {inventoryResponse && !Array.isArray(inventoryResponse) && inventoryResponse.totalPages > 1 && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-4 flex items-center justify-between">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Page {inventoryResponse.page} of {inventoryResponse.totalPages} ({inventoryResponse.total} total)
+          </p>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={page >= inventoryResponse.totalPages}
+              className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Side Panel for Selected SKU */}
       {selectedSKU && (
@@ -116,7 +274,7 @@ export default function Inventory() {
                 </div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">ABN Count</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Reserved</div>
                 <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   {selectedSKU.abnCount}
                 </div>
@@ -143,7 +301,7 @@ export default function Inventory() {
             {/* EP Status */}
             <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
               <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                Error Prevention Status
+                Status
               </div>
               <div className="flex items-center space-x-2">
                 <AlertCircle
@@ -171,7 +329,7 @@ export default function Inventory() {
 
             {/* Last Audit */}
             <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Last Audit</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Last Count</div>
               <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {new Date(selectedSKU.lastAudit).toLocaleString()}
               </div>

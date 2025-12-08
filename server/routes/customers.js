@@ -1,6 +1,19 @@
 import express from 'express';
+import {
+  validateRequired,
+  validateUUID,
+  validatePagination,
+  validateEnum,
+  sanitizeFields,
+  validateDateRange,
+  validateQuantity,
+} from '../middleware/validation.js';
 
 const router = express.Router();
+
+// Customer-specific validators
+const customerTypes = ['RETAIL', 'WHOLESALE', 'DISTRIBUTOR', 'ECOMMERCE', 'INTERNAL', 'GOVERNMENT'];
+const paymentTerms = ['NET15', 'NET30', 'NET45', 'NET60', 'COD', 'PREPAID', 'ON_ACCOUNT'];
 
 export default function createCustomerRoutes(prisma) {
   // Helper for async error handling
@@ -12,7 +25,7 @@ export default function createCustomerRoutes(prisma) {
   // ============================================
 
   // List customers with filters
-  router.get('/', asyncHandler(async (req, res) => {
+  router.get('/', validatePagination, asyncHandler(async (req, res) => {
     const { search, type, isActive, page = 1, limit = 20 } = req.query;
 
     const where = {};
@@ -54,7 +67,7 @@ export default function createCustomerRoutes(prisma) {
   }));
 
   // Get customer by ID
-  router.get('/:id', asyncHandler(async (req, res) => {
+  router.get('/:id', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const customer = await prisma.customer.findUnique({
@@ -74,7 +87,11 @@ export default function createCustomerRoutes(prisma) {
   }));
 
   // Create customer
-  router.post('/', asyncHandler(async (req, res) => {
+  router.post('/',
+    validateRequired(['code', 'name']),
+    sanitizeFields('name', 'contactName', 'email', 'notes'),
+    validateQuantity('creditLimit'),
+    asyncHandler(async (req, res) => {
     const {
       code,
       name,
@@ -101,11 +118,7 @@ export default function createCustomerRoutes(prisma) {
       notes,
     } = req.body;
 
-    if (!code || !name) {
-      return res.status(400).json({ error: 'code and name are required' });
-    }
-
-    // Check for duplicate code
+    // Check for duplicate code (validateRequired already checked these)
     const existing = await prisma.customer.findUnique({
       where: { code: code.toUpperCase() },
     });
@@ -147,7 +160,11 @@ export default function createCustomerRoutes(prisma) {
   }));
 
   // Update customer
-  router.put('/:id', asyncHandler(async (req, res) => {
+  router.put('/:id',
+    validateUUID('id'),
+    sanitizeFields('name', 'contactName', 'email', 'notes'),
+    validateQuantity('creditLimit'),
+    asyncHandler(async (req, res) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
@@ -169,7 +186,7 @@ export default function createCustomerRoutes(prisma) {
   }));
 
   // Deactivate customer
-  router.delete('/:id', asyncHandler(async (req, res) => {
+  router.delete('/:id', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     // Check for active orders
@@ -196,7 +213,7 @@ export default function createCustomerRoutes(prisma) {
   }));
 
   // Reactivate customer
-  router.patch('/:id/reactivate', asyncHandler(async (req, res) => {
+  router.patch('/:id/reactivate', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const customer = await prisma.customer.update({
@@ -212,7 +229,11 @@ export default function createCustomerRoutes(prisma) {
   // ============================================
 
   // Get customer order history
-  router.get('/:id/orders', asyncHandler(async (req, res) => {
+  router.get('/:id/orders',
+    validateUUID('id'),
+    validatePagination,
+    validateDateRange('startDate', 'endDate'),
+    asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { status, startDate, endDate, page = 1, limit = 20 } = req.query;
 
@@ -254,7 +275,10 @@ export default function createCustomerRoutes(prisma) {
   // ============================================
 
   // Get customer performance metrics
-  router.get('/:id/performance', asyncHandler(async (req, res) => {
+  router.get('/:id/performance',
+    validateUUID('id'),
+    validateDateRange('startDate', 'endDate'),
+    asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
 
@@ -366,7 +390,7 @@ export default function createCustomerRoutes(prisma) {
   // ============================================
 
   // Get customer shipping addresses (stored as JSON or separate fields)
-  router.get('/:id/addresses', asyncHandler(async (req, res) => {
+  router.get('/:id/addresses', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const customer = await prisma.customer.findUnique({
@@ -409,7 +433,10 @@ export default function createCustomerRoutes(prisma) {
   }));
 
   // Update shipping address
-  router.patch('/:id/addresses/shipping', asyncHandler(async (req, res) => {
+  router.patch('/:id/addresses/shipping',
+    validateUUID('id'),
+    sanitizeFields('address', 'city', 'state', 'zipCode', 'country'),
+    asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { address, city, state, zipCode, country } = req.body;
 

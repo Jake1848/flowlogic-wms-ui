@@ -1,11 +1,24 @@
 // Product Routes - FlowLogic WMS
 import express from 'express';
+import {
+  validateRequired,
+  validateUUID,
+  validatePagination,
+  validateEnum,
+  sanitizeFields,
+  validateQuantity,
+  validateArray,
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
+// Product-specific validators
+const velocityCodes = ['A', 'B', 'C', 'D', 'E', 'F'];
+const productStatus = ['ACTIVE', 'INACTIVE', 'DISCONTINUED', 'PENDING'];
+
 export default function productRoutes(prisma) {
   // Get all products with filters
-  router.get('/', async (req, res) => {
+  router.get('/', validatePagination, async (req, res) => {
     try {
       const {
         categoryId,
@@ -87,7 +100,7 @@ export default function productRoutes(prisma) {
   });
 
   // Get single product
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', validateUUID('id'), async (req, res) => {
     try {
       const product = await prisma.product.findUnique({
         where: { id: req.params.id },
@@ -164,9 +177,18 @@ export default function productRoutes(prisma) {
   });
 
   // Create product
-  router.post('/', async (req, res) => {
+  router.post('/',
+    validateRequired(['sku', 'name']),
+    sanitizeFields('name', 'description', 'brand', 'notes'),
+    validateQuantity('weight', 'length', 'width', 'height', 'reorderPoint', 'reorderQuantity'),
+    async (req, res) => {
     try {
       const productData = req.body;
+
+      // Normalize SKU to uppercase
+      if (productData.sku) {
+        productData.sku = productData.sku.toUpperCase().trim();
+      }
 
       // Check if SKU already exists
       const existing = await prisma.product.findUnique({
@@ -190,7 +212,11 @@ export default function productRoutes(prisma) {
   });
 
   // Update product
-  router.put('/:id', async (req, res) => {
+  router.put('/:id',
+    validateUUID('id'),
+    sanitizeFields('name', 'description', 'brand', 'notes'),
+    validateQuantity('weight', 'length', 'width', 'height', 'reorderPoint', 'reorderQuantity'),
+    async (req, res) => {
     try {
       const { id } = req.params;
       const updateData = req.body;
@@ -212,7 +238,7 @@ export default function productRoutes(prisma) {
   });
 
   // Deactivate product
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', validateUUID('id'), async (req, res) => {
     try {
       const { id } = req.params;
 
@@ -243,7 +269,7 @@ export default function productRoutes(prisma) {
   });
 
   // Get product inventory across locations
-  router.get('/:id/inventory', async (req, res) => {
+  router.get('/:id/inventory', validateUUID('id'), async (req, res) => {
     try {
       const inventory = await prisma.inventory.findMany({
         where: { productId: req.params.id },
@@ -267,7 +293,7 @@ export default function productRoutes(prisma) {
   });
 
   // Get product transaction history
-  router.get('/:id/transactions', async (req, res) => {
+  router.get('/:id/transactions', validateUUID('id'), validatePagination, async (req, res) => {
     try {
       const { page = 1, limit = 50 } = req.query;
 
@@ -290,7 +316,9 @@ export default function productRoutes(prisma) {
   });
 
   // Bulk import products
-  router.post('/import', async (req, res) => {
+  router.post('/import',
+    validateArray('products', { minLength: 1, maxLength: 1000 }),
+    async (req, res) => {
     try {
       const { products } = req.body;
 
