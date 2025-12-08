@@ -1,5 +1,19 @@
 import '@testing-library/jest-dom'
 
+// Mock import.meta.env for Vite compatibility in Jest
+Object.defineProperty(globalThis, 'import', {
+  value: {
+    meta: {
+      env: {
+        VITE_API_URL: 'http://localhost:3001',
+        DEV: true,
+        PROD: false,
+        MODE: 'test',
+      },
+    },
+  },
+})
+
 // Mock matchMedia for tests
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

@@ -34,4 +34,14 @@ export default {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
+  globals: {
+    'import.meta': {
+      env: {
+        VITE_API_URL: 'http://localhost:3001',
+        DEV: true,
+        PROD: false,
+        MODE: 'test',
+      },
+    },
+  },
 }
