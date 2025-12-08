@@ -1,11 +1,19 @@
 // Inventory Routes - FlowLogic WMS
 import express from 'express';
+import {
+  validateRequired,
+  validateUUID,
+  validatePagination,
+  validateQuantity,
+  validateEnum,
+  sanitizeFields,
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
 export default function inventoryRoutes(prisma) {
   // Get all inventory with filters
-  router.get('/', async (req, res) => {
+  router.get('/', validatePagination, async (req, res) => {
     try {
       const {
         warehouseId,
@@ -140,7 +148,7 @@ export default function inventoryRoutes(prisma) {
   });
 
   // Get single inventory record
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', validateUUID('id'), async (req, res) => {
     try {
       const inventory = await prisma.inventory.findUnique({
         where: { id: req.params.id },
@@ -170,7 +178,11 @@ export default function inventoryRoutes(prisma) {
   });
 
   // Adjust inventory
-  router.post('/:id/adjust', async (req, res) => {
+  router.post('/:id/adjust',
+    validateUUID('id'),
+    validateRequired(['adjustmentQuantity', 'reason']),
+    sanitizeFields('notes', 'reason'),
+    async (req, res) => {
     try {
       const { id } = req.params;
       const { adjustmentQuantity, reason, notes, userId } = req.body;
@@ -227,7 +239,11 @@ export default function inventoryRoutes(prisma) {
   });
 
   // Transfer inventory between locations
-  router.post('/transfer', async (req, res) => {
+  router.post('/transfer',
+    validateRequired(['fromInventoryId', 'toLocationId', 'quantity']),
+    validateQuantity('quantity'),
+    sanitizeFields('notes'),
+    async (req, res) => {
     try {
       const {
         fromInventoryId,

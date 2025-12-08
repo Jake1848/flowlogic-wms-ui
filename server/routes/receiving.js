@@ -1,4 +1,13 @@
 import express from 'express';
+import {
+  validateRequired,
+  validateUUID,
+  validatePagination,
+  validateQuantity,
+  validateEnum,
+  sanitizeFields,
+  wmsValidators,
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -12,7 +21,7 @@ export default function createReceivingRoutes(prisma) {
   // ============================================
 
   // List purchase orders
-  router.get('/purchase-orders', asyncHandler(async (req, res) => {
+  router.get('/purchase-orders', validatePagination, asyncHandler(async (req, res) => {
     const { warehouseId, vendorId, status, search, page = 1, limit = 20 } = req.query;
 
     const where = {};
