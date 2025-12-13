@@ -1,5 +1,13 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import {
+  validateRequired,
+  validateUUID,
+  validatePagination,
+  sanitizeFields,
+  validateDateRange,
+  validateArray,
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -13,7 +21,7 @@ export default function createUserRoutes(prisma) {
   // ============================================
 
   // List users with filters
-  router.get('/', asyncHandler(async (req, res) => {
+  router.get('/', validatePagination, asyncHandler(async (req, res) => {
     const { search, role, isActive, warehouseId, page = 1, limit = 20 } = req.query;
 
     const where = {};
@@ -78,7 +86,7 @@ export default function createUserRoutes(prisma) {
   }));
 
   // Get user by ID
-  router.get('/:id', asyncHandler(async (req, res) => {
+  router.get('/:id', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const user = await prisma.user.findUnique({
@@ -120,7 +128,7 @@ export default function createUserRoutes(prisma) {
   }));
 
   // Create user
-  router.post('/', asyncHandler(async (req, res) => {
+  router.post('/', validateRequired(['username', 'email', 'password']), sanitizeFields(['username', 'email', 'firstName', 'lastName']), asyncHandler(async (req, res) => {
     const {
       username,
       email,
@@ -200,7 +208,7 @@ export default function createUserRoutes(prisma) {
   }));
 
   // Update user
-  router.put('/:id', asyncHandler(async (req, res) => {
+  router.put('/:id', validateUUID('id'), sanitizeFields(['email', 'firstName', 'lastName']), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const {
       firstName,
@@ -258,7 +266,7 @@ export default function createUserRoutes(prisma) {
   }));
 
   // Deactivate user
-  router.delete('/:id', asyncHandler(async (req, res) => {
+  router.delete('/:id', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     // Check for open tasks
@@ -285,7 +293,7 @@ export default function createUserRoutes(prisma) {
   }));
 
   // Reactivate user
-  router.patch('/:id/reactivate', asyncHandler(async (req, res) => {
+  router.patch('/:id/reactivate', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const user = await prisma.user.update({
@@ -301,7 +309,7 @@ export default function createUserRoutes(prisma) {
   // ============================================
 
   // Update user role
-  router.patch('/:id/role', asyncHandler(async (req, res) => {
+  router.patch('/:id/role', validateUUID('id'), validateRequired(['role']), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
 
@@ -350,7 +358,7 @@ export default function createUserRoutes(prisma) {
   // ============================================
 
   // Change password (self)
-  router.put('/:id/password', asyncHandler(async (req, res) => {
+  router.put('/:id/password', validateUUID('id'), validateRequired(['currentPassword', 'newPassword']), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { currentPassword, newPassword } = req.body;
 
@@ -389,7 +397,7 @@ export default function createUserRoutes(prisma) {
   }));
 
   // Reset password (admin)
-  router.post('/:id/reset-password', asyncHandler(async (req, res) => {
+  router.post('/:id/reset-password', validateUUID('id'), validateRequired(['newPassword']), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { newPassword } = req.body;
 
@@ -416,7 +424,7 @@ export default function createUserRoutes(prisma) {
   // ============================================
 
   // Assign warehouses to user
-  router.post('/:id/warehouses', asyncHandler(async (req, res) => {
+  router.post('/:id/warehouses', validateUUID('id'), validateArray('warehouseIds'), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { warehouseIds } = req.body;
 
@@ -460,7 +468,7 @@ export default function createUserRoutes(prisma) {
   }));
 
   // Add single warehouse to user
-  router.post('/:id/warehouses/:warehouseId', asyncHandler(async (req, res) => {
+  router.post('/:id/warehouses/:warehouseId', validateUUID('id'), validateUUID('warehouseId'), asyncHandler(async (req, res) => {
     const { id, warehouseId } = req.params;
 
     // Check if already assigned
@@ -488,7 +496,7 @@ export default function createUserRoutes(prisma) {
   }));
 
   // Remove warehouse from user
-  router.delete('/:id/warehouses/:warehouseId', asyncHandler(async (req, res) => {
+  router.delete('/:id/warehouses/:warehouseId', validateUUID('id'), validateUUID('warehouseId'), asyncHandler(async (req, res) => {
     const { id, warehouseId } = req.params;
 
     await prisma.userWarehouse.delete({
@@ -508,7 +516,7 @@ export default function createUserRoutes(prisma) {
   // ============================================
 
   // Get user performance metrics
-  router.get('/:id/performance', asyncHandler(async (req, res) => {
+  router.get('/:id/performance', validateUUID('id'), validateDateRange, asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
 

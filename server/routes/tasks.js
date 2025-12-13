@@ -1,11 +1,19 @@
 // Task Routes - FlowLogic WMS
 import express from 'express';
+import {
+  validateUUID,
+  validatePagination,
+  validateRequired,
+  validateEnum,
+  validateQuantity,
+  wmsValidators,
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
 export default function taskRoutes(prisma) {
   // Get all tasks with filters
-  router.get('/', async (req, res) => {
+  router.get('/', validatePagination, async (req, res) => {
     try {
       const {
         warehouseId,
@@ -117,7 +125,7 @@ export default function taskRoutes(prisma) {
   });
 
   // Get single task with details
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', validateUUID('id'), async (req, res) => {
     try {
       const task = await prisma.task.findUnique({
         where: { id: req.params.id },
@@ -167,7 +175,10 @@ export default function taskRoutes(prisma) {
   });
 
   // Create task
-  router.post('/', async (req, res) => {
+  router.post('/',
+    validateRequired(['type', 'warehouseId']),
+    validateEnum('type', wmsValidators.taskType),
+    async (req, res) => {
     try {
       const taskData = req.body;
 
@@ -215,7 +226,10 @@ export default function taskRoutes(prisma) {
   });
 
   // Assign task to user
-  router.patch('/:id/assign', async (req, res) => {
+  router.patch('/:id/assign',
+    validateUUID('id'),
+    validateRequired(['userId']),
+    async (req, res) => {
     try {
       const { id } = req.params;
       const { userId } = req.body;
@@ -240,7 +254,7 @@ export default function taskRoutes(prisma) {
   });
 
   // Start task
-  router.patch('/:id/start', async (req, res) => {
+  router.patch('/:id/start', validateUUID('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const { userId } = req.body;
@@ -278,7 +292,10 @@ export default function taskRoutes(prisma) {
   });
 
   // Complete task detail line
-  router.patch('/:id/details/:detailId/complete', async (req, res) => {
+  router.patch('/:id/details/:detailId/complete',
+    validateUUID('id', 'detailId'),
+    validateQuantity('quantityCompleted'),
+    async (req, res) => {
     try {
       const { id, detailId } = req.params;
       const { quantityCompleted, notes } = req.body;
@@ -319,7 +336,7 @@ export default function taskRoutes(prisma) {
   });
 
   // Complete task
-  router.patch('/:id/complete', async (req, res) => {
+  router.patch('/:id/complete', validateUUID('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const { userId } = req.body;
@@ -378,7 +395,7 @@ export default function taskRoutes(prisma) {
   });
 
   // Cancel task
-  router.patch('/:id/cancel', async (req, res) => {
+  router.patch('/:id/cancel', validateUUID('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const { reason } = req.body;
@@ -403,7 +420,10 @@ export default function taskRoutes(prisma) {
   // ============================================
 
   // Update task/work unit priority (IRMMV)
-  router.patch('/:id/priority', async (req, res) => {
+  router.patch('/:id/priority',
+    validateUUID('id'),
+    validateRequired(['priority']),
+    async (req, res) => {
     try {
       const { id } = req.params;
       const { priority, reason, userId } = req.body;
@@ -472,7 +492,10 @@ export default function taskRoutes(prisma) {
   });
 
   // Assign driver to task (RMVUA)
-  router.patch('/:id/assign-driver', async (req, res) => {
+  router.patch('/:id/assign-driver',
+    validateUUID('id'),
+    validateRequired(['driverId']),
+    async (req, res) => {
     try {
       const { id } = req.params;
       const { driverId, equipmentId, notes } = req.body;
@@ -540,7 +563,7 @@ export default function taskRoutes(prisma) {
   });
 
   // Abandon task (mark as abandoned)
-  router.patch('/:id/abandon', async (req, res) => {
+  router.patch('/:id/abandon', validateUUID('id'), async (req, res) => {
     try {
       const { id } = req.params;
       const { reason, userId, locationId } = req.body;
@@ -623,7 +646,10 @@ export default function taskRoutes(prisma) {
   });
 
   // Resolve abandoned task (RMVUA)
-  router.patch('/:id/resolve-abandon', async (req, res) => {
+  router.patch('/:id/resolve-abandon',
+    validateUUID('id'),
+    validateRequired(['resolution']),
+    async (req, res) => {
     try {
       const { id } = req.params;
       const { resolution, reassignToId, notes, userId } = req.body;
@@ -965,7 +991,7 @@ export default function taskRoutes(prisma) {
   });
 
   // Get tasks by user
-  router.get('/user/:userId', async (req, res) => {
+  router.get('/user/:userId', validateUUID('userId'), async (req, res) => {
     try {
       const { userId } = req.params;
       const { status } = req.query;
@@ -991,7 +1017,7 @@ export default function taskRoutes(prisma) {
   });
 
   // Create pick task for order
-  router.post('/create-pick/:orderId', async (req, res) => {
+  router.post('/create-pick/:orderId', validateUUID('orderId'), async (req, res) => {
     try {
       const { orderId } = req.params;
       const { userId, priority = 5 } = req.body;

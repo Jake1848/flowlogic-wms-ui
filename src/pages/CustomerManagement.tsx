@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Users,
   Building,
@@ -10,27 +10,11 @@ import {
   TrendingUp,
   Package,
   Truck,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-
-interface Customer {
-  id: string
-  customerCode: string
-  name: string
-  contact: string
-  email: string
-  phone: string
-  address: string
-  city: string
-  state: string
-  status: 'active' | 'inactive' | 'on_hold' | 'pending'
-  tier: 'platinum' | 'gold' | 'silver' | 'bronze'
-  orderVolume: number
-  avgOrderValue: number
-  onTimeDelivery: number
-  shippingPreference: string
-  paymentTerms: string
-}
+import { useCustomerList, type Customer } from '../hooks/useCustomers'
 
 interface ShippingAddress {
   id: string
@@ -43,13 +27,14 @@ interface ShippingAddress {
   deliveryInstructions: string
 }
 
-const mockCustomers: Customer[] = [
-  { id: '1', customerCode: 'CUST-001', name: 'ABC Retail Corp', contact: 'John Smith', email: 'jsmith@abcretail.com', phone: '555-0101', address: '123 Commerce St', city: 'Chicago', state: 'IL', status: 'active', tier: 'platinum', orderVolume: 1250, avgOrderValue: 2450, onTimeDelivery: 98, shippingPreference: 'Ground', paymentTerms: 'Net 30' },
-  { id: '2', customerCode: 'CUST-002', name: 'XYZ Distribution', contact: 'Sarah Johnson', email: 'sjohnson@xyz.com', phone: '555-0102', address: '456 Warehouse Ave', city: 'Detroit', state: 'MI', status: 'active', tier: 'gold', orderVolume: 850, avgOrderValue: 1800, onTimeDelivery: 95, shippingPreference: '2-Day', paymentTerms: 'Net 15' },
-  { id: '3', customerCode: 'CUST-003', name: 'Quick Commerce LLC', contact: 'Mike Williams', email: 'mwilliams@quickcom.com', phone: '555-0103', address: '789 Express Blvd', city: 'Indianapolis', state: 'IN', status: 'active', tier: 'silver', orderVolume: 420, avgOrderValue: 950, onTimeDelivery: 92, shippingPreference: 'Ground', paymentTerms: 'Net 30' },
-  { id: '4', customerCode: 'CUST-004', name: 'MegaStore Inc', contact: 'Emily Davis', email: 'edavis@megastore.com', phone: '555-0104', address: '321 Big Box Way', city: 'Columbus', state: 'OH', status: 'on_hold', tier: 'gold', orderVolume: 680, avgOrderValue: 3200, onTimeDelivery: 88, shippingPreference: 'LTL', paymentTerms: 'Net 45' },
-  { id: '5', customerCode: 'CUST-005', name: 'FastShip Co', contact: 'James Brown', email: 'jbrown@fastship.com', phone: '555-0105', address: '654 Speed Lane', city: 'Louisville', state: 'KY', status: 'active', tier: 'platinum', orderVolume: 1580, avgOrderValue: 1650, onTimeDelivery: 99, shippingPreference: 'Next Day', paymentTerms: 'Net 15' },
-  { id: '6', customerCode: 'CUST-006', name: 'Budget Buyers', contact: 'Lisa Chen', email: 'lchen@budgetbuyers.com', phone: '555-0106', address: '987 Discount Dr', city: 'Cincinnati', state: 'OH', status: 'inactive', tier: 'bronze', orderVolume: 125, avgOrderValue: 450, onTimeDelivery: 85, shippingPreference: 'Ground', paymentTerms: 'COD' },
+// Fallback mock data for when API is unavailable
+const mockCustomers = [
+  { id: '1', code: 'CUST-001', name: 'ABC Retail Corp', contactName: 'John Smith', email: 'jsmith@abcretail.com', phone: '555-0101', shippingAddress: '123 Commerce St', city: 'Chicago', state: 'IL', status: 'ACTIVE' as const, paymentTerms: 'Net 30', createdAt: '', updatedAt: '' },
+  { id: '2', code: 'CUST-002', name: 'XYZ Distribution', contactName: 'Sarah Johnson', email: 'sjohnson@xyz.com', phone: '555-0102', shippingAddress: '456 Warehouse Ave', city: 'Detroit', state: 'MI', status: 'ACTIVE' as const, paymentTerms: 'Net 15', createdAt: '', updatedAt: '' },
+  { id: '3', code: 'CUST-003', name: 'Quick Commerce LLC', contactName: 'Mike Williams', email: 'mwilliams@quickcom.com', phone: '555-0103', shippingAddress: '789 Express Blvd', city: 'Indianapolis', state: 'IN', status: 'ACTIVE' as const, paymentTerms: 'Net 30', createdAt: '', updatedAt: '' },
+  { id: '4', code: 'CUST-004', name: 'MegaStore Inc', contactName: 'Emily Davis', email: 'edavis@megastore.com', phone: '555-0104', shippingAddress: '321 Big Box Way', city: 'Columbus', state: 'OH', status: 'SUSPENDED' as const, paymentTerms: 'Net 45', createdAt: '', updatedAt: '' },
+  { id: '5', code: 'CUST-005', name: 'FastShip Co', contactName: 'James Brown', email: 'jbrown@fastship.com', phone: '555-0105', shippingAddress: '654 Speed Lane', city: 'Louisville', state: 'KY', status: 'ACTIVE' as const, paymentTerms: 'Net 15', createdAt: '', updatedAt: '' },
+  { id: '6', code: 'CUST-006', name: 'Budget Buyers', contactName: 'Lisa Chen', email: 'lchen@budgetbuyers.com', phone: '555-0106', shippingAddress: '987 Discount Dr', city: 'Cincinnati', state: 'OH', status: 'INACTIVE' as const, paymentTerms: 'COD', createdAt: '', updatedAt: '' },
 ]
 
 const mockAddresses: ShippingAddress[] = [
@@ -72,38 +57,33 @@ export default function CustomerManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
 
-  const getTierBadge = (tier: Customer['tier']) => {
-    const styles = {
-      platinum: 'bg-purple-100 text-purple-800',
-      gold: 'bg-yellow-100 text-yellow-800',
-      silver: 'bg-gray-200 text-gray-800',
-      bronze: 'bg-orange-100 text-orange-800',
-    }
-    return styles[tier]
-  }
+  // Use real API data with fallback to mock
+  const { data: customerData, isLoading, error } = useCustomerList({ search: searchTerm })
+  const customers = customerData?.data || mockCustomers
 
   const getStatusBadge = (status: Customer['status']) => {
     const styles = {
-      active: 'bg-green-100 text-green-800',
-      inactive: 'bg-gray-100 text-gray-800',
-      on_hold: 'bg-red-100 text-red-800',
-      pending: 'bg-yellow-100 text-yellow-800',
+      ACTIVE: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+      INACTIVE: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+      SUSPENDED: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
     }
-    return styles[status]
+    return styles[status] || 'bg-gray-100 text-gray-800'
   }
 
-  const filteredCustomers = mockCustomers.filter(cust =>
-    cust.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cust.customerCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cust.city.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredCustomers = useMemo(() => {
+    return customers.filter(cust =>
+      cust.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cust.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (cust.city?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    )
+  }, [customers, searchTerm])
 
-  const stats = {
-    totalCustomers: mockCustomers.length,
-    activeCustomers: mockCustomers.filter(c => c.status === 'active').length,
-    totalOrders: mockCustomers.reduce((sum, c) => sum + c.orderVolume, 0),
-    avgOnTime: Math.round(mockCustomers.reduce((sum, c) => sum + c.onTimeDelivery, 0) / mockCustomers.length),
-  }
+  const stats = useMemo(() => ({
+    totalCustomers: customers.length,
+    activeCustomers: customers.filter(c => c.status === 'ACTIVE').length,
+    totalOrders: customers.length * 150, // Placeholder since orders are in a separate table
+    avgOnTime: 94, // Would come from analytics endpoint
+  }), [customers])
 
   return (
     <div className="space-y-6">
@@ -202,17 +182,33 @@ export default function CustomerManagement() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
+
+          {/* Loading state */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <span className="ml-2 text-gray-600 dark:text-gray-400">Loading customers...</span>
+            </div>
+          )}
+
+          {/* Error state */}
+          {error && !isLoading && (
+            <div className="flex items-center gap-2 p-4 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 rounded-lg">
+              <AlertCircle className="w-5 h-5" />
+              <span>Unable to load from server. Showing demo data.</span>
+            </div>
+          )}
+
+          {!isLoading && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Customer</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Contact</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Location</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Tier</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Orders</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Avg Value</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">On-Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Payment Terms</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
                   </tr>
@@ -223,33 +219,22 @@ export default function CustomerManagement() {
                       <td className="px-4 py-3">
                         <div>
                           <p className="text-sm font-medium text-gray-900 dark:text-white">{cust.name}</p>
-                          <p className="text-xs text-gray-500 font-mono">{cust.customerCode}</p>
+                          <p className="text-xs text-gray-500 font-mono">{cust.code}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="text-sm text-gray-900 dark:text-white">{cust.contactName || '-'}</p>
+                          <p className="text-xs text-gray-500">{cust.email || '-'}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                        {cust.city}, {cust.state}
+                        {cust.city && cust.state ? `${cust.city}, ${cust.state}` : '-'}
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{cust.paymentTerms || '-'}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded text-xs capitalize ${getTierBadge(cust.tier)}`}>
-                          {cust.tier}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{cust.orderVolume.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">${cust.avgOrderValue.toLocaleString()}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-12 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${cust.onTimeDelivery >= 95 ? 'bg-green-500' : cust.onTimeDelivery >= 85 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                              style={{ width: `${cust.onTimeDelivery}%` }}
-                            />
-                          </div>
-                          <span className="text-sm">{cust.onTimeDelivery}%</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded text-xs capitalize ${getStatusBadge(cust.status)}`}>
-                          {cust.status.replace('_', ' ')}
+                        <span className={`px-2 py-1 rounded text-xs ${getStatusBadge(cust.status)}`}>
+                          {cust.status}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -266,6 +251,7 @@ export default function CustomerManagement() {
               </table>
             </div>
           </div>
+          )}
         </>
       )}
 
@@ -276,40 +262,40 @@ export default function CustomerManagement() {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {selectedCustomer?.name || 'ABC Retail Corp'}
+                    {selectedCustomer?.name || 'Select a customer'}
                   </h3>
-                  <p className="text-sm text-gray-500 font-mono">{selectedCustomer?.customerCode || 'CUST-001'}</p>
+                  <p className="text-sm text-gray-500 font-mono">{selectedCustomer?.code || '-'}</p>
                 </div>
-                <span className={`px-3 py-1 rounded text-sm capitalize ${getTierBadge(selectedCustomer?.tier || 'platinum')}`}>
-                  {selectedCustomer?.tier || 'platinum'}
-                </span>
+                {selectedCustomer && (
+                  <span className={`px-3 py-1 rounded text-sm ${getStatusBadge(selectedCustomer.status)}`}>
+                    {selectedCustomer.status}
+                  </span>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Contact</p>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer?.contact || 'John Smith'}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedCustomer?.contactName || '-'}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Email</p>
-                  <p className="text-blue-600">{selectedCustomer?.email || 'jsmith@abcretail.com'}</p>
+                  <p className="text-blue-600">{selectedCustomer?.email || '-'}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Phone</p>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer?.phone || '555-0101'}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedCustomer?.phone || '-'}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Payment Terms</p>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer?.paymentTerms || 'Net 30'}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedCustomer?.paymentTerms || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Shipping Preference</p>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer?.shippingPreference || 'Ground'}</p>
+                  <p className="text-gray-500">Preferred Carrier</p>
+                  <p className="text-gray-900 dark:text-white">{selectedCustomer?.preferredCarrier || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Status</p>
-                  <span className={`px-2 py-1 rounded text-xs capitalize ${getStatusBadge(selectedCustomer?.status || 'active')}`}>
-                    {selectedCustomer?.status || 'active'}
-                  </span>
+                  <p className="text-gray-500">Credit Limit</p>
+                  <p className="text-gray-900 dark:text-white">{selectedCustomer?.creditLimit ? `$${selectedCustomer.creditLimit.toLocaleString()}` : '-'}</p>
                 </div>
               </div>
             </div>

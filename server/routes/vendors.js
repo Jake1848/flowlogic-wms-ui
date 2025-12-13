@@ -1,4 +1,12 @@
 import express from 'express';
+import {
+  validateRequired,
+  validateUUID,
+  validatePagination,
+  sanitizeFields,
+  validateQuantity,
+  validateDateRange,
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -12,7 +20,7 @@ export default function createVendorRoutes(prisma) {
   // ============================================
 
   // List vendors with filters
-  router.get('/', asyncHandler(async (req, res) => {
+  router.get('/', validatePagination, asyncHandler(async (req, res) => {
     const { search, type, isActive, minRating, page = 1, limit = 20 } = req.query;
 
     const where = {};
@@ -55,7 +63,7 @@ export default function createVendorRoutes(prisma) {
   }));
 
   // Get vendor by ID
-  router.get('/:id', asyncHandler(async (req, res) => {
+  router.get('/:id', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const vendor = await prisma.vendor.findUnique({
@@ -75,7 +83,7 @@ export default function createVendorRoutes(prisma) {
   }));
 
   // Create vendor
-  router.post('/', asyncHandler(async (req, res) => {
+  router.post('/', validateRequired(['code', 'name']), sanitizeFields(['code', 'name', 'email', 'contactName', 'notes']), asyncHandler(async (req, res) => {
     const {
       code,
       name,
@@ -140,7 +148,7 @@ export default function createVendorRoutes(prisma) {
   }));
 
   // Update vendor
-  router.put('/:id', asyncHandler(async (req, res) => {
+  router.put('/:id', validateUUID('id'), sanitizeFields(['name', 'email', 'contactName', 'notes']), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
@@ -172,7 +180,7 @@ export default function createVendorRoutes(prisma) {
   }));
 
   // Deactivate vendor
-  router.delete('/:id', asyncHandler(async (req, res) => {
+  router.delete('/:id', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     // Check for open POs
@@ -199,7 +207,7 @@ export default function createVendorRoutes(prisma) {
   }));
 
   // Reactivate vendor
-  router.patch('/:id/reactivate', asyncHandler(async (req, res) => {
+  router.patch('/:id/reactivate', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const vendor = await prisma.vendor.update({
@@ -211,7 +219,7 @@ export default function createVendorRoutes(prisma) {
   }));
 
   // Update vendor rating
-  router.patch('/:id/rating', asyncHandler(async (req, res) => {
+  router.patch('/:id/rating', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { rating, reason } = req.body;
 
@@ -237,7 +245,7 @@ export default function createVendorRoutes(prisma) {
   // ============================================
 
   // Get vendor products
-  router.get('/:id/products', asyncHandler(async (req, res) => {
+  router.get('/:id/products', validateUUID('id'), validatePagination, asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { page = 1, limit = 20 } = req.query;
 
@@ -282,7 +290,7 @@ export default function createVendorRoutes(prisma) {
   }));
 
   // Add product to vendor
-  router.post('/:id/products', asyncHandler(async (req, res) => {
+  router.post('/:id/products', validateUUID('id'), validateRequired(['productId']), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { productId, vendorSku, cost, leadTimeDays, minOrderQty, isPrimary } = req.body;
 
@@ -333,7 +341,7 @@ export default function createVendorRoutes(prisma) {
   }));
 
   // Update vendor product relationship
-  router.put('/:id/products/:productId', asyncHandler(async (req, res) => {
+  router.put('/:id/products/:productId', validateUUID('id'), validateUUID('productId'), asyncHandler(async (req, res) => {
     const { id, productId } = req.params;
     const { vendorSku, cost, leadTimeDays, minOrderQty, isPrimary } = req.body;
 
@@ -367,7 +375,7 @@ export default function createVendorRoutes(prisma) {
   }));
 
   // Remove product from vendor
-  router.delete('/:id/products/:productId', asyncHandler(async (req, res) => {
+  router.delete('/:id/products/:productId', validateUUID('id'), validateUUID('productId'), asyncHandler(async (req, res) => {
     const { id, productId } = req.params;
 
     await prisma.productVendor.delete({
@@ -387,7 +395,7 @@ export default function createVendorRoutes(prisma) {
   // ============================================
 
   // Get vendor purchase orders
-  router.get('/:id/purchase-orders', asyncHandler(async (req, res) => {
+  router.get('/:id/purchase-orders', validateUUID('id'), validatePagination, validateDateRange, asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { status, startDate, endDate, page = 1, limit = 20 } = req.query;
 
@@ -429,7 +437,7 @@ export default function createVendorRoutes(prisma) {
   // ============================================
 
   // Get vendor performance metrics
-  router.get('/:id/performance', asyncHandler(async (req, res) => {
+  router.get('/:id/performance', validateUUID('id'), validateDateRange, asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
 

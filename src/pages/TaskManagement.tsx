@@ -10,133 +10,134 @@ import {
   RefreshCw,
   AlertTriangle,
   Zap,
-  BarChart3
+  BarChart3,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useTaskList, useTaskSummary, useStartTask, useCompleteTask, type Task } from '../hooks/useTasks';
 
-// Task types
+// Task types (matches API Task.type values)
 const TASK_TYPES = [
-  { id: 'pick', label: 'Pick', color: 'bg-blue-100 text-blue-800', icon: '📦' },
-  { id: 'putaway', label: 'Putaway', color: 'bg-green-100 text-green-800', icon: '📥' },
-  { id: 'replen', label: 'Replenishment', color: 'bg-purple-100 text-purple-800', icon: '🔄' },
-  { id: 'move', label: 'Move', color: 'bg-yellow-100 text-yellow-800', icon: '➡️' },
-  { id: 'count', label: 'Cycle Count', color: 'bg-orange-100 text-orange-800', icon: '📋' },
-  { id: 'load', label: 'Loading', color: 'bg-teal-100 text-teal-800', icon: '🚛' },
-  { id: 'unload', label: 'Unloading', color: 'bg-indigo-100 text-indigo-800', icon: '📤' },
+  { id: 'PICKING', label: 'Picking', color: 'bg-blue-100 text-blue-800', icon: '📦' },
+  { id: 'PUTAWAY', label: 'Putaway', color: 'bg-green-100 text-green-800', icon: '📥' },
+  { id: 'REPLENISHMENT', label: 'Replenishment', color: 'bg-purple-100 text-purple-800', icon: '🔄' },
+  { id: 'MOVE', label: 'Move', color: 'bg-yellow-100 text-yellow-800', icon: '➡️' },
+  { id: 'CYCLE_COUNT', label: 'Cycle Count', color: 'bg-orange-100 text-orange-800', icon: '📋' },
+  { id: 'RECEIVE', label: 'Receive', color: 'bg-teal-100 text-teal-800', icon: '📥' },
+  { id: 'SHIP', label: 'Ship', color: 'bg-indigo-100 text-indigo-800', icon: '📤' },
+  { id: 'PACK', label: 'Pack', color: 'bg-pink-100 text-pink-800', icon: '📦' },
+  { id: 'TRANSFER', label: 'Transfer', color: 'bg-cyan-100 text-cyan-800', icon: '↔️' },
+  { id: 'ADJUSTMENT', label: 'Adjustment', color: 'bg-gray-100 text-gray-800', icon: '📝' },
 ];
 
-// Priority levels
+// Priority levels (API uses numeric 1-4, 1 being highest)
 const PRIORITIES = [
-  { id: 'critical', label: 'Critical', color: 'bg-red-500', textColor: 'text-red-600' },
-  { id: 'high', label: 'High', color: 'bg-orange-500', textColor: 'text-orange-600' },
-  { id: 'normal', label: 'Normal', color: 'bg-blue-500', textColor: 'text-blue-600' },
-  { id: 'low', label: 'Low', color: 'bg-gray-400', textColor: 'text-gray-600' },
+  { id: 1, label: 'Critical', color: 'bg-red-500', textColor: 'text-red-600' },
+  { id: 2, label: 'High', color: 'bg-orange-500', textColor: 'text-orange-600' },
+  { id: 3, label: 'Normal', color: 'bg-blue-500', textColor: 'text-blue-600' },
+  { id: 4, label: 'Low', color: 'bg-gray-400', textColor: 'text-gray-600' },
 ];
 
-// Mock tasks in queue
-const mockTasks = [
+// Mock tasks (fallback when API unavailable)
+const mockTasks: Task[] = [
   {
     id: 'TSK-001',
-    type: 'pick',
-    priority: 'critical',
-    status: 'in_progress',
-    assignee: 'John Smith',
-    assigneeId: 'EMP-1042',
-    fromLocation: 'A-12-03',
-    toLocation: 'STAGE-01',
-    sku: 'SKU-10045',
-    description: 'Wireless Headphones',
+    taskNumber: 'TSK-001',
+    type: 'PICKING',
+    priority: 1,
+    status: 'IN_PROGRESS',
+    warehouseId: 'WH-001',
+    assignedToId: 'EMP-1042',
+    assignedToName: 'John Smith',
+    fromLocationCode: 'A-12-03',
+    toLocationCode: 'STAGE-01',
+    productSku: 'SKU-10045',
+    productName: 'Wireless Headphones',
     quantity: 24,
-    wave: 'WAVE-001',
-    createdAt: '2024-01-15 08:00',
-    startedAt: '2024-01-15 08:15',
-    equipment: 'RF-Gun'
+    createdAt: '2024-01-15T08:00:00Z',
+    updatedAt: '2024-01-15T08:15:00Z',
+    startedAt: '2024-01-15T08:15:00Z',
   },
   {
     id: 'TSK-002',
-    type: 'putaway',
-    priority: 'high',
-    status: 'pending',
-    assignee: null,
-    assigneeId: null,
-    fromLocation: 'RCV-01',
-    toLocation: 'R-05-12',
-    sku: 'SKU-20089',
-    description: 'USB-C Cable',
+    taskNumber: 'TSK-002',
+    type: 'PUTAWAY',
+    priority: 2,
+    status: 'PENDING',
+    warehouseId: 'WH-001',
+    fromLocationCode: 'RCV-01',
+    toLocationCode: 'R-05-12',
+    productSku: 'SKU-20089',
+    productName: 'USB-C Cable',
     quantity: 48,
-    wave: null,
-    createdAt: '2024-01-15 09:30',
-    startedAt: null,
-    equipment: 'Forklift'
+    createdAt: '2024-01-15T09:30:00Z',
+    updatedAt: '2024-01-15T09:30:00Z',
   },
   {
     id: 'TSK-003',
-    type: 'replen',
-    priority: 'high',
-    status: 'pending',
-    assignee: null,
-    assigneeId: null,
-    fromLocation: 'R-08-24',
-    toLocation: 'A-15-01',
-    sku: 'SKU-30156',
-    description: 'Laptop Stand',
+    taskNumber: 'TSK-003',
+    type: 'REPLENISHMENT',
+    priority: 2,
+    status: 'PENDING',
+    warehouseId: 'WH-001',
+    fromLocationCode: 'R-08-24',
+    toLocationCode: 'A-15-01',
+    productSku: 'SKU-30156',
+    productName: 'Laptop Stand',
     quantity: 12,
-    wave: null,
-    createdAt: '2024-01-15 07:45',
-    startedAt: null,
-    equipment: 'Pallet Jack'
+    createdAt: '2024-01-15T07:45:00Z',
+    updatedAt: '2024-01-15T07:45:00Z',
   },
   {
     id: 'TSK-004',
-    type: 'pick',
-    priority: 'normal',
-    status: 'in_progress',
-    assignee: 'Maria Garcia',
-    assigneeId: 'EMP-1089',
-    fromLocation: 'B-05-08',
-    toLocation: 'STAGE-02',
-    sku: 'SKU-40221',
-    description: 'Mechanical Keyboard',
+    taskNumber: 'TSK-004',
+    type: 'PICKING',
+    priority: 3,
+    status: 'IN_PROGRESS',
+    warehouseId: 'WH-001',
+    assignedToId: 'EMP-1089',
+    assignedToName: 'Maria Garcia',
+    fromLocationCode: 'B-05-08',
+    toLocationCode: 'STAGE-02',
+    productSku: 'SKU-40221',
+    productName: 'Mechanical Keyboard',
     quantity: 6,
-    wave: 'WAVE-001',
-    createdAt: '2024-01-15 08:00',
-    startedAt: '2024-01-15 08:20',
-    equipment: 'RF-Gun'
+    createdAt: '2024-01-15T08:00:00Z',
+    updatedAt: '2024-01-15T08:20:00Z',
+    startedAt: '2024-01-15T08:20:00Z',
   },
   {
     id: 'TSK-005',
-    type: 'move',
-    priority: 'low',
-    status: 'pending',
-    assignee: null,
-    assigneeId: null,
-    fromLocation: 'C-04-02',
-    toLocation: 'C-08-01',
-    sku: 'SKU-50332',
-    description: 'Monitor Arm',
+    taskNumber: 'TSK-005',
+    type: 'MOVE',
+    priority: 4,
+    status: 'PENDING',
+    warehouseId: 'WH-001',
+    fromLocationCode: 'C-04-02',
+    toLocationCode: 'C-08-01',
+    productSku: 'SKU-50332',
+    productName: 'Monitor Arm',
     quantity: 8,
-    wave: null,
-    createdAt: '2024-01-15 10:00',
-    startedAt: null,
-    equipment: 'Forklift'
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z',
   },
   {
     id: 'TSK-006',
-    type: 'count',
-    priority: 'normal',
-    status: 'completed',
-    assignee: 'Robert Chen',
-    assigneeId: 'EMP-1056',
-    fromLocation: 'D-02-01',
-    toLocation: null,
-    sku: 'SKU-60445',
-    description: 'Webcam HD',
-    quantity: null,
-    wave: null,
-    createdAt: '2024-01-15 07:00',
-    startedAt: '2024-01-15 07:15',
-    completedAt: '2024-01-15 07:25',
-    equipment: 'RF-Gun'
+    taskNumber: 'TSK-006',
+    type: 'CYCLE_COUNT',
+    priority: 3,
+    status: 'COMPLETED',
+    warehouseId: 'WH-001',
+    assignedToId: 'EMP-1056',
+    assignedToName: 'Robert Chen',
+    fromLocationCode: 'D-02-01',
+    productSku: 'SKU-60445',
+    productName: 'Webcam HD',
+    createdAt: '2024-01-15T07:00:00Z',
+    updatedAt: '2024-01-15T07:25:00Z',
+    startedAt: '2024-01-15T07:15:00Z',
+    completedAt: '2024-01-15T07:25:00Z',
   },
 ];
 
@@ -162,30 +163,54 @@ export default function TaskManagement() {
   const [activeTab, setActiveTab] = useState<'queue' | 'active' | 'analytics'>('queue');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
-  const [selectedTask, setSelectedTask] = useState<typeof mockTasks[0] | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  // Fetch tasks from API
+  const { data: taskData, isLoading, error } = useTaskList({
+    type: filterType !== 'all' ? filterType : undefined,
+    priority: filterPriority !== 'all' ? Number(filterPriority) : undefined,
+  });
+  const { data: taskSummary } = useTaskSummary();
+  const startTask = useStartTask();
+  const completeTask = useCompleteTask();
+
+  // Use API data with fallback to mock data
+  const tasks: Task[] = taskData?.data || mockTasks;
 
   const getTaskTypeInfo = (typeId: string) => TASK_TYPES.find(t => t.id === typeId);
-  const getPriorityInfo = (priorityId: string) => PRIORITIES.find(p => p.id === priorityId);
+  const getPriorityInfo = (priorityId: number) => PRIORITIES.find(p => p.id === priorityId);
 
-  const filteredTasks = mockTasks.filter(task => {
+  const filteredTasks = tasks.filter(task => {
     const matchesType = filterType === 'all' || task.type === filterType;
-    const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+    const matchesPriority = filterPriority === 'all' || task.priority === Number(filterPriority);
     return matchesType && matchesPriority;
   });
 
-  const pendingTasks = filteredTasks.filter(t => t.status === 'pending');
-  const activeTasks = filteredTasks.filter(t => t.status === 'in_progress');
+  const pendingTasks = filteredTasks.filter(t => t.status === 'PENDING');
+  const activeTasks = filteredTasks.filter(t => t.status === 'IN_PROGRESS');
+
+  // Use API summary or calculate from tasks
+  const completedToday = taskSummary?.completed ?? tasks.filter(t => t.status === 'COMPLETED').length;
+  const criticalTasks = tasks.filter(t => t.priority === 1 && t.status !== 'COMPLETED').length;
+
+  const handleStartTask = (taskId: string) => {
+    startTask.mutate(taskId);
+  };
+
+  const handleCompleteTask = (taskId: string) => {
+    completeTask.mutate({ taskId });
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Task Management</h1>
-          <p className="text-gray-500 mt-1">Manage work queue and task assignments</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Task Management</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage work queue and task assignments</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">
             <RefreshCw className="w-4 h-4" />
             Refresh Queue
           </button>
@@ -195,6 +220,22 @@ export default function TaskManagement() {
           </button>
         </div>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-gray-600 dark:text-gray-400">Loading tasks...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="flex items-center gap-2 p-4 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 rounded-lg">
+          <AlertCircle className="w-5 h-5" />
+          <span>Unable to load from server. Showing demo data.</span>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -235,14 +276,14 @@ export default function TaskManagement() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm"
+          className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Completed Today</p>
-              <p className="text-2xl font-bold text-green-600">156</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Completed Today</p>
+              <p className="text-2xl font-bold text-green-600">{completedToday}</p>
             </div>
-            <div className="p-3 bg-green-100 rounded-lg">
+            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
           </div>
@@ -252,16 +293,14 @@ export default function TaskManagement() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm"
+          className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm"
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Critical Tasks</p>
-              <p className="text-2xl font-bold text-red-600">
-                {mockTasks.filter(t => t.priority === 'critical' && t.status !== 'completed').length}
-              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Critical Tasks</p>
+              <p className="text-2xl font-bold text-red-600">{criticalTasks}</p>
             </div>
-            <div className="p-3 bg-red-100 rounded-lg">
+            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
               <AlertTriangle className="w-6 h-6 text-red-600" />
             </div>
           </div>
@@ -356,7 +395,7 @@ export default function TaskManagement() {
           {activeTab === 'queue' && (
             <div className="space-y-3">
               {pendingTasks.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   No pending tasks in queue
                 </div>
               ) : (
@@ -368,32 +407,40 @@ export default function TaskManagement() {
                       key={task.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 cursor-pointer"
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-300 dark:hover:border-blue-600 cursor-pointer bg-white dark:bg-gray-800"
                       onClick={() => setSelectedTask(task)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className={`w-1 h-12 rounded ${priorityInfo?.color}`}></div>
-                          <span className="text-2xl">{typeInfo?.icon}</span>
+                          <span className="text-2xl">{typeInfo?.icon || '📋'}</span>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900">{task.id}</span>
+                              <span className="font-medium text-gray-900 dark:text-white">{task.taskNumber}</span>
                               <span className={`px-2 py-0.5 rounded text-xs font-medium ${typeInfo?.color}`}>
-                                {typeInfo?.label}
+                                {typeInfo?.label || task.type}
                               </span>
                               <span className={`px-2 py-0.5 rounded text-xs font-medium ${priorityInfo?.textColor} bg-opacity-10`}>
                                 {priorityInfo?.label}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-500">{task.description} • Qty: {task.quantity}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{task.productName || task.productSku} • Qty: {task.quantity || 'N/A'}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                             <MapPin className="w-3 h-3" />
-                            {task.fromLocation} → {task.toLocation || 'N/A'}
+                            {task.fromLocationCode || 'N/A'} → {task.toLocationCode || 'N/A'}
                           </div>
-                          <p className="text-xs text-gray-400 mt-1">{task.equipment}</p>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartTask(task.id);
+                            }}
+                            className="mt-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                          >
+                            Start Task
+                          </button>
                         </div>
                       </div>
                     </motion.div>
@@ -407,7 +454,7 @@ export default function TaskManagement() {
           {activeTab === 'active' && (
             <div className="space-y-3">
               {activeTasks.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   No active tasks
                 </div>
               ) : (
@@ -419,31 +466,39 @@ export default function TaskManagement() {
                       key={task.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="border border-blue-200 bg-blue-50 rounded-lg p-4"
+                      className="border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className={`w-1 h-12 rounded ${priorityInfo?.color}`}></div>
-                          <span className="text-2xl">{typeInfo?.icon}</span>
+                          <span className="text-2xl">{typeInfo?.icon || '📋'}</span>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900">{task.id}</span>
+                              <span className="font-medium text-gray-900 dark:text-white">{task.taskNumber}</span>
                               <span className={`px-2 py-0.5 rounded text-xs font-medium ${typeInfo?.color}`}>
-                                {typeInfo?.label}
+                                {typeInfo?.label || task.type}
                               </span>
-                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200">
                                 In Progress
                               </span>
                             </div>
-                            <p className="text-sm text-gray-500">{task.description} • Qty: {task.quantity}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{task.productName || task.productSku} • Qty: {task.quantity || 'N/A'}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                             <User className="w-3 h-3" />
-                            {task.assignee}
+                            {task.assignedToName || 'Unassigned'}
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">Started: {task.startedAt}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Started: {task.startedAt ? new Date(task.startedAt).toLocaleTimeString() : 'N/A'}
+                          </p>
+                          <button
+                            onClick={() => handleCompleteTask(task.id)}
+                            className="mt-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                          >
+                            Complete
+                          </button>
                         </div>
                       </div>
                     </motion.div>
@@ -514,59 +569,85 @@ export default function TaskManagement() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6"
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">{selectedTask.id}</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{selectedTask.taskNumber}</h2>
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTaskTypeInfo(selectedTask.type)?.color}`}>
-                {getTaskTypeInfo(selectedTask.type)?.label}
+                {getTaskTypeInfo(selectedTask.type)?.label || selectedTask.type}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <p className="text-xs text-gray-500">SKU</p>
-                <p className="font-mono font-medium">{selectedTask.sku}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">SKU</p>
+                <p className="font-mono font-medium text-gray-900 dark:text-white">{selectedTask.productSku || 'N/A'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Quantity</p>
-                <p className="font-medium">{selectedTask.quantity || 'N/A'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Quantity</p>
+                <p className="font-medium text-gray-900 dark:text-white">{selectedTask.quantity || 'N/A'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">From</p>
-                <p className="font-mono font-medium">{selectedTask.fromLocation}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">From</p>
+                <p className="font-mono font-medium text-gray-900 dark:text-white">{selectedTask.fromLocationCode || 'N/A'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">To</p>
-                <p className="font-mono font-medium">{selectedTask.toLocation || 'N/A'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">To</p>
+                <p className="font-mono font-medium text-gray-900 dark:text-white">{selectedTask.toLocationCode || 'N/A'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Equipment</p>
-                <p className="font-medium">{selectedTask.equipment}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+                <p className="font-medium text-gray-900 dark:text-white">{selectedTask.status}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Priority</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Priority</p>
                 <p className={`font-medium ${getPriorityInfo(selectedTask.priority)?.textColor}`}>
-                  {getPriorityInfo(selectedTask.priority)?.label}
+                  {getPriorityInfo(selectedTask.priority)?.label || `Priority ${selectedTask.priority}`}
                 </p>
               </div>
             </div>
 
             <div className="mb-4">
-              <p className="text-xs text-gray-500">Description</p>
-              <p className="text-sm text-gray-700">{selectedTask.description}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Product</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{selectedTask.productName || selectedTask.productSku || 'N/A'}</p>
             </div>
+
+            {selectedTask.assignedToName && (
+              <div className="mb-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Assigned To</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">{selectedTask.assignedToName}</p>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <button
                 onClick={() => setSelectedTask(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
               >
                 Close
               </button>
-              <button className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Assign to Worker
-              </button>
+              {selectedTask.status === 'PENDING' && (
+                <button
+                  onClick={() => {
+                    handleStartTask(selectedTask.id);
+                    setSelectedTask(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Start Task
+                </button>
+              )}
+              {selectedTask.status === 'IN_PROGRESS' && (
+                <button
+                  onClick={() => {
+                    handleCompleteTask(selectedTask.id);
+                    setSelectedTask(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Complete Task
+                </button>
+              )}
             </div>
           </motion.div>
         </div>

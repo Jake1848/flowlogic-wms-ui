@@ -78,15 +78,36 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// Production environment validation
+if (process.env.NODE_ENV === 'production') {
+  // Validate required environment variables for production
+  if (!process.env.ALLOWED_ORIGINS) {
+    console.error('⚠️  WARNING: ALLOWED_ORIGINS not set in production. CORS may not be properly restricted.');
+    console.error('   Set ALLOWED_ORIGINS=https://yourdomain.com,https://admin.yourdomain.com');
+  }
+  if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'your-super-secret-session-key-change-in-production') {
+    console.error('⚠️  WARNING: SESSION_SECRET not properly configured for production.');
+    console.error('   Generate a secure random string for SESSION_SECRET.');
+  }
+}
+
 // CORS configuration - restrict in production
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
-    ? process.env.ALLOWED_ORIGINS?.split(',') || ['https://flowlogic.io']
+    ? (process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [])
     : true, // Allow all origins in development
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
+
+// Validate CORS in production - don't use fallback domain
+if (process.env.NODE_ENV === 'production' && (!corsOptions.origin || (Array.isArray(corsOptions.origin) && corsOptions.origin.length === 0))) {
+  console.error('❌ FATAL: No ALLOWED_ORIGINS configured for production. Server will not start.');
+  console.error('   Set ALLOWED_ORIGINS environment variable with comma-separated domains.');
+  process.exit(1);
+}
+
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 

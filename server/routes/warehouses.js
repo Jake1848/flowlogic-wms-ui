@@ -1,4 +1,10 @@
 import express from 'express';
+import {
+  validateRequired,
+  validateUUID,
+  validatePagination,
+  sanitizeFields,
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -46,7 +52,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Get warehouse by ID
-  router.get('/:id', asyncHandler(async (req, res) => {
+  router.get('/:id', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const warehouse = await prisma.warehouse.findUnique({
@@ -80,7 +86,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Create warehouse
-  router.post('/', asyncHandler(async (req, res) => {
+  router.post('/', validateRequired(['code', 'name', 'companyId']), sanitizeFields(['code', 'name', 'email', 'notes']), asyncHandler(async (req, res) => {
     const {
       code,
       name,
@@ -142,7 +148,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Update warehouse
-  router.put('/:id', asyncHandler(async (req, res) => {
+  router.put('/:id', validateUUID('id'), sanitizeFields(['name', 'email', 'notes']), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
@@ -167,7 +173,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Deactivate warehouse
-  router.delete('/:id', asyncHandler(async (req, res) => {
+  router.delete('/:id', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     // Check for active inventory
@@ -195,7 +201,7 @@ export default function createWarehouseRoutes(prisma) {
   // ============================================
 
   // Get warehouse capacity analysis
-  router.get('/:id/capacity', asyncHandler(async (req, res) => {
+  router.get('/:id/capacity', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const warehouse = await prisma.warehouse.findUnique({
@@ -282,7 +288,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Get warehouse health metrics
-  router.get('/:id/health', asyncHandler(async (req, res) => {
+  router.get('/:id/health', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const today = new Date(new Date().setHours(0, 0, 0, 0));
@@ -375,7 +381,7 @@ export default function createWarehouseRoutes(prisma) {
   // ============================================
 
   // List zones in warehouse
-  router.get('/:id/zones', asyncHandler(async (req, res) => {
+  router.get('/:id/zones', validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { type, isActive } = req.query;
 
@@ -395,7 +401,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Create zone
-  router.post('/:id/zones', asyncHandler(async (req, res) => {
+  router.post('/:id/zones', validateUUID('id'), validateRequired(['code', 'name']), sanitizeFields(['code', 'name', 'description']), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const {
       code,
@@ -443,7 +449,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Get zone by ID
-  router.get('/zones/:zoneId', asyncHandler(async (req, res) => {
+  router.get('/zones/:zoneId', validateUUID('zoneId'), asyncHandler(async (req, res) => {
     const { zoneId } = req.params;
 
     const zone = await prisma.zone.findUnique({
@@ -462,7 +468,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Update zone
-  router.put('/zones/:zoneId', asyncHandler(async (req, res) => {
+  router.put('/zones/:zoneId', validateUUID('zoneId'), sanitizeFields(['name', 'description']), asyncHandler(async (req, res) => {
     const { zoneId } = req.params;
     const updateData = { ...req.body };
 
@@ -491,7 +497,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Delete zone
-  router.delete('/zones/:zoneId', asyncHandler(async (req, res) => {
+  router.delete('/zones/:zoneId', validateUUID('zoneId'), asyncHandler(async (req, res) => {
     const { zoneId } = req.params;
 
     // Check for locations with inventory
@@ -519,7 +525,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Get zone capacity
-  router.get('/zones/:zoneId/capacity', asyncHandler(async (req, res) => {
+  router.get('/zones/:zoneId/capacity', validateUUID('zoneId'), asyncHandler(async (req, res) => {
     const { zoneId } = req.params;
 
     const zone = await prisma.zone.findUnique({
@@ -581,7 +587,7 @@ export default function createWarehouseRoutes(prisma) {
   }));
 
   // Get locations in zone
-  router.get('/zones/:zoneId/locations', asyncHandler(async (req, res) => {
+  router.get('/zones/:zoneId/locations', validateUUID('zoneId'), validatePagination, asyncHandler(async (req, res) => {
     const { zoneId } = req.params;
     const { type, isActive, hasInventory, page = 1, limit = 50 } = req.query;
 

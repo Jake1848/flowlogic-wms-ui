@@ -8,33 +8,38 @@ import {
   CheckCircle,
   Clock,
   TrendingUp,
+  AlertCircle,
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useVendorList } from '../hooks/useVendors'
 
+// Extended vendor interface for UI display (API data + computed fields)
 interface Vendor {
   id: string
-  vendorCode: string
+  code: string
   name: string
-  contact: string
-  email: string
-  phone: string
-  address: string
-  status: 'active' | 'inactive' | 'pending' | 'on_hold'
-  rating: number
-  leadTime: number
-  fillRate: number
-  lastOrder: string
-  totalOrders: number
-  category: string
+  contactName?: string
+  email?: string
+  phone?: string
+  address?: string
+  city?: string
+  state?: string
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+  rating?: number
+  leadTimeDays?: number
+  // UI-specific computed fields from mock for display
+  fillRate?: number
+  totalOrders?: number
+  category?: string
 }
 
 const mockVendors: Vendor[] = [
-  { id: '1', vendorCode: 'VND-001', name: 'Acme Supplies Inc', contact: 'John Smith', email: 'jsmith@acme.com', phone: '555-0101', address: '123 Industrial Pkwy, Chicago, IL', status: 'active', rating: 4.5, leadTime: 3, fillRate: 98, lastOrder: '2024-01-15', totalOrders: 245, category: 'Raw Materials' },
-  { id: '2', vendorCode: 'VND-002', name: 'Global Parts Ltd', contact: 'Sarah Johnson', email: 'sjohnson@globalparts.com', phone: '555-0102', address: '456 Commerce Dr, Detroit, MI', status: 'active', rating: 4.2, leadTime: 5, fillRate: 95, lastOrder: '2024-01-14', totalOrders: 189, category: 'Components' },
-  { id: '3', vendorCode: 'VND-003', name: 'Tech Components', contact: 'Mike Williams', email: 'mwilliams@techcomp.com', phone: '555-0103', address: '789 Tech Blvd, Austin, TX', status: 'active', rating: 4.8, leadTime: 2, fillRate: 99, lastOrder: '2024-01-15', totalOrders: 312, category: 'Electronics' },
-  { id: '4', vendorCode: 'VND-004', name: 'Prime Materials Co', contact: 'Emily Davis', email: 'edavis@primemat.com', phone: '555-0104', address: '321 Supply Ave, Atlanta, GA', status: 'on_hold', rating: 3.8, leadTime: 7, fillRate: 88, lastOrder: '2024-01-10', totalOrders: 156, category: 'Raw Materials' },
-  { id: '5', vendorCode: 'VND-005', name: 'Quality Goods Inc', contact: 'James Brown', email: 'jbrown@qualitygoods.com', phone: '555-0105', address: '654 Quality Rd, Seattle, WA', status: 'active', rating: 4.6, leadTime: 4, fillRate: 97, lastOrder: '2024-01-13', totalOrders: 203, category: 'Packaging' },
-  { id: '6', vendorCode: 'VND-006', name: 'Legacy Imports', contact: 'Lisa Chen', email: 'lchen@legacy.com', phone: '555-0106', address: '987 Import Way, Los Angeles, CA', status: 'inactive', rating: 3.5, leadTime: 14, fillRate: 82, lastOrder: '2023-12-20', totalOrders: 45, category: 'Components' },
+  { id: '1', code: 'VND-001', name: 'Acme Supplies Inc', contactName: 'John Smith', email: 'jsmith@acme.com', phone: '555-0101', address: '123 Industrial Pkwy', city: 'Chicago', state: 'IL', status: 'ACTIVE', rating: 4.5, leadTimeDays: 3, fillRate: 98, totalOrders: 245, category: 'Raw Materials' },
+  { id: '2', code: 'VND-002', name: 'Global Parts Ltd', contactName: 'Sarah Johnson', email: 'sjohnson@globalparts.com', phone: '555-0102', address: '456 Commerce Dr', city: 'Detroit', state: 'MI', status: 'ACTIVE', rating: 4.2, leadTimeDays: 5, fillRate: 95, totalOrders: 189, category: 'Components' },
+  { id: '3', code: 'VND-003', name: 'Tech Components', contactName: 'Mike Williams', email: 'mwilliams@techcomp.com', phone: '555-0103', address: '789 Tech Blvd', city: 'Austin', state: 'TX', status: 'ACTIVE', rating: 4.8, leadTimeDays: 2, fillRate: 99, totalOrders: 312, category: 'Electronics' },
+  { id: '4', code: 'VND-004', name: 'Prime Materials Co', contactName: 'Emily Davis', email: 'edavis@primemat.com', phone: '555-0104', address: '321 Supply Ave', city: 'Atlanta', state: 'GA', status: 'SUSPENDED', rating: 3.8, leadTimeDays: 7, fillRate: 88, totalOrders: 156, category: 'Raw Materials' },
+  { id: '5', code: 'VND-005', name: 'Quality Goods Inc', contactName: 'James Brown', email: 'jbrown@qualitygoods.com', phone: '555-0105', address: '654 Quality Rd', city: 'Seattle', state: 'WA', status: 'ACTIVE', rating: 4.6, leadTimeDays: 4, fillRate: 97, totalOrders: 203, category: 'Packaging' },
+  { id: '6', code: 'VND-006', name: 'Legacy Imports', contactName: 'Lisa Chen', email: 'lchen@legacy.com', phone: '555-0106', address: '987 Import Way', city: 'Los Angeles', state: 'CA', status: 'INACTIVE', rating: 3.5, leadTimeDays: 14, fillRate: 82, totalOrders: 45, category: 'Components' },
 ]
 
 const performanceData = [
@@ -50,27 +55,32 @@ export default function VendorManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null)
 
+  // Fetch vendors from API
+  const { data: vendorData, isLoading, error } = useVendorList({ search: searchTerm })
+
+  // Use API data with fallback to mock data
+  const vendors: Vendor[] = vendorData?.data || mockVendors
+
   const getStatusBadge = (status: Vendor['status']) => {
-    const styles = {
-      active: 'bg-green-100 text-green-800',
-      inactive: 'bg-gray-100 text-gray-800',
-      pending: 'bg-yellow-100 text-yellow-800',
-      on_hold: 'bg-red-100 text-red-800',
+    const styles: Record<Vendor['status'], string> = {
+      ACTIVE: 'bg-green-100 text-green-800',
+      INACTIVE: 'bg-gray-100 text-gray-800',
+      SUSPENDED: 'bg-red-100 text-red-800',
     }
-    return styles[status]
+    return styles[status] || 'bg-gray-100 text-gray-800'
   }
 
-  const filteredVendors = mockVendors.filter(vendor =>
+  const filteredVendors = vendors.filter(vendor =>
     vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    vendor.vendorCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    vendor.category.toLowerCase().includes(searchTerm.toLowerCase())
+    vendor.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (vendor.category?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
   )
 
   const stats = {
-    totalVendors: mockVendors.length,
-    activeVendors: mockVendors.filter(v => v.status === 'active').length,
-    avgFillRate: Math.round(mockVendors.reduce((sum, v) => sum + v.fillRate, 0) / mockVendors.length),
-    avgLeadTime: Math.round(mockVendors.reduce((sum, v) => sum + v.leadTime, 0) / mockVendors.length),
+    totalVendors: vendors.length,
+    activeVendors: vendors.filter(v => v.status === 'ACTIVE').length,
+    avgFillRate: Math.round(vendors.reduce((sum, v) => sum + (v.fillRate || 0), 0) / vendors.length) || 0,
+    avgLeadTime: Math.round(vendors.reduce((sum, v) => sum + (v.leadTimeDays || 0), 0) / vendors.length) || 0,
   }
 
   return (
@@ -85,6 +95,21 @@ export default function VendorManagement() {
           Add Vendor
         </button>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <p className="text-blue-700 dark:text-blue-300">Loading vendors...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-red-600" />
+          <p className="text-red-700 dark:text-red-300">Failed to load vendors. Showing cached data.</p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -191,37 +216,41 @@ export default function VendorManagement() {
                       <td className="px-4 py-3">
                         <div>
                           <p className="text-sm font-medium text-gray-900 dark:text-white">{vendor.name}</p>
-                          <p className="text-xs text-gray-500 font-mono">{vendor.vendorCode}</p>
+                          <p className="text-xs text-gray-500 font-mono">{vendor.code}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-sm">
-                          <p className="text-gray-900 dark:text-white">{vendor.contact}</p>
-                          <p className="text-gray-500 text-xs">{vendor.email}</p>
+                          <p className="text-gray-900 dark:text-white">{vendor.contactName || '-'}</p>
+                          <p className="text-gray-500 text-xs">{vendor.email || '-'}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{vendor.category}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{vendor.category || '-'}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                          <span className="text-sm text-gray-900 dark:text-white">{vendor.rating}</span>
+                          <span className="text-sm text-gray-900 dark:text-white">{vendor.rating || '-'}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{vendor.leadTime} days</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{vendor.leadTimeDays ? `${vendor.leadTimeDays} days` : '-'}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${vendor.fillRate >= 95 ? 'bg-green-500' : vendor.fillRate >= 85 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                              style={{ width: `${vendor.fillRate}%` }}
-                            />
+                        {vendor.fillRate !== undefined ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${vendor.fillRate >= 95 ? 'bg-green-500' : vendor.fillRate >= 85 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                style={{ width: `${vendor.fillRate}%` }}
+                              />
+                            </div>
+                            <span className="text-sm">{vendor.fillRate}%</span>
                           </div>
-                          <span className="text-sm">{vendor.fillRate}%</span>
-                        </div>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded text-xs capitalize ${getStatusBadge(vendor.status)}`}>
-                          {vendor.status.replace('_', ' ')}
+                        <span className={`px-2 py-1 rounded text-xs ${getStatusBadge(vendor.status)}`}>
+                          {vendor.status}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -303,7 +332,7 @@ export default function VendorManagement() {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedVendor.name}</h3>
-                <p className="text-sm text-gray-500 font-mono">{selectedVendor.vendorCode}</p>
+                <p className="text-sm text-gray-500 font-mono">{selectedVendor.code}</p>
               </div>
               <button onClick={() => setSelectedVendor(null)} className="text-gray-500 hover:text-gray-700">×</button>
             </div>
@@ -311,36 +340,38 @@ export default function VendorManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500 uppercase">Contact</p>
-                  <p className="text-sm text-gray-900 dark:text-white">{selectedVendor.contact}</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{selectedVendor.contactName || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase">Email</p>
-                  <p className="text-sm text-blue-600">{selectedVendor.email}</p>
+                  <p className="text-sm text-blue-600">{selectedVendor.email || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase">Phone</p>
-                  <p className="text-sm text-gray-900 dark:text-white">{selectedVendor.phone}</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{selectedVendor.phone || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase">Category</p>
-                  <p className="text-sm text-gray-900 dark:text-white">{selectedVendor.category}</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{selectedVendor.category || '-'}</p>
                 </div>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase">Address</p>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedVendor.address}</p>
+                <p className="text-sm text-gray-900 dark:text-white">
+                  {selectedVendor.address ? `${selectedVendor.address}, ${selectedVendor.city || ''} ${selectedVendor.state || ''}`.trim() : '-'}
+                </p>
               </div>
               <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedVendor.totalOrders}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedVendor.totalOrders ?? '-'}</p>
                   <p className="text-xs text-gray-500">Total Orders</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedVendor.fillRate}%</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedVendor.fillRate !== undefined ? `${selectedVendor.fillRate}%` : '-'}</p>
                   <p className="text-xs text-gray-500">Fill Rate</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedVendor.leadTime}d</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{selectedVendor.leadTimeDays ? `${selectedVendor.leadTimeDays}d` : '-'}</p>
                   <p className="text-xs text-gray-500">Lead Time</p>
                 </div>
               </div>

@@ -1,11 +1,19 @@
 // Alert Routes - FlowLogic WMS
 import express from 'express';
+import {
+  validateUUID,
+  validatePagination,
+  validateRequired,
+  validateEnum,
+  validateArray,
+  wmsValidators,
+} from '../middleware/validation.js';
 
 const router = express.Router();
 
 export default function alertRoutes(prisma) {
   // Get all alerts with filters
-  router.get('/', async (req, res) => {
+  router.get('/', validatePagination, async (req, res) => {
     try {
       const {
         warehouseId,
@@ -150,7 +158,7 @@ export default function alertRoutes(prisma) {
   });
 
   // Get single alert
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', validateUUID('id'), async (req, res) => {
     try {
       const alert = await prisma.alert.findUnique({
         where: { id: req.params.id },
@@ -171,7 +179,10 @@ export default function alertRoutes(prisma) {
   });
 
   // Create alert
-  router.post('/', async (req, res) => {
+  router.post('/',
+    validateRequired(['type', 'severity', 'title', 'message']),
+    validateEnum('severity', wmsValidators.alertSeverity),
+    async (req, res) => {
     try {
       const alertData = req.body;
 
@@ -187,7 +198,7 @@ export default function alertRoutes(prisma) {
   });
 
   // Mark alert as read
-  router.patch('/:id/read', async (req, res) => {
+  router.patch('/:id/read', validateUUID('id'), async (req, res) => {
     try {
       const alert = await prisma.alert.update({
         where: { id: req.params.id },
@@ -202,7 +213,10 @@ export default function alertRoutes(prisma) {
   });
 
   // Mark multiple alerts as read
-  router.patch('/bulk-read', async (req, res) => {
+  router.patch('/bulk-read',
+    validateRequired(['alertIds']),
+    validateArray('alertIds', { minLength: 1, maxLength: 100 }),
+    async (req, res) => {
     try {
       const { alertIds } = req.body;
 
@@ -239,7 +253,7 @@ export default function alertRoutes(prisma) {
   });
 
   // Resolve alert
-  router.patch('/:id/resolve', async (req, res) => {
+  router.patch('/:id/resolve', validateUUID('id'), async (req, res) => {
     try {
       const { userId, notes } = req.body;
 
