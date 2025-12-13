@@ -1,161 +1,73 @@
 import { useState } from 'react'
-import { TrendingDown, ArrowUp, AlertCircle, CheckCircle, Clock } from 'lucide-react'
-
-interface ReplenTask {
-  id: string
-  taskNumber: string
-  sku: string
-  fromLocation: string
-  toLocation: string
-  qtyNeeded: number
-  qtyAvailable: number
-  priority: 'urgent' | 'high' | 'normal' | 'low'
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed'
-  assignedTo?: string
-  createdAt: string
-  dueBy: string
-}
-
-interface ReplenRule {
-  id: string
-  sku: string
-  pickLocation: string
-  reserveLocation: string
-  minQty: number
-  maxQty: number
-  replenQty: number
-  currentQty: number
-  isActive: boolean
-}
+import { TrendingDown, ArrowUp, AlertCircle, CheckCircle, Clock, RefreshCw } from 'lucide-react'
+import { useTaskList, useTaskSummary, useStartTask, useCompleteTask } from '../hooks/useTasks'
+import { StatusBadge, PriorityBadge } from '../components/shared'
 
 export default function Replenishment() {
   const [activeTab, setActiveTab] = useState<'tasks' | 'rules' | 'history'>('tasks')
+  const [statusFilter, setStatusFilter] = useState<string>('')
 
-  // Mock replenishment tasks
-  const replenTasks: ReplenTask[] = [
-    {
-      id: '1',
-      taskNumber: 'REPLEN-2024-5001',
-      sku: 'SKU-1023',
-      fromLocation: 'B-12-05-A',
-      toLocation: 'A-02-03-C',
-      qtyNeeded: 48,
-      qtyAvailable: 96,
-      priority: 'urgent',
-      status: 'pending',
-      createdAt: '2024-11-19 15:30',
-      dueBy: '2024-11-19 16:00',
-    },
-    {
-      id: '2',
-      taskNumber: 'REPLEN-2024-5002',
-      sku: 'SKU-2045',
-      fromLocation: 'B-08-12-B',
-      toLocation: 'A-05-01-C',
-      qtyNeeded: 24,
-      qtyAvailable: 72,
-      priority: 'high',
-      status: 'assigned',
-      assignedTo: 'John D.',
-      createdAt: '2024-11-19 14:15',
-      dueBy: '2024-11-19 17:00',
-    },
-    {
-      id: '3',
-      taskNumber: 'REPLEN-2024-5003',
-      sku: 'SKU-5678',
-      fromLocation: 'C-03-08-A',
-      toLocation: 'A-08-02-D',
-      qtyNeeded: 12,
-      qtyAvailable: 36,
-      priority: 'normal',
-      status: 'in_progress',
-      assignedTo: 'Mike R.',
-      createdAt: '2024-11-19 13:00',
-      dueBy: '2024-11-19 18:00',
-    },
-    {
-      id: '4',
-      taskNumber: 'REPLEN-2024-5004',
-      sku: 'SKU-3012',
-      fromLocation: 'B-15-04-C',
-      toLocation: 'A-03-07-B',
-      qtyNeeded: 32,
-      qtyAvailable: 64,
-      priority: 'normal',
-      status: 'completed',
-      assignedTo: 'Sarah M.',
-      createdAt: '2024-11-19 10:30',
-      dueBy: '2024-11-19 15:00',
-    },
-  ]
+  // Fetch replenishment tasks from API
+  const {
+    data: tasksResponse,
+    isLoading,
+    isError,
+    refetch
+  } = useTaskList({
+    type: 'REPLENISHMENT',
+    status: statusFilter || undefined,
+    limit: 50
+  })
 
-  // Mock replenishment rules
-  const replenRules: ReplenRule[] = [
-    {
-      id: '1',
-      sku: 'SKU-1023',
-      pickLocation: 'A-02-03-C',
-      reserveLocation: 'B-12-05-A',
-      minQty: 24,
-      maxQty: 96,
-      replenQty: 48,
-      currentQty: 18,
-      isActive: true,
-    },
-    {
-      id: '2',
-      sku: 'SKU-2045',
-      pickLocation: 'A-05-01-C',
-      reserveLocation: 'B-08-12-B',
-      minQty: 12,
-      maxQty: 48,
-      replenQty: 24,
-      currentQty: 36,
-      isActive: true,
-    },
-    {
-      id: '3',
-      sku: 'SKU-3012',
-      pickLocation: 'A-03-07-B',
-      reserveLocation: 'B-15-04-C',
-      minQty: 16,
-      maxQty: 64,
-      replenQty: 32,
-      currentQty: 52,
-      isActive: true,
-    },
-  ]
+  // Fetch task summary
+  const { data: summary } = useTaskSummary()
 
-  const getPriorityColor = (priority: ReplenTask['priority']) => {
-    switch (priority) {
-      case 'urgent':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
-      case 'high':
-        return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'
-      case 'normal':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-      case 'low':
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+  // Mutations
+  const startTaskMutation = useStartTask()
+  const completeTaskMutation = useCompleteTask()
+
+  const tasks = tasksResponse?.data || []
+
+  // Calculate stats from real data
+  const urgentTasks = tasks.filter(t => t.priority >= 8 && t.status !== 'COMPLETED' && t.status !== 'CANCELLED').length
+  const activeTasks = tasks.filter(t => t.status !== 'COMPLETED' && t.status !== 'CANCELLED').length
+  const completedTodayTasks = tasks.filter(t => {
+    if (t.status !== 'COMPLETED' || !t.completedAt) return false
+    const today = new Date().toDateString()
+    return new Date(t.completedAt).toDateString() === today
+  }).length
+
+  const handleStartTask = async (taskId: string) => {
+    try {
+      await startTaskMutation.mutateAsync(taskId)
+    } catch {
+      // Error handled by mutation
     }
   }
 
-  const getStatusColor = (status: ReplenTask['status']) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-      case 'in_progress':
-        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
-      case 'assigned':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-      default:
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+  const handleCompleteTask = async (taskId: string) => {
+    try {
+      await completeTaskMutation.mutateAsync({ taskId })
+    } catch {
+      // Error handled by mutation
     }
   }
 
-  const urgentTasks = replenTasks.filter(t => t.priority === 'urgent' && t.status !== 'completed').length
-  const activeTasks = replenTasks.filter(t => t.status !== 'completed').length
-  const completedToday = replenTasks.filter(t => t.status === 'completed').length
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <p className="text-gray-600 dark:text-gray-400 mb-4">Failed to load replenishment tasks</p>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Retry
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -163,11 +75,16 @@ export default function Replenishment() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Replenishment</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage pick location replenishment and min/max rules
+            Manage pick location replenishment tasks
           </p>
         </div>
-        <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-          Create Task
+        <button
+          onClick={() => refetch()}
+          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+          disabled={isLoading}
+        >
+          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          Refresh
         </button>
       </div>
 
@@ -178,7 +95,7 @@ export default function Replenishment() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Urgent Tasks</p>
               <p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">
-                {urgentTasks}
+                {isLoading ? '...' : urgentTasks}
               </p>
             </div>
             <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
@@ -192,7 +109,7 @@ export default function Replenishment() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Active Tasks</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
-                {activeTasks}
+                {isLoading ? '...' : activeTasks}
               </p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
@@ -206,7 +123,7 @@ export default function Replenishment() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Completed Today</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
-                {completedToday}
+                {isLoading ? '...' : completedTodayTasks}
               </p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
@@ -218,9 +135,9 @@ export default function Replenishment() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Active Rules</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Total Tasks</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
-                {replenRules.filter(r => r.isActive).length}
+                {isLoading ? '...' : summary?.byType?.REPLENISHMENT || tasks.length}
               </p>
             </div>
             <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
@@ -270,160 +187,150 @@ export default function Replenishment() {
         <div className="p-6">
           {/* Tasks Tab */}
           {activeTab === 'tasks' && (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700/50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Task #
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      SKU
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      From Location
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      To Location
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Qty Needed
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Priority
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Assigned To
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Due By
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {replenTasks.map((task) => (
-                    <tr key={task.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {task.taskNumber}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {task.sku}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600 dark:text-gray-400">
-                        {task.fromLocation}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600 dark:text-gray-400">
-                        {task.toLocation}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {task.qtyNeeded}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(task.priority)}`}>
-                          {task.priority}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(task.status)}`}>
-                          {task.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {task.assignedTo || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(task.dueBy).toLocaleTimeString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div>
+              {/* Filters */}
+              <div className="mb-4 flex gap-4">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="ASSIGNED">Assigned</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="COMPLETED">Completed</option>
+                </select>
+              </div>
+
+              {isLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+                </div>
+              ) : tasks.length === 0 ? (
+                <div className="text-center py-12">
+                  <TrendingDown className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                    No Replenishment Tasks
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {statusFilter ? 'No tasks match the selected filter' : 'No replenishment tasks available'}
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                          Task #
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                          Product
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                          From Location
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                          To Location
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                          Quantity
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                          Priority
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                          Assigned To
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {tasks.map((task) => (
+                        <tr key={task.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {task.taskNumber}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                            <div>
+                              <div className="font-medium">{task.productSku || '-'}</div>
+                              {task.productName && (
+                                <div className="text-xs text-gray-500">{task.productName}</div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600 dark:text-gray-400">
+                            {task.fromLocationCode || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600 dark:text-gray-400">
+                            {task.toLocationCode || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                            {task.quantityCompleted !== undefined && task.quantity ? (
+                              <span>{task.quantityCompleted}/{task.quantity}</span>
+                            ) : (
+                              task.quantity || '-'
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <PriorityBadge priority={task.priority} />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <StatusBadge status={task.status} />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                            {task.assignedToName || 'Unassigned'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex gap-2">
+                              {task.status === 'PENDING' && (
+                                <button
+                                  onClick={() => handleStartTask(task.id)}
+                                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                                  disabled={startTaskMutation.isPending}
+                                >
+                                  Start
+                                </button>
+                              )}
+                              {task.status === 'IN_PROGRESS' && (
+                                <button
+                                  onClick={() => handleCompleteTask(task.id)}
+                                  className="text-green-600 dark:text-green-400 hover:underline"
+                                  disabled={completeTaskMutation.isPending}
+                                >
+                                  Complete
+                                </button>
+                              )}
+                              <button className="text-gray-600 dark:text-gray-400 hover:underline">
+                                View
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
           {/* Rules Tab */}
           {activeTab === 'rules' && (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700/50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      SKU
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Pick Location
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Reserve Location
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Current Qty
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Min Qty
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Max Qty
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Replen Qty
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {replenRules.map((rule) => (
-                    <tr key={rule.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {rule.sku}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600 dark:text-gray-400">
-                        {rule.pickLocation}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600 dark:text-gray-400">
-                        {rule.reserveLocation}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
-                          <span className={`text-sm font-medium ${
-                            rule.currentQty < rule.minQty
-                              ? 'text-red-600 dark:text-red-400'
-                              : 'text-gray-900 dark:text-gray-100'
-                          }`}>
-                            {rule.currentQty}
-                          </span>
-                          {rule.currentQty < rule.minQty && (
-                            <AlertCircle className="w-4 h-4 text-red-600" />
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {rule.minQty}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {rule.maxQty}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                        {rule.replenQty}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          rule.isActive
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
-                        }`}>
-                          {rule.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="text-center py-12">
+              <TrendingDown className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                Min/Max Rules
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Replenishment rules configuration will appear here
+              </p>
             </div>
           )}
 
