@@ -3,6 +3,8 @@ import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 import { PrismaClient } from './generated/prisma/client.js';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger.js';
 
 // Import routes
 import inventoryRoutes from './routes/inventory.js';
@@ -110,6 +112,25 @@ if (process.env.NODE_ENV === 'production' && (!corsOptions.origin || (Array.isAr
 
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
+
+// Swagger API documentation
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'FlowLogic WMS API Documentation',
+  customCss: '.swagger-ui .topbar { display: none }',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    docExpansion: 'list',
+    filter: true,
+    showExtensions: true,
+  },
+}));
+
+// Serve OpenAPI spec as JSON
+app.get('/api/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
 
 // Apply optional auth to all routes (user info available if logged in)
 app.use(optionalAuth);
@@ -636,6 +657,7 @@ async function startServer() {
 ║   ───────────────────────────────────────────────────────     ║
 ║                                                               ║
 ║   Server: http://localhost:${PORT}                              ║
+║   API Docs: http://localhost:${PORT}/api/docs                   ║
 ║                                                               ║
 ║   Core API Routes:                                            ║
 ║   • /api/dashboard      - Dashboard summary                   ║

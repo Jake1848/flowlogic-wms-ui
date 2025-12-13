@@ -13,7 +13,66 @@ import {
 const router = express.Router();
 
 export default function orderRoutes(prisma) {
-  // Get all orders with filters
+  /**
+   * @swagger
+   * /api/orders:
+   *   get:
+   *     summary: Get all orders with filters
+   *     tags: [Orders]
+   *     parameters:
+   *       - in: query
+   *         name: warehouseId
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: Filter by warehouse
+   *       - in: query
+   *         name: customerId
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: Filter by customer
+   *       - in: query
+   *         name: status
+   *         schema:
+   *           type: string
+   *           enum: [NEW, PENDING, ALLOCATED, PICKING, PICKED, PACKING, PACKED, SHIPPING, SHIPPED, DELIVERED, CANCELLED, ON_HOLD]
+   *         description: Filter by status
+   *       - in: query
+   *         name: search
+   *         schema:
+   *           type: string
+   *         description: Search by order number, external ID, or customer name
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           default: 1
+   *         description: Page number
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 50
+   *           maximum: 100
+   *         description: Results per page
+   *     responses:
+   *       200:
+   *         description: List of orders with pagination
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     $ref: '#/components/schemas/Order'
+   *                 pagination:
+   *                   $ref: '#/components/schemas/Pagination'
+   *       500:
+   *         description: Server error
+   */
   router.get('/', validatePagination, validateDateRange('dateFrom', 'dateTo'), async (req, res) => {
     try {
       const {
