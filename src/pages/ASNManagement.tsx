@@ -10,8 +10,11 @@ import {
   Upload,
   Eye,
   RefreshCw,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useASNList, type ASN as APIASN } from '../hooks/useASN'
 
 interface ASN {
   id: string
@@ -63,10 +66,53 @@ const weeklyData = [
   { day: 'Fri', received: 16, expected: 20 },
 ]
 
+// Map API status to UI status
+function mapAPIStatus(apiStatus: string): ASN['status'] {
+  const statusMap: Record<string, ASN['status']> = {
+    'PENDING': 'pending',
+    'VALIDATED': 'pending',
+    'SCHEDULED': 'pending',
+    'IN_TRANSIT': 'in_transit',
+    'ARRIVED': 'arrived',
+    'RECEIVING': 'receiving',
+    'RECEIVED': 'completed',
+    'CLOSED': 'completed',
+    'CANCELLED': 'discrepancy',
+  }
+  return statusMap[apiStatus] || 'pending'
+}
+
 export default function ASNManagement() {
   const [activeTab, setActiveTab] = useState<'list' | 'details' | 'analytics'>('list')
   const [selectedASN, setSelectedASN] = useState<string | null>('ASN-2024-0014')
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Fetch ASNs from API
+  const { data: asnData, isLoading, error, refetch } = useASNList({ search: searchTerm || undefined })
+
+  // Map API ASNs to UI format with fallback to mock data
+  const apiASNs: ASN[] = asnData?.data?.map((asn: APIASN) => {
+    const totalUnits = asn.lines?.reduce((sum, line) => sum + line.quantityExpected, 0) || 0
+    const receivedUnits = asn.lines?.reduce((sum, line) => sum + line.quantityReceived, 0) || 0
+    return {
+      id: asn.id,
+      asnNumber: asn.asnNumber,
+      vendor: asn.vendor?.name || 'Unknown Vendor',
+      poNumber: asn.purchaseOrder?.poNumber || 'N/A',
+      expectedDate: asn.expectedArrival?.split('T')[0] || '',
+      expectedTime: asn.expectedArrival ? new Date(asn.expectedArrival).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '',
+      status: mapAPIStatus(asn.status),
+      totalLines: asn._count?.lines || asn.lines?.length || 0,
+      totalUnits,
+      totalCases: asn.totalCases || 0,
+      carrier: asn.carrier?.name || 'Unknown Carrier',
+      trackingNumber: asn.trackingNumber || asn.proNumber || '',
+      receivedUnits,
+    }
+  }) || []
+
+  // Use API data if available, fallback to mock
+  const asns = apiASNs.length > 0 ? apiASNs : mockASNs
 
   const getStatusBadge = (status: ASN['status']) => {
     const styles = {
@@ -90,17 +136,17 @@ export default function ASNManagement() {
     return styles[status]
   }
 
-  const filteredASNs = mockASNs.filter(asn =>
+  const filteredASNs = asns.filter(asn =>
     asn.asnNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     asn.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
     asn.poNumber.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const stats = {
-    pending: mockASNs.filter(a => a.status === 'pending').length,
-    inTransit: mockASNs.filter(a => a.status === 'in_transit').length,
-    receiving: mockASNs.filter(a => a.status === 'receiving').length,
-    discrepancies: mockASNs.filter(a => a.status === 'discrepancy').length,
+    pending: asns.filter(a => a.status === 'pending').length,
+    inTransit: asns.filter(a => a.status === 'in_transit').length,
+    receiving: asns.filter(a => a.status === 'receiving').length,
+    discrepancies: asns.filter(a => a.status === 'discrepancy').length,
   }
 
   return (
@@ -115,12 +161,34 @@ export default function ASNManagement() {
             <Upload className="w-4 h-4" />
             Import ASN
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            <RefreshCw className="w-4 h-4" />
+          <button
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             Sync EDI
           </button>
         </div>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-gray-600 dark:text-gray-400">Loading ASNs...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+            <span className="text-red-700 dark:text-red-400">Failed to load ASNs. Using sample data.</span>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

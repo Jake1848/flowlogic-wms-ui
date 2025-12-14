@@ -10,8 +10,13 @@ import {
   Edit,
   Lock,
   Unlock,
+  RefreshCw,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react'
+import { useUserList, type User as APIUser } from '../hooks/useUsers'
 
+// Extended UI interface (API data + computed fields)
 interface User {
   id: string
   username: string
@@ -74,7 +79,29 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
-  const filteredUsers = mockUsers.filter(user =>
+  // Fetch users from API
+  const { data: userData, isLoading, error, refetch } = useUserList({ search: searchTerm })
+
+  // Map API users to UI format with fallback to mock data
+  const apiUsers: User[] = userData?.data?.map((u: APIUser) => ({
+    id: u.id,
+    username: u.username,
+    email: u.email,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    role: u.role,
+    department: u.department || 'Operations',
+    phone: '',
+    status: u.status === 'ACTIVE' ? 'active' : u.status === 'SUSPENDED' ? 'locked' : 'inactive',
+    lastLogin: u.lastLogin || '',
+    createdAt: u.createdAt,
+    permissions: [],
+  })) || []
+
+  // Use API data if available, fallback to mock
+  const users = apiUsers.length > 0 ? apiUsers : mockUsers
+
+  const filteredUsers = users.filter(user =>
     user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -83,9 +110,9 @@ export default function UserManagement() {
 
   const getStatusBadge = (status: User['status']) => {
     const styles = {
-      active: 'bg-green-100 text-green-800',
-      inactive: 'bg-gray-100 text-gray-800',
-      locked: 'bg-red-100 text-red-800',
+      active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+      inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+      locked: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
     }
     const icons = {
       active: CheckCircle,
@@ -102,9 +129,9 @@ export default function UserManagement() {
   }
 
   const stats = {
-    totalUsers: mockUsers.length,
-    activeUsers: mockUsers.filter(u => u.status === 'active').length,
-    lockedUsers: mockUsers.filter(u => u.status === 'locked').length,
+    totalUsers: users.length,
+    activeUsers: users.filter(u => u.status === 'active').length,
+    lockedUsers: users.filter(u => u.status === 'locked').length,
     totalRoles: mockRoles.length,
   }
 
@@ -115,13 +142,39 @@ export default function UserManagement() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">User Management</h1>
           <p className="text-gray-600 dark:text-gray-400">Manage users, roles, and permissions</p>
         </div>
-        <button
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          Add User
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" />
+            Add User
+          </button>
+        </div>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+          <p className="text-blue-700 dark:text-blue-300">Loading users...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-yellow-600" />
+          <p className="text-yellow-700 dark:text-yellow-300">Unable to load from server. Showing demo data.</p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

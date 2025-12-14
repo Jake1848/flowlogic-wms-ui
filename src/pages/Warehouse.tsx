@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Grid3x3, MapPin, Layers, TrendingUp, Package } from 'lucide-react'
+import { Grid3x3, MapPin, Layers, TrendingUp, Package, RefreshCw, AlertCircle, Loader2 } from 'lucide-react'
+import { useWarehouseList } from '../hooks/useWarehouses'
 
 interface Zone {
   id: string
@@ -29,7 +30,13 @@ interface Location {
 export default function Warehouse() {
   const [activeTab, setActiveTab] = useState<'zones' | 'locations' | 'slotting'>('zones')
 
-  // Mock zone data
+  // Fetch warehouses from API
+  const { data: warehouseData, isLoading, error, refetch } = useWarehouseList()
+
+  // Use API data for stats
+  const warehouses = warehouseData?.data || []
+
+  // Mock zone data (zone API would be per-warehouse)
   const zones: Zone[] = [
     {
       id: '1',
@@ -184,7 +191,45 @@ export default function Warehouse() {
             Manage zones, locations, and optimize warehouse slotting
           </p>
         </div>
+        <button
+          onClick={() => refetch()}
+          className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+          disabled={isLoading}
+        >
+          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+          <p className="text-blue-700 dark:text-blue-300">Loading warehouse data...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-yellow-600" />
+          <p className="text-yellow-700 dark:text-yellow-300">Unable to load from server. Showing demo data.</p>
+        </div>
+      )}
+
+      {/* Warehouse Info */}
+      {warehouses.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Active Warehouses</h3>
+          <div className="flex flex-wrap gap-2">
+            {warehouses.map(wh => (
+              <span key={wh.id} className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full text-sm">
+                {wh.name} ({wh.code})
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

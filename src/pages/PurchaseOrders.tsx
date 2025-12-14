@@ -9,7 +9,11 @@ import {
   Eye,
   Download,
   DollarSign,
+  RefreshCw,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react'
+import { usePurchaseOrderList, type PurchaseOrder as APIPurchaseOrder } from '../hooks/usePurchaseOrders'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface PurchaseOrder {
@@ -62,10 +66,50 @@ const weeklyData = [
   { week: 'W4', ordered: 165000, received: 142000 },
 ]
 
+// Map API status to UI status
+function mapAPIStatus(apiStatus: string): PurchaseOrder['status'] {
+  const statusMap: Record<string, PurchaseOrder['status']> = {
+    'DRAFT': 'draft',
+    'SUBMITTED': 'submitted',
+    'CONFIRMED': 'confirmed',
+    'OPEN': 'in_transit',
+    'PARTIAL': 'partial',
+    'RECEIVED': 'received',
+    'CLOSED': 'closed',
+    'CANCELLED': 'closed',
+    'PENDING_APPROVAL': 'submitted',
+    'APPROVED': 'confirmed',
+    'ON_HOLD': 'draft',
+  }
+  return statusMap[apiStatus] || 'draft'
+}
+
 export default function PurchaseOrders() {
   const [activeTab, setActiveTab] = useState<'list' | 'details' | 'analytics'>('list')
   const [selectedPO, setSelectedPO] = useState<string | null>('PO-2024-0124')
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Fetch purchase orders from API
+  const { data: poData, isLoading, error, refetch } = usePurchaseOrderList({ poNumber: searchTerm || undefined })
+
+  // Map API purchase orders to UI format with fallback to mock data
+  const apiPOs: PurchaseOrder[] = poData?.data?.map((po: APIPurchaseOrder) => ({
+    id: String(po.id),
+    poNumber: po.poNumber,
+    vendor: po.vendorName,
+    vendorCode: po.vendorCode,
+    orderDate: po.orderDate,
+    expectedDate: po.expectedDate,
+    status: mapAPIStatus(po.status),
+    totalLines: po.totalLines,
+    totalUnits: po.totalQtyOrdered,
+    totalValue: po.totalValue,
+    receivedUnits: po.totalQtyReceived,
+    warehouse: po.warehouseName,
+  })) || []
+
+  // Use API data if available, fallback to mock
+  const purchaseOrders = apiPOs.length > 0 ? apiPOs : mockPOs
 
   const getStatusBadge = (status: PurchaseOrder['status']) => {
     const styles = {
@@ -80,16 +124,16 @@ export default function PurchaseOrders() {
     return styles[status]
   }
 
-  const filteredPOs = mockPOs.filter(po =>
+  const filteredPOs = purchaseOrders.filter(po =>
     po.poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     po.vendor.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const stats = {
-    openPOs: mockPOs.filter(po => !['received', 'closed'].includes(po.status)).length,
-    inTransit: mockPOs.filter(po => po.status === 'in_transit').length,
-    totalValue: mockPOs.reduce((sum, po) => sum + po.totalValue, 0),
-    pendingReceipt: mockPOs.filter(po => ['in_transit', 'partial'].includes(po.status)).length,
+    openPOs: purchaseOrders.filter(po => !['received', 'closed'].includes(po.status)).length,
+    inTransit: purchaseOrders.filter(po => po.status === 'in_transit').length,
+    totalValue: purchaseOrders.reduce((sum, po) => sum + po.totalValue, 0),
+    pendingReceipt: purchaseOrders.filter(po => ['in_transit', 'partial'].includes(po.status)).length,
   }
 
   return (
@@ -99,11 +143,39 @@ export default function PurchaseOrders() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Purchase Orders</h1>
           <p className="text-gray-600 dark:text-gray-400">Manage inbound purchase orders</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          <Plus className="w-4 h-4" />
-          Create PO
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <Plus className="w-4 h-4" />
+            Create PO
+          </button>
+        </div>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-gray-600 dark:text-gray-400">Loading purchase orders...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+            <span className="text-red-700 dark:text-red-400">Failed to load purchase orders. Using sample data.</span>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

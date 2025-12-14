@@ -9,8 +9,12 @@ import {
   FolderOpen,
   File,
   Clock,
+  RefreshCw,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useDocumentList, type Document as APIDocument } from '../hooks/useDocuments'
 
 interface Document {
   id: string
@@ -64,11 +68,73 @@ const documentsByType = [
   { type: 'Customs', count: 67 },
 ]
 
+// Map API type to UI type
+function mapAPIType(apiType: string): Document['type'] {
+  const typeMap: Record<string, Document['type']> = {
+    'BOL': 'bol',
+    'PACKING_SLIP': 'packing_slip',
+    'SHIPPING_LABEL': 'shipping_label',
+    'INVOICE': 'invoice',
+    'POD': 'pod',
+    'CUSTOMS': 'customs',
+    'MSDS': 'msds',
+    'CERTIFICATE': 'certificate',
+  }
+  return typeMap[apiType] || 'certificate'
+}
+
+// Map API status to UI status
+function mapAPIStatus(apiStatus: string): Document['status'] {
+  const statusMap: Record<string, Document['status']> = {
+    'DRAFT': 'draft',
+    'FINAL': 'final',
+    'VOIDED': 'voided',
+    'ARCHIVED': 'archived',
+  }
+  return statusMap[apiStatus] || 'draft'
+}
+
+// Map API relatedType to UI relatedType
+function mapAPIRelatedType(apiRelatedType: string): Document['relatedType'] {
+  const relatedTypeMap: Record<string, Document['relatedType']> = {
+    'ORDER': 'order',
+    'SHIPMENT': 'shipment',
+    'RECEIPT': 'receipt',
+    'ITEM': 'item',
+    'VENDOR': 'vendor',
+  }
+  return relatedTypeMap[apiRelatedType] || 'order'
+}
+
 export default function DocumentManagement() {
   const [activeTab, setActiveTab] = useState<'documents' | 'templates' | 'analytics'>('documents')
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+
+  // Fetch documents from API
+  const { data: documentData, isLoading, error, refetch } = useDocumentList({
+    search: searchTerm || undefined,
+    type: typeFilter !== 'All' ? typeFilter.toUpperCase().replace(' ', '_') : undefined
+  })
+
+  // Map API documents to UI format with fallback to mock data
+  const apiDocuments: Document[] = documentData?.data?.map((doc: APIDocument) => ({
+    id: doc.id,
+    documentNumber: doc.documentNumber,
+    type: mapAPIType(doc.type),
+    name: doc.name,
+    relatedTo: doc.relatedTo,
+    relatedType: mapAPIRelatedType(doc.relatedType),
+    createdDate: doc.createdDate,
+    createdBy: doc.createdBy,
+    fileSize: doc.fileSize,
+    status: mapAPIStatus(doc.status),
+    printCount: doc.printCount,
+  })) || []
+
+  // Use API data if available, fallback to mock
+  const documents = apiDocuments.length > 0 ? apiDocuments : mockDocuments
 
   const getTypeBadge = (type: Document['type']) => {
     const styles: Record<Document['type'], string> = {
@@ -94,7 +160,7 @@ export default function DocumentManagement() {
     return styles[status]
   }
 
-  const filteredDocuments = mockDocuments.filter(doc => {
+  const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.documentNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       doc.relatedTo.toLowerCase().includes(searchTerm.toLowerCase())
@@ -103,9 +169,9 @@ export default function DocumentManagement() {
   })
 
   const stats = {
-    totalDocuments: mockDocuments.length,
+    totalDocuments: documents.length,
     todayCreated: 4,
-    pendingPrint: mockDocuments.filter(d => d.printCount === 0 && d.status === 'final').length,
+    pendingPrint: documents.filter(d => d.printCount === 0 && d.status === 'final').length,
     templates: mockTemplates.filter(t => t.status === 'active').length,
   }
 
@@ -118,6 +184,14 @@ export default function DocumentManagement() {
           <p className="text-gray-600 dark:text-gray-400">BOLs, packing slips, labels, and shipping documents</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
           <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
             <Printer className="w-4 h-4" />
             Batch Print
@@ -128,6 +202,24 @@ export default function DocumentManagement() {
           </button>
         </div>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-gray-600 dark:text-gray-400">Loading documents...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+            <span className="text-red-700 dark:text-red-400">Failed to load documents. Using sample data.</span>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

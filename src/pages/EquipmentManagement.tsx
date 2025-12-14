@@ -8,8 +8,12 @@ import {
   Search,
   Plus,
   Settings,
+  RefreshCw,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useEquipmentList, type Equipment as APIEquipment } from '../hooks/useEquipment'
 
 interface Equipment {
   id: string
@@ -63,10 +67,60 @@ const utilizationData = [
   { name: 'FLT-003', hours: 85, target: 200 },
 ]
 
+// Map API status to UI status
+function mapAPIStatus(apiStatus: string): Equipment['status'] {
+  const statusMap: Record<string, Equipment['status']> = {
+    'OPERATIONAL': 'operational',
+    'MAINTENANCE': 'maintenance',
+    'REPAIR': 'repair',
+    'OFFLINE': 'offline',
+    'RETIRED': 'retired',
+  }
+  return statusMap[apiStatus] || 'offline'
+}
+
+// Map API condition to UI condition
+function mapAPICondition(apiCondition: string): Equipment['condition'] {
+  const conditionMap: Record<string, Equipment['condition']> = {
+    'EXCELLENT': 'excellent',
+    'GOOD': 'good',
+    'FAIR': 'fair',
+    'POOR': 'poor',
+  }
+  return conditionMap[apiCondition] || 'fair'
+}
+
 export default function EquipmentManagement() {
   const [activeTab, setActiveTab] = useState<'inventory' | 'maintenance' | 'analytics'>('inventory')
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
+
+  // Fetch equipment from API
+  const { data: equipmentData, isLoading, error, refetch } = useEquipmentList({
+    search: searchTerm || undefined,
+    type: typeFilter !== 'All' ? typeFilter : undefined
+  })
+
+  // Map API equipment to UI format with fallback to mock data
+  const apiEquipment: Equipment[] = equipmentData?.data?.map((eq: APIEquipment) => ({
+    id: eq.id,
+    assetId: eq.assetId,
+    name: eq.name,
+    type: eq.type,
+    model: eq.model,
+    serialNumber: eq.serialNumber,
+    location: eq.location,
+    status: mapAPIStatus(eq.status),
+    condition: mapAPICondition(eq.condition),
+    lastMaintenance: eq.lastMaintenance || '',
+    nextMaintenance: eq.nextMaintenance || '',
+    hoursUsed: eq.hoursUsed,
+    assignedTo: eq.assignedTo,
+    batteryLevel: eq.batteryLevel,
+  })) || []
+
+  // Use API data if available, fallback to mock
+  const equipment = apiEquipment.length > 0 ? apiEquipment : mockEquipment
 
   const getStatusBadge = (status: Equipment['status']) => {
     const styles = {
@@ -100,7 +154,7 @@ export default function EquipmentManagement() {
     }
   }
 
-  const filteredEquipment = mockEquipment.filter(eq => {
+  const filteredEquipment = equipment.filter(eq => {
     const matchesSearch = eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       eq.assetId.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = typeFilter === 'All' || eq.type === typeFilter
@@ -108,10 +162,10 @@ export default function EquipmentManagement() {
   })
 
   const stats = {
-    total: mockEquipment.length,
-    operational: mockEquipment.filter(e => e.status === 'operational').length,
-    needsMaintenance: mockEquipment.filter(e => e.status === 'maintenance' || e.status === 'repair').length,
-    offline: mockEquipment.filter(e => e.status === 'offline').length,
+    total: equipment.length,
+    operational: equipment.filter(e => e.status === 'operational').length,
+    needsMaintenance: equipment.filter(e => e.status === 'maintenance' || e.status === 'repair').length,
+    offline: equipment.filter(e => e.status === 'offline').length,
   }
 
   return (
@@ -121,11 +175,39 @@ export default function EquipmentManagement() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Equipment Management</h1>
           <p className="text-gray-600 dark:text-gray-400">Track and maintain warehouse equipment</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          <Plus className="w-4 h-4" />
-          Add Equipment
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <Plus className="w-4 h-4" />
+            Add Equipment
+          </button>
+        </div>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-gray-600 dark:text-gray-400">Loading equipment...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+            <span className="text-red-700 dark:text-red-400">Failed to load equipment. Using sample data.</span>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
