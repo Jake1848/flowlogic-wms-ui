@@ -1,269 +1,452 @@
 # FlowLogic WMS Deployment Guide
 
-This guide covers deploying FlowLogic WMS for test users using Vercel (frontend) and Railway (backend + database).
+Deploy FlowLogic WMS using **Railway** for a complete, all-in-one solution.
 
-## Architecture Overview
+## Why Railway?
+
+- **All-in-one**: Frontend, backend, database, and Redis in one place
+- **Simple**: One dashboard, one bill, one deploy
+- **Affordable**: $5 free credit/month (enough for testing)
+- **Auto-deploys**: Push to GitHub → automatic deployment
+
+## Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Vercel        │     │   Railway       │     │   Railway       │
-│   (Frontend)    │────▶│   (Backend)     │────▶│   (PostgreSQL)  │
-│   React/Vite    │     │   Express.js    │     │   Database      │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                     Railway Project                      │
+├─────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │   Frontend   │  │   Backend    │  │  PostgreSQL  │  │
+│  │  (Static)    │──│  (Express)   │──│  (Database)  │  │
+│  │   Vite       │  │  Socket.io   │  │              │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│                           │                             │
+│                    ┌──────────────┐                     │
+│                    │    Redis     │                     │
+│                    │  (Optional)  │                     │
+│                    └──────────────┘                     │
+└─────────────────────────────────────────────────────────┘
 ```
 
-## Prerequisites
+## Features Included
 
-- GitHub account (code is already pushed)
-- Vercel account (free tier works)
-- Railway account (free tier: $5 credit/month)
-- Anthropic API key (optional, for AI assistant)
+- **WebSockets**: Real-time updates via Socket.io
+- **File Uploads**: Document and image uploads via Multer
+- **Background Jobs**: Job queue system (in-memory or Redis)
+- **AI Assistant**: Claude-powered warehouse assistant
 
 ---
 
-## Step 1: Deploy Backend to Railway
+## Quick Start (15 minutes)
 
-### 1.1 Create Railway Project
+### Prerequisites
 
-1. Go to [railway.app](https://railway.app) and sign in with GitHub
-2. Click **"New Project"** → **"Deploy from GitHub repo"**
-3. Select `flowlogic-wms-ui` repository
-4. Choose **"server"** as the root directory
+- GitHub account (your code is already there)
+- [Railway account](https://railway.app) (sign up with GitHub)
+- Anthropic API key (optional, for AI features)
 
-### 1.2 Add PostgreSQL Database
+### Step 1: Create Railway Project
 
-1. In your Railway project, click **"+ New"** → **"Database"** → **"PostgreSQL"**
-2. Railway will automatically create the database and provide a connection string
+1. Go to [railway.app](https://railway.app)
+2. Click **"New Project"**
+3. Select **"Deploy from GitHub repo"**
+4. Choose `flowlogic-wms-ui` repository
+5. Railway will auto-detect the project
 
-### 1.3 Configure Environment Variables
+### Step 2: Add PostgreSQL Database
 
-In Railway, go to your backend service → **Variables** tab and add:
+1. In your Railway project, click **"+ New"**
+2. Select **"Database"** → **"PostgreSQL"**
+3. Wait for it to provision (~30 seconds)
+
+### Step 3: Add Redis (Optional but Recommended)
+
+1. Click **"+ New"** again
+2. Select **"Database"** → **"Redis"**
+3. This enables:
+   - Background job queues
+   - Session caching
+   - Real-time pub/sub
+
+### Step 4: Configure Backend Service
+
+1. Click on your main service (flowlogic-wms-ui)
+2. Go to **"Settings"** tab
+3. Set **Root Directory** to: `server`
+4. Set **Start Command** to: `npm run start`
+
+### Step 5: Set Environment Variables
+
+Go to **"Variables"** tab and add:
 
 ```env
-# Required
-DATABASE_URL=${{Postgres.DATABASE_URL}}  # Railway auto-fills this
+# Database (Railway auto-fills these if you click "Add Reference")
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+
+# Redis (if added)
+REDIS_URL=${{Redis.REDIS_URL}}
+
+# Server
 NODE_ENV=production
 PORT=3001
 
-# Security (generate secure random strings)
-SESSION_SECRET=<generate-32-char-random-string>
-JWT_SECRET=<generate-32-char-random-string>
+# Security (IMPORTANT: Generate unique values!)
+SESSION_SECRET=<run: openssl rand -hex 32>
+JWT_SECRET=<run: openssl rand -hex 32>
 
-# CORS - Will be set after Vercel deployment
-ALLOWED_ORIGINS=https://your-app.vercel.app
+# CORS - Your Railway URL (update after first deploy)
+ALLOWED_ORIGINS=https://your-app.up.railway.app
 
-# Optional - AI Assistant
-ANTHROPIC_API_KEY=<your-anthropic-api-key>
+# AI Assistant (optional)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# File Uploads
+UPLOAD_PATH=./uploads
+MAX_FILE_SIZE=10485760
 ```
 
 **Generate secure secrets:**
 ```bash
-# Run this in terminal to generate random strings
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# Run these commands locally
+openssl rand -hex 32  # For SESSION_SECRET
+openssl rand -hex 32  # For JWT_SECRET
 ```
 
-### 1.4 Deploy and Get URL
+### Step 6: Deploy Frontend
 
-1. Railway will auto-deploy on every push to main
-2. Go to **Settings** → **Networking** → **Generate Domain**
-3. Copy the URL (e.g., `https://flowlogic-backend-production.up.railway.app`)
+**Option A: Same Railway Project (Recommended)**
 
-### 1.5 Initialize Database
+1. Click **"+ New"** → **"GitHub Repo"**
+2. Select the same `flowlogic-wms-ui` repo
+3. Name it `frontend`
+4. Settings:
+   - Root Directory: `.` (empty)
+   - Build Command: `npm run build`
+   - Start Command: `npx serve dist -s -l 3000`
+5. Add variable: `VITE_API_URL=https://your-backend.up.railway.app`
 
-After first deployment, run database migrations:
+**Option B: Static Hosting via Backend**
 
-1. In Railway, go to your backend service
-2. Click **"Deploy"** → **"View Logs"** to ensure it started
-3. Go to the PostgreSQL service → **"Data"** tab to verify tables were created
-
----
-
-## Step 2: Deploy Frontend to Vercel
-
-### 2.1 Import Project
-
-1. Go to [vercel.com](https://vercel.com) and sign in with GitHub
-2. Click **"Add New..."** → **"Project"**
-3. Import `flowlogic-wms-ui` repository
-
-### 2.2 Configure Build Settings
-
-Vercel should auto-detect Vite. Verify these settings:
-
-- **Framework Preset:** Vite
-- **Root Directory:** `./` (leave empty, not `server`)
-- **Build Command:** `npm run build`
-- **Output Directory:** `dist`
-- **Install Command:** `npm install`
-
-### 2.3 Set Environment Variables
-
-In Vercel project settings → **Environment Variables**:
-
-```env
-VITE_API_URL=https://your-railway-backend-url.up.railway.app
-VITE_ENABLE_AI_ASSISTANT=true
-VITE_ENABLE_ANALYTICS=true
-VITE_ENABLE_DARK_MODE=true
-VITE_APP_ENV=production
-```
-
-### 2.4 Deploy
-
-1. Click **Deploy**
-2. Wait for build to complete (~2 minutes)
-3. Copy your Vercel URL (e.g., `https://flowlogic-wms.vercel.app`)
-
-### 2.5 Update Railway CORS
-
-Go back to Railway and update the `ALLOWED_ORIGINS` variable:
-
-```env
-ALLOWED_ORIGINS=https://flowlogic-wms.vercel.app
-```
-
-Railway will automatically redeploy with the new CORS settings.
-
----
-
-## Step 3: Verify Deployment
-
-### 3.1 Health Checks
-
-- **Backend:** Visit `https://your-railway-url.up.railway.app/api/health`
-- **API Docs:** Visit `https://your-railway-url.up.railway.app/api/docs`
-- **Frontend:** Visit `https://your-vercel-url.vercel.app`
-
-### 3.2 Test Core Features
-
-1. Open the frontend URL
-2. Navigate through different pages
-3. Check that data loads (or shows appropriate mock data fallback)
-4. Test the AI assistant (if Anthropic API key is configured)
-
----
-
-## Step 4: Seed Demo Data (Optional)
-
-To populate the database with demo data for testing:
-
-1. In Railway, open your backend service
-2. Go to **Settings** → **Custom Start Command**
-3. Temporarily change to: `npm run db:seed && node index.js`
-4. Trigger a redeploy
-5. After seeding completes, change back to: `node index.js`
-
-Alternatively, connect to the database directly:
+The backend can serve the frontend. Just build and copy:
 ```bash
-# Get connection string from Railway
-npx prisma db seed
+npm run build
+# dist/ folder is served at root
+```
+
+### Step 7: Generate Domains
+
+1. Click on each service → **"Settings"** → **"Networking"**
+2. Click **"Generate Domain"**
+3. Copy your URLs:
+   - Backend: `https://flowlogic-backend-xxx.up.railway.app`
+   - Frontend: `https://flowlogic-frontend-xxx.up.railway.app`
+
+### Step 8: Update CORS
+
+Go back to your backend service → Variables:
+```env
+ALLOWED_ORIGINS=https://flowlogic-frontend-xxx.up.railway.app
+```
+
+### Step 9: Initialize Database
+
+Railway will automatically run migrations on deploy. To seed demo data:
+
+1. Go to backend service → **"Settings"**
+2. Temporarily set Start Command: `npm run db:seed && npm start`
+3. Redeploy
+4. After seeding, change back to: `npm start`
+
+---
+
+## Verify Deployment
+
+### Health Checks
+
+| Endpoint | Expected |
+|----------|----------|
+| `https://your-backend.up.railway.app/api/health` | `{"status":"ok"}` |
+| `https://your-backend.up.railway.app/api/docs` | Swagger UI |
+| `https://your-frontend.up.railway.app` | FlowLogic UI |
+
+### Test WebSocket Connection
+
+Open browser console on frontend:
+```javascript
+const socket = io('https://your-backend.up.railway.app');
+socket.on('connect', () => console.log('WebSocket connected!'));
+```
+
+### Test File Upload
+
+```bash
+curl -X POST https://your-backend.up.railway.app/api/uploads/documents \
+  -F "file=@test.pdf"
 ```
 
 ---
 
 ## Environment Variables Reference
 
-### Backend (Railway)
+### Required
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `NODE_ENV` | Yes | Set to `production` |
-| `PORT` | Yes | Server port (3001) |
-| `SESSION_SECRET` | Yes | Random string for sessions |
-| `JWT_SECRET` | Yes | Random string for JWT tokens |
-| `ALLOWED_ORIGINS` | Yes | Comma-separated frontend URLs |
-| `ANTHROPIC_API_KEY` | No | For AI assistant features |
-| `RATE_LIMIT_RPM` | No | Requests per minute (default: 100) |
-| `LOG_LEVEL` | No | Logging level (default: info) |
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `NODE_ENV` | Set to `production` |
+| `SESSION_SECRET` | Random 32+ character string |
+| `JWT_SECRET` | Random 32+ character string |
+| `ALLOWED_ORIGINS` | Frontend URL(s), comma-separated |
 
-### Frontend (Vercel)
+### Optional
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_API_URL` | Yes | Backend API URL |
-| `VITE_ENABLE_AI_ASSISTANT` | No | Enable AI chat (true/false) |
-| `VITE_ENABLE_ANALYTICS` | No | Enable analytics (true/false) |
-| `VITE_ENABLE_DARK_MODE` | No | Enable dark mode (true/false) |
-| `VITE_APP_ENV` | No | Environment name |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | 3001 | Server port |
+| `REDIS_URL` | - | Redis for queues/cache |
+| `ANTHROPIC_API_KEY` | - | AI assistant |
+| `UPLOAD_PATH` | ./uploads | File storage path |
+| `MAX_FILE_SIZE` | 10485760 | Max upload size (10MB) |
+| `RATE_LIMIT_RPM` | 100 | API rate limit |
+| `LOG_LEVEL` | info | Logging verbosity |
 
 ---
 
-## Custom Domain (Optional)
+## WebSocket Events
 
-### Vercel Custom Domain
-1. Go to Vercel project → **Settings** → **Domains**
-2. Add your domain
-3. Configure DNS as instructed
+The backend emits real-time events:
 
-### Railway Custom Domain
-1. Go to Railway service → **Settings** → **Networking**
-2. Add custom domain
-3. Configure DNS as instructed
+```javascript
+// Frontend connection
+import { io } from 'socket.io-client';
 
-**Remember to update `ALLOWED_ORIGINS` in Railway if you add custom domains!**
+const socket = io(import.meta.env.VITE_API_URL);
+
+// Authenticate after connect
+socket.emit('authenticate', {
+  userId: user.id,
+  warehouseId: user.warehouseId,
+  role: user.role
+});
+
+// Listen for events
+socket.on('inventory:updated', (data) => {
+  console.log('Inventory changed:', data);
+});
+
+socket.on('task:assigned', (task) => {
+  showNotification(`New task: ${task.type}`);
+});
+
+socket.on('alert:created', (alert) => {
+  showAlert(alert);
+});
+```
+
+### Available Events
+
+| Event | Description |
+|-------|-------------|
+| `inventory:updated` | Inventory quantity changed |
+| `inventory:low_stock` | Item below reorder point |
+| `order:created` | New order received |
+| `order:status_changed` | Order status updated |
+| `task:assigned` | Task assigned to user |
+| `task:completed` | Task marked complete |
+| `alert:created` | New system alert |
+| `asn:arrived` | ASN checked in at dock |
+
+---
+
+## File Uploads
+
+### Supported Types
+
+| Category | Extensions | Max Size |
+|----------|------------|----------|
+| Documents | .pdf, .doc, .docx, .xls, .xlsx, .csv | 10MB |
+| Images | .jpg, .png, .gif, .webp | 5MB |
+| EDI | .edi, .x12, .txt | 50MB |
+| Labels | .pdf, .png, .zpl | 2MB |
+
+### Upload Endpoints
+
+```bash
+# Single document
+POST /api/uploads/documents
+Content-Type: multipart/form-data
+file: <file>
+
+# Multiple documents
+POST /api/uploads/documents/batch
+Content-Type: multipart/form-data
+files: <file[]>
+
+# Single image
+POST /api/uploads/images
+Content-Type: multipart/form-data
+image: <file>
+
+# Download
+GET /api/uploads/download/:fileId
+```
+
+---
+
+## Background Jobs
+
+The job queue processes async tasks:
+
+```javascript
+// From any route handler
+import { initializeQueueSystem, JOB_TYPES } from './lib/queue/index.js';
+
+// Add a job
+await queueSystem.addJob(JOB_TYPES.REPORT_GENERATE, {
+  reportType: 'inventory-snapshot',
+  warehouseId: 'wh-001'
+});
+
+// Schedule recurring job
+queueSystem.schedule(
+  'daily-cleanup',
+  '0 2 * * *',  // 2 AM daily
+  JOB_TYPES.CLEANUP_OLD_DATA,
+  { daysToKeep: 90 }
+);
+```
+
+### Job Types
+
+| Type | Description |
+|------|-------------|
+| `edi:inbound:process` | Process incoming EDI |
+| `edi:outbound:generate` | Generate outbound EDI |
+| `report:generate` | Generate reports |
+| `notification:email` | Send email notifications |
+| `notification:webhook` | Call external webhooks |
+| `maintenance:cleanup` | Clean old data |
+
+---
+
+## Custom Domain
+
+1. Go to service → **Settings** → **Networking**
+2. Click **"Add Custom Domain"**
+3. Enter your domain (e.g., `app.yourcompany.com`)
+4. Add DNS records as shown
+5. Wait for SSL certificate (~5 minutes)
+
+**Don't forget to update `ALLOWED_ORIGINS`!**
+
+---
+
+## Monitoring & Logs
+
+### View Logs
+- Railway Dashboard → Service → **"Deployments"** → Click deployment → **"View Logs"**
+
+### Health Monitoring
+- Backend exposes `/api/health` for uptime monitoring
+- Connect to UptimeRobot, Pingdom, or similar
+
+### Database Management
+- Railway Dashboard → PostgreSQL service → **"Data"** tab
+- Or use Prisma Studio: `npx prisma studio`
+
+---
+
+## Scaling
+
+### Horizontal Scaling
+Railway supports multiple instances. Go to **Settings** → **Scaling**:
+- Replicas: 2+ for high availability
+- Memory: Increase as needed
+
+### Database Scaling
+PostgreSQL can be upgraded in Railway:
+- Pro plan for larger databases
+- Enable connection pooling for high traffic
 
 ---
 
 ## Troubleshooting
 
-### Backend won't start
-- Check Railway logs for errors
-- Verify `DATABASE_URL` is set correctly
-- Ensure Prisma client was generated (`npx prisma generate`)
+### Build Fails
+```
+Check: npm install runs successfully locally
+Fix: Delete package-lock.json, run npm install, commit
+```
 
-### CORS errors in browser
-- Verify `ALLOWED_ORIGINS` includes your frontend URL exactly
-- Check for trailing slashes (don't include them)
-- Ensure the backend redeployed after changing `ALLOWED_ORIGINS`
+### Database Connection Error
+```
+Check: DATABASE_URL is set correctly
+Check: PostgreSQL service is running
+Fix: Click "Connect" on Postgres service, copy connection string
+```
 
-### Database connection issues
-- Check PostgreSQL service is running in Railway
-- Verify `DATABASE_URL` format: `postgresql://user:pass@host:port/db`
-- Check Railway PostgreSQL logs for connection errors
+### CORS Errors
+```
+Check: ALLOWED_ORIGINS matches your frontend URL exactly
+Check: No trailing slash in origins
+Fix: Redeploy after changing ALLOWED_ORIGINS
+```
 
-### Frontend shows no data
-- Open browser DevTools → Network tab
-- Check if API requests are reaching the backend
-- Verify `VITE_API_URL` is set correctly in Vercel
-- Check backend logs in Railway for errors
+### WebSocket Won't Connect
+```
+Check: Backend URL uses https://
+Check: Socket.io client matches server version
+Fix: Clear browser cache, check console for errors
+```
 
-### AI Assistant not working
-- Verify `ANTHROPIC_API_KEY` is set in Railway
-- Check backend logs for Anthropic API errors
-- Ensure `VITE_ENABLE_AI_ASSISTANT=true` in Vercel
+### File Upload Fails
+```
+Check: File size under limit
+Check: File type is allowed
+Check: uploads/ directory is writable
+```
 
 ---
 
-## Cost Estimates
+## Cost Estimate
 
-### Free Tier Usage
-- **Vercel:** Free for hobby projects (100GB bandwidth/month)
-- **Railway:** $5 free credit/month (sufficient for testing)
+### Free Tier
+- **Railway**: $5/month free credit
+- Sufficient for: Testing, demos, small teams
 
-### Production Scaling
-- **Vercel Pro:** $20/month for team features
-- **Railway:** ~$10-50/month depending on usage
-- **Total:** ~$30-70/month for production
+### Production (~$20-50/month)
+- Backend: ~$10/month
+- PostgreSQL: ~$10/month
+- Redis: ~$5/month
+- Frontend: ~$5/month
+
+### Enterprise
+- Contact Railway for dedicated resources
+- Or migrate to AWS/GCP/Azure
 
 ---
 
 ## Security Checklist
 
-Before inviting test users:
+Before going live:
 
-- [ ] Secure `SESSION_SECRET` and `JWT_SECRET` (not default values)
-- [ ] `ALLOWED_ORIGINS` set to only your frontend domain
-- [ ] `NODE_ENV=production` in Railway
-- [ ] No sensitive data in frontend environment variables
-- [ ] Database backups enabled (Railway does this automatically)
-- [ ] Rate limiting configured (`RATE_LIMIT_RPM`)
+- [ ] Unique SESSION_SECRET (not default)
+- [ ] Unique JWT_SECRET (not default)
+- [ ] ALLOWED_ORIGINS set to production domain only
+- [ ] NODE_ENV=production
+- [ ] HTTPS enforced (Railway handles this)
+- [ ] Database backups enabled
+- [ ] Rate limiting configured
+- [ ] Sensitive env vars not in code
 
 ---
 
-## Next Steps After Deployment
+## Next Steps
 
-1. **Invite Test Users:** Share the Vercel URL
-2. **Monitor:** Check Railway logs for errors
-3. **Iterate:** Push changes to GitHub, auto-deploys to both platforms
-4. **Scale:** Upgrade plans as needed for more users/traffic
+1. **Deploy** - Follow steps above (~15 min)
+2. **Seed Data** - Add demo data for testing
+3. **Invite Testers** - Share the frontend URL
+4. **Monitor** - Watch logs for errors
+5. **Iterate** - Push to GitHub, auto-deploys
+
+Need help? Check logs first, then [open an issue](https://github.com/Jake1848/flowlogic-wms-ui/issues).

@@ -1,10 +1,14 @@
 import express from 'express';
 import cors from 'cors';
+import { createServer } from 'http';
 import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 import { PrismaClient } from './generated/prisma/client.js';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './swagger.js';
+
+// WebSocket and file upload support
+import { initializeWebSocket, WS_EVENTS, emitAlert, emitInventoryUpdate } from './lib/websocket/index.js';
 
 // Import routes
 import inventoryRoutes from './routes/inventory.js';
@@ -649,7 +653,17 @@ async function startServer() {
     console.warn('Run "npx prisma db push" and "npm run db:seed" to initialize the database');
   }
 
-  app.listen(PORT, () => {
+  // Create HTTP server for WebSocket support
+  const httpServer = createServer(app);
+
+  // Initialize WebSocket (Socket.io)
+  const io = initializeWebSocket(httpServer);
+  console.log('WebSocket server initialized');
+
+  // Make io available to routes for real-time updates
+  app.set('io', io);
+
+  httpServer.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
@@ -697,9 +711,14 @@ async function startServer() {
 ║   • POST /api/chat      - Flow AI Assistant                   ║
 ║   • POST /api/actions   - Execute AI actions                  ║
 ║                                                               ║
+║   Real-Time:                                                  ║
+║   • WebSocket (Socket.io) - Real-time updates                 ║
+║   • /api/uploads        - File upload endpoints               ║
+║                                                               ║
 ║   Status:                                                     ║
 ║   • AI: ${process.env.ANTHROPIC_API_KEY ? 'Configured' : 'Not configured'}                                      ║
 ║   • DB: PostgreSQL (Prisma)                                   ║
+║   • WS: Socket.io enabled                                     ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
     `);
