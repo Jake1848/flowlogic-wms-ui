@@ -10,9 +10,13 @@ import {
   Clock,
   DollarSign,
   Package,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts'
+import { useCarrierList, type Carrier as APICarrier } from '../hooks/useCarriers'
 
+// Extended interface for UI display (combines API data with computed fields)
 interface Carrier {
   id: string
   carrierCode: string
@@ -77,6 +81,34 @@ export default function CarrierManagement() {
   const [typeFilter, setTypeFilter] = useState('All')
   const [selectedCarrier, setSelectedCarrier] = useState<Carrier | null>(null)
 
+  // Fetch carriers from API
+  const { data: carrierData, isLoading, error, refetch } = useCarrierList({
+    search: searchTerm,
+    type: typeFilter !== 'All' ? typeFilter.toUpperCase() : undefined,
+  })
+
+  // Map API carriers to UI format with fallback to mock data
+  const apiCarriers: Carrier[] = carrierData?.data?.map((c: APICarrier) => ({
+    id: c.id,
+    carrierCode: c.code,
+    name: c.name,
+    type: c.type.toLowerCase() as Carrier['type'],
+    status: c.status.toLowerCase() as Carrier['status'],
+    rating: 4.0, // Default rating (not in API)
+    onTimeRate: 95, // Default (not in API)
+    damageRate: 0.5, // Default (not in API)
+    avgTransitDays: 3, // Default (not in API)
+    volumeYTD: 0, // Default (not in API)
+    spendYTD: 0, // Default (not in API)
+    contact: c.contactName || '',
+    phone: c.phone || '',
+    email: c.email || '',
+    services: [], // Default (not in API)
+  })) || []
+
+  // Use API data if available, fallback to mock
+  const carriers = apiCarriers.length > 0 ? apiCarriers : mockCarriers
+
   const getTypeBadge = (type: Carrier['type']) => {
     const styles: Record<Carrier['type'], string> = {
       ltl: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
@@ -107,7 +139,7 @@ export default function CarrierManagement() {
     ))
   }
 
-  const filteredCarriers = mockCarriers.filter(carrier => {
+  const filteredCarriers = carriers.filter(carrier => {
     const matchesSearch = carrier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       carrier.carrierCode.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = typeFilter === 'All' || carrier.type === typeFilter.toLowerCase()
@@ -115,10 +147,10 @@ export default function CarrierManagement() {
   })
 
   const stats = {
-    totalCarriers: mockCarriers.filter(c => c.status === 'active').length,
-    avgOnTimeRate: Math.round(mockCarriers.reduce((sum, c) => sum + c.onTimeRate, 0) / mockCarriers.length * 10) / 10,
-    totalSpendYTD: mockCarriers.reduce((sum, c) => sum + c.spendYTD, 0),
-    totalVolumeYTD: mockCarriers.reduce((sum, c) => sum + c.volumeYTD, 0),
+    totalCarriers: carriers.filter(c => c.status === 'active').length,
+    avgOnTimeRate: carriers.length > 0 ? Math.round(carriers.reduce((sum, c) => sum + c.onTimeRate, 0) / carriers.length * 10) / 10 : 0,
+    totalSpendYTD: carriers.reduce((sum, c) => sum + c.spendYTD, 0),
+    totalVolumeYTD: carriers.reduce((sum, c) => sum + c.volumeYTD, 0),
   }
 
   return (
@@ -129,11 +161,36 @@ export default function CarrierManagement() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Carrier Management</h1>
           <p className="text-gray-600 dark:text-gray-400">Shipping carriers, rates, and performance tracking</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <Plus className="w-4 h-4" />
-          Add Carrier
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <Plus className="w-4 h-4" />
+            Add Carrier
+          </button>
+        </div>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <p className="text-blue-700 dark:text-blue-300">Loading carriers...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-yellow-600" />
+          <p className="text-yellow-700 dark:text-yellow-300">Unable to load from server. Showing demo data.</p>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
