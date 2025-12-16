@@ -1745,3 +1745,243 @@ enum ChatRole {
   assistant
   system
 }
+
+// ============================================
+// FLOWLOGIC INTELLIGENCE PLATFORM
+// Data ingestion, truth engine, root cause analysis
+// ============================================
+
+// Data ingestion tracking
+model DataIngestion {
+  id            String   @id @default(uuid())
+  filename      String
+  filePath      String
+  dataType      String   // inventory_snapshot, transaction_history, adjustment_log, etc.
+  source        String   // manual, api, scheduled
+  mappingType   String   @default("generic") // manhattan, sap, generic
+  recordCount   Int      @default(0)
+  errorCount    Int      @default(0)
+  status        String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+
+  inventorySnapshots  InventorySnapshot[]
+  transactionSnapshots TransactionSnapshot[]
+  adjustmentSnapshots  AdjustmentSnapshot[]
+  cycleCountSnapshots  CycleCountSnapshot[]
+
+  @@index([dataType, createdAt])
+  @@map("data_ingestions")
+}
+
+// Scheduled data ingestion jobs
+model ScheduledIngestion {
+  id              String   @id @default(uuid())
+  name            String
+  source          String   // api, sftp, etc.
+  connectionConfig String  // JSON config
+  schedule        String   // cron expression
+  dataType        String
+  mappingType     String   @default("generic")
+  isActive        Boolean  @default(true)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("scheduled_ingestions")
+}
+
+// Inventory snapshots for comparison
+model InventorySnapshot {
+  id              String   @id @default(uuid())
+  ingestionId     String
+  ingestion       DataIngestion @relation(fields: [ingestionId], references: [id])
+
+  sku             String
+  locationCode    String
+  quantityOnHand  Float
+  quantityAllocated Float @default(0)
+  quantityAvailable Float @default(0)
+  lotNumber       String?
+  expirationDate  DateTime?
+  snapshotDate    DateTime @default(now())
+  rawData         Json?
+
+  @@index([sku, locationCode])
+  @@index([snapshotDate])
+  @@map("inventory_snapshots")
+}
+
+// Transaction history from WMS
+model TransactionSnapshot {
+  id                    String   @id @default(uuid())
+  ingestionId           String
+  ingestion             DataIngestion @relation(fields: [ingestionId], references: [id])
+
+  externalTransactionId String?
+  type                  String   // RECEIVE, PICK, MOVE, ADJUST, etc.
+  sku                   String
+  fromLocation          String?
+  toLocation            String?
+  quantity              Float
+  userId                String?
+  transactionDate       DateTime
+  rawData               Json?
+
+  @@index([sku, transactionDate])
+  @@index([type, transactionDate])
+  @@map("transaction_snapshots")
+}
+
+// Adjustment history for analysis
+model AdjustmentSnapshot {
+  id              String   @id @default(uuid())
+  ingestionId     String
+  ingestion       DataIngestion @relation(fields: [ingestionId], references: [id])
+
+  sku             String
+  locationCode    String
+  adjustmentQty   Float
+  reason          String
+  reasonCode      String?
+  userId          String?
+  adjustmentDate  DateTime @default(now())
+  rawData         Json?
+
+  @@index([sku, adjustmentDate])
+  @@index([locationCode, adjustmentDate])
+  @@index([reason])
+  @@map("adjustment_snapshots")
+}
+
+// Cycle count results from WMS
+model CycleCountSnapshot {
+  id              String   @id @default(uuid())
+  ingestionId     String
+  ingestion       DataIngestion @relation(fields: [ingestionId], references: [id])
+
+  sku             String
+  locationCode    String
+  systemQty       Float
+  countedQty      Float
+  variance        Float
+  variancePercent Float
+  counterId       String?
+  countDate       DateTime @default(now())
+  rawData         Json?
+
+  @@index([sku, locationCode])
+  @@index([countDate])
+  @@index([variance])
+  @@map("cycle_count_snapshots")
+}
+
+// Detected discrepancies
+model Discrepancy {
+  id              String   @id @default(uuid())
+  type            String   // negative_on_hand, unexplained_shortage, etc.
+  severity        String   // critical, high, medium, low
+  status          String   @default("OPEN") // OPEN, INVESTIGATING, RESOLVED, CLOSED
+
+  sku             String?
+  locationCode    String?
+  expectedQty     Float?
+  actualQty       Float?
+  variance        Float
+  variancePercent Float?
+  varianceValue   Float?   // Dollar value of variance
+
+  description     String?
+  evidence        Json?    // Supporting data
+  rootCause       String?
+  rootCauseCategory String?
+  resolution      String?
+
+  detectedAt      DateTime @default(now())
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  investigations  Investigation[]
+  actions         ActionRecommendation[]
+
+  @@index([type, status])
+  @@index([severity, status])
+  @@index([sku])
+  @@index([locationCode])
+  @@index([createdAt])
+  @@map("discrepancies")
+}
+
+// Investigation records
+model Investigation {
+  id              String   @id @default(uuid())
+  discrepancyId   String
+  discrepancy     Discrepancy @relation(fields: [discrepancyId], references: [id])
+
+  rootCause       String?
+  category        String?  // process, human, system, external, etc.
+  notes           String?
+  evidence        Json?
+
+  assignedTo      String?
+  userId          String?  // Investigator
+  status          String   @default("OPEN") // OPEN, IN_PROGRESS, CONFIRMED, CLOSED
+  confirmedAt     DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([discrepancyId])
+  @@index([status])
+  @@map("investigations")
+}
+
+// Action recommendations
+model ActionRecommendation {
+  id              String   @id @default(uuid())
+  type            String   // cycle_count, physical_audit, reslot, training, etc.
+  priority        Int      @default(3) // 1=urgent, 2=high, 3=medium, 4=low
+  status          String   @default("PENDING") // PENDING, ACCEPTED, COMPLETED, REJECTED, EXPORTED
+
+  discrepancyId   String?
+  discrepancy     Discrepancy? @relation(fields: [discrepancyId], references: [id])
+
+  sku             String?
+  locationCode    String?
+  description     String
+  instructions    String?
+  estimatedImpact Float?   // Dollar value of potential savings
+
+  assignedTo      String?
+  completedBy     String?
+  notes           String?
+
+  exportedAt      DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([type, status])
+  @@index([priority, status])
+  @@index([discrepancyId])
+  @@map("action_recommendations")
+}
+
+// Scheduled reports
+model ScheduledReport {
+  id          String   @id @default(uuid())
+  reportType  String   // weekly_summary, executive_brief, etc.
+  schedule    String   // cron expression
+  recipients  String   // JSON array of emails
+  format      String   @default("pdf") // pdf, csv, email
+  isActive    Boolean  @default(true)
+  lastSentAt  DateTime?
+  nextSendAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("scheduled_reports")
+}

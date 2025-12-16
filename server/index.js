@@ -44,6 +44,7 @@ import appointmentRoutes from './routes/appointments.js';
 import purchaseOrderRoutes from './routes/purchaseOrders.js';
 import gateRoutes from './routes/gate.js';
 import shipNoticeRoutes from './routes/shipNotices.js';
+import intelligenceRoutes from './routes/intelligence.js';
 
 // Import auth middleware
 import { optionalAuth } from './middleware/auth.js';
@@ -272,6 +273,9 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/gate', gateRoutes);
 app.use('/api/ship-notices', shipNoticeRoutes);
+
+// FlowLogic Intelligence Platform routes
+app.use('/api/intelligence', intelligenceRoutes(prisma));
 
 // Dashboard summary endpoint using $queryRawUnsafe to avoid prepared statement issues
 app.get('/api/dashboard', async (req, res) => {
@@ -710,6 +714,13 @@ async function startServer() {
 ║   AI Endpoints:                                               ║
 ║   • POST /api/chat      - Flow AI Assistant                   ║
 ║   • POST /api/actions   - Execute AI actions                  ║
+║                                                               ║
+║   Intelligence Platform (NEW):                                ║
+║   • /api/intelligence/ingest/*     - WMS data ingestion       ║
+║   • /api/intelligence/truth/*      - Inventory truth engine   ║
+║   • /api/intelligence/root-cause/* - Root cause analysis      ║
+║   • /api/intelligence/actions/*    - Action recommendations   ║
+║   • /api/intelligence/reports/*    - Executive reports        ║
 ║                                                               ║
 ║   Real-Time:                                                  ║
 ║   • WebSocket (Socket.io) - Real-time updates                 ║
