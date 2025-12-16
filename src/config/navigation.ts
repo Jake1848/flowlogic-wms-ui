@@ -67,6 +67,7 @@ import {
   Activity,
   Flame,
   Sparkles,
+  Brain,
   Warehouse as WarehouseIcon,
   Box,
   BarChart3,
@@ -74,7 +75,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-export type PageType = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'abandon' | 'locations' | 'markout' | 'casepack' | 'cycle' | 'shipping' | 'dock' | 'yard' | 'tasks' | 'lots' | 'waves' | 'alerts' | 'slotting' | 'cartonization' | 'loadplan' | 'audit' | 'users' | 'kitting' | 'crossdock' | 'asn' | 'vendors' | 'pos' | 'billing' | 'customers' | 'items' | 'adjustments' | 'equipment' | 'compliance' | 'zones' | 'carriers' | 'workorders' | 'promotions' | 'edi' | 'appointments' | 'pallets' | 'parcel' | 'documents' | 'rma' | 'forecast' | 'serials' | 'freightaudit' | 'sla' | 'safety' | 'workforce' | 'capacity' | 'inbound' | 'outbound' | 'clientportal' | 'costanalytics' | 'productivity' | 'notifications' | 'systemhealth' | 'hazmat' | 'vas' | 'storagelocation' | 'inventorybalance' | 'orderreceipt' | 'itemconfig' | 'warehousecontrols' | 'pickperformance' | 'packagespecs' | 'facilityassignment' | 'dimensionquery' | 'locationmaintenance' | 'productboh' | 'locationstatus' | 'locationhistory' | 'locationbrowser' | 'availablelocation' | 'batchslotadjust' | 'supplierreturns' | 'adjustmenthistory' | 'movementaudit' | 'integrations' | 'reports' | 'settings'
+export type PageType = 'dashboard' | 'receiving' | 'picking' | 'orders' | 'inventory' | 'returns' | 'labor' | 'warehouse' | 'quality' | 'replenishment' | 'mobile' | 'abandon' | 'locations' | 'markout' | 'casepack' | 'cycle' | 'shipping' | 'dock' | 'yard' | 'tasks' | 'lots' | 'waves' | 'alerts' | 'slotting' | 'cartonization' | 'loadplan' | 'audit' | 'users' | 'kitting' | 'crossdock' | 'asn' | 'vendors' | 'pos' | 'billing' | 'customers' | 'items' | 'adjustments' | 'equipment' | 'compliance' | 'zones' | 'carriers' | 'workorders' | 'promotions' | 'edi' | 'appointments' | 'pallets' | 'parcel' | 'documents' | 'rma' | 'forecast' | 'serials' | 'freightaudit' | 'sla' | 'safety' | 'workforce' | 'capacity' | 'inbound' | 'outbound' | 'clientportal' | 'costanalytics' | 'productivity' | 'notifications' | 'systemhealth' | 'hazmat' | 'vas' | 'storagelocation' | 'inventorybalance' | 'orderreceipt' | 'itemconfig' | 'warehousecontrols' | 'pickperformance' | 'packagespecs' | 'facilityassignment' | 'dimensionquery' | 'locationmaintenance' | 'productboh' | 'locationstatus' | 'locationhistory' | 'locationbrowser' | 'availablelocation' | 'batchslotadjust' | 'supplierreturns' | 'adjustmenthistory' | 'movementaudit' | 'integrations' | 'reports' | 'settings' | 'intelligence'
 
 export interface MenuItem {
   id: PageType
@@ -125,6 +126,7 @@ export const transactionCodes: Record<string, PageType> = {
   'MOB': 'mobile', 'WOD': 'workorders',
   'SIA': 'adjustments', 'BSA': 'batchslotadjust', 'VRM': 'supplierreturns',
   'AHB': 'adjustmenthistory', 'MAL': 'movementaudit',
+  'IQ': 'intelligence', 'AIQ': 'intelligence',
 }
 
 /**
@@ -141,6 +143,15 @@ export const menuGroups: MenuGroup[] = [
       { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, code: 'DSH' },
       { id: 'alerts', label: 'Alerts', icon: Bell, code: 'ALC' },
       { id: 'notifications', label: 'Notifications', icon: BellRing, code: 'NTF' },
+    ],
+  },
+  {
+    id: 'intelligence',
+    label: 'AI Intelligence',
+    icon: Brain,
+    color: 'from-purple-500 to-indigo-600',
+    items: [
+      { id: 'intelligence', label: 'Intelligence Dashboard', icon: Brain, code: 'IQ' },
     ],
   },
   {

@@ -17,6 +17,20 @@ async function main() {
 
   // Clean existing data first (in reverse dependency order)
   console.log('Cleaning existing data...');
+
+  // Intelligence Platform tables
+  await prisma.actionRecommendation.deleteMany();
+  await prisma.investigation.deleteMany();
+  await prisma.discrepancy.deleteMany();
+  await prisma.cycleCountSnapshot.deleteMany();
+  await prisma.adjustmentSnapshot.deleteMany();
+  await prisma.transactionSnapshot.deleteMany();
+  await prisma.inventorySnapshot.deleteMany();
+  await prisma.scheduledIngestion.deleteMany();
+  await prisma.dataIngestion.deleteMany();
+  await prisma.scheduledReport.deleteMany();
+
+  // Core WMS tables
   await prisma.alert.deleteMany();
   await prisma.orderLine.deleteMany();
   await prisma.order.deleteMany();
@@ -815,12 +829,265 @@ async function main() {
   });
   console.log('Created sample alerts');
 
+  // ============================================
+  // INTELLIGENCE PLATFORM DEMO DATA
+  // ============================================
+  console.log('\nSeeding Intelligence Platform demo data...');
+
+  // Create a sample data ingestion
+  const ingestion = await prisma.dataIngestion.create({
+    data: {
+      filename: 'inventory_snapshot_demo.csv',
+      filePath: './uploads/demo/inventory_snapshot_demo.csv',
+      dataType: 'inventory_snapshot',
+      source: 'manual',
+      mappingType: 'generic',
+      recordCount: 150,
+      errorCount: 0,
+      status: 'COMPLETED',
+      completedAt: new Date(),
+      metadata: { importedBy: 'system', notes: 'Demo data import' }
+    }
+  });
+  console.log('Created demo data ingestion');
+
+  // Create inventory snapshots with some issues for demo
+  const inventoryItems = await prisma.inventory.findMany({ take: 20 });
+  for (const inv of inventoryItems) {
+    await prisma.inventorySnapshot.create({
+      data: {
+        ingestionId: ingestion.id,
+        sku: inv.productId ? (await prisma.product.findUnique({ where: { id: inv.productId } }))?.sku || 'UNKNOWN' : 'UNKNOWN',
+        locationCode: inv.locationId ? (await prisma.location.findUnique({ where: { id: inv.locationId } }))?.code || 'UNKNOWN' : 'UNKNOWN',
+        quantityOnHand: inv.quantityOnHand,
+        quantityAllocated: inv.quantityAllocated,
+        quantityAvailable: inv.quantityAvailable,
+        snapshotDate: new Date()
+      }
+    });
+  }
+  console.log('Created inventory snapshots');
+
+  // Create sample discrepancies for demo
+  const discrepancy1 = await prisma.discrepancy.create({
+    data: {
+      type: 'negative_on_hand',
+      severity: 'critical',
+      status: 'OPEN',
+      sku: 'SKU-001',
+      locationCode: 'PICK-A-01-01',
+      expectedQty: 0,
+      actualQty: -5,
+      variance: -5,
+      variancePercent: -100,
+      varianceValue: 125.00,
+      description: 'Negative on-hand quantity detected. System shows -5 units which is physically impossible.',
+      evidence: { lastTransaction: 'PICK-2024-0042', detectedDuring: 'automated_scan' },
+      detectedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 days ago
+    }
+  });
+
+  const discrepancy2 = await prisma.discrepancy.create({
+    data: {
+      type: 'cycle_count_variance',
+      severity: 'high',
+      status: 'OPEN',
+      sku: 'SKU-005',
+      locationCode: 'BULK-B-02-03',
+      expectedQty: 100,
+      actualQty: 73,
+      variance: -27,
+      variancePercent: -27,
+      varianceValue: 675.00,
+      description: 'Cycle count revealed 27% shortage. System showed 100 units, physical count found 73.',
+      evidence: { countedBy: 'user_warehouse1', countDate: new Date().toISOString() },
+      detectedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 day ago
+    }
+  });
+
+  const discrepancy3 = await prisma.discrepancy.create({
+    data: {
+      type: 'unexplained_overage',
+      severity: 'medium',
+      status: 'OPEN',
+      sku: 'SKU-012',
+      locationCode: 'PICK-C-01-02',
+      expectedQty: 50,
+      actualQty: 62,
+      variance: 12,
+      variancePercent: 24,
+      varianceValue: 180.00,
+      description: 'Unexplained overage of 12 units. No receiving transactions found to explain increase.',
+      evidence: { possibleCause: 'unrecorded_return', nearbyLocations: ['PICK-C-01-01', 'PICK-C-01-03'] },
+      detectedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
+    }
+  });
+
+  const discrepancy4 = await prisma.discrepancy.create({
+    data: {
+      type: 'adjustment_spike',
+      severity: 'medium',
+      status: 'INVESTIGATING',
+      sku: 'SKU-008',
+      locationCode: 'PICK-A-03-01',
+      variance: 45,
+      varianceValue: 900.00,
+      description: 'Unusual adjustment activity detected. 8 adjustments totaling 45 units in past 7 days.',
+      evidence: { adjustmentCount: 8, averageAdjustment: 3, zScore: 2.8 },
+      detectedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 days ago
+    }
+  });
+
+  const discrepancy5 = await prisma.discrepancy.create({
+    data: {
+      type: 'drift_detected',
+      severity: 'low',
+      status: 'OPEN',
+      sku: 'SKU-020',
+      locationCode: 'BULK-A-01-01',
+      expectedQty: 500,
+      actualQty: 467,
+      variance: -33,
+      variancePercent: -6.6,
+      varianceValue: 330.00,
+      description: 'Gradual inventory drift detected over 30 days. No single event explains 33-unit decline.',
+      evidence: { startQty: 500, endQty: 467, daysObserved: 30, trendSlope: -1.1 },
+      detectedAt: new Date()
+    }
+  });
+  console.log('Created sample discrepancies');
+
+  // Create investigation for one discrepancy
+  await prisma.investigation.create({
+    data: {
+      discrepancyId: discrepancy4.id,
+      rootCause: 'Training gap - new operator unfamiliar with adjustment procedures',
+      category: 'human',
+      notes: 'Operator started 2 weeks ago. Multiple small adjustments suggest counting errors during picking.',
+      status: 'IN_PROGRESS',
+      assignedTo: 'Warehouse Supervisor'
+    }
+  });
+  console.log('Created sample investigation');
+
+  // Create action recommendations
+  await prisma.actionRecommendation.create({
+    data: {
+      type: 'cycle_count',
+      priority: 1,
+      status: 'PENDING',
+      discrepancyId: discrepancy1.id,
+      sku: 'SKU-001',
+      locationCode: 'PICK-A-01-01',
+      description: 'URGENT: Verify SKU-001 at PICK-A-01-01',
+      instructions: 'Count all inventory at location. System shows negative balance. Report actual quantity found.',
+      estimatedImpact: 125.00
+    }
+  });
+
+  await prisma.actionRecommendation.create({
+    data: {
+      type: 'cycle_count',
+      priority: 2,
+      status: 'PENDING',
+      discrepancyId: discrepancy2.id,
+      sku: 'SKU-005',
+      locationCode: 'BULK-B-02-03',
+      description: 'Verify SKU-005 at BULK-B-02-03',
+      instructions: 'Recount inventory. Previous count showed 27% variance. Check adjacent locations for mis-slots.',
+      estimatedImpact: 675.00
+    }
+  });
+
+  await prisma.actionRecommendation.create({
+    data: {
+      type: 'supervisor_alert',
+      priority: 1,
+      status: 'PENDING',
+      discrepancyId: discrepancy1.id,
+      sku: 'SKU-001',
+      locationCode: 'PICK-A-01-01',
+      description: 'CRITICAL: Negative inventory requires immediate attention',
+      instructions: 'Investigate how system reached negative balance. Check recent picks, adjustments, and receiving.',
+      estimatedImpact: 125.00
+    }
+  });
+
+  await prisma.actionRecommendation.create({
+    data: {
+      type: 'location_audit',
+      priority: 2,
+      status: 'PENDING',
+      discrepancyId: discrepancy3.id,
+      locationCode: 'PICK-C-01-02',
+      description: 'Audit location PICK-C-01-02 and adjacent slots',
+      instructions: 'Check for: mis-slots from nearby locations, unrecorded returns, label accuracy.',
+      estimatedImpact: 180.00
+    }
+  });
+
+  await prisma.actionRecommendation.create({
+    data: {
+      type: 'training',
+      priority: 3,
+      status: 'PENDING',
+      discrepancyId: discrepancy4.id,
+      description: 'Schedule refresher training on adjustment procedures',
+      instructions: 'New operator showing high adjustment frequency. Review proper procedures for handling discrepancies.',
+      estimatedImpact: 900.00
+    }
+  });
+  console.log('Created action recommendations');
+
+  // Create sample adjustment snapshots for analytics
+  const reasons = ['Damaged', 'Cycle Count', 'Receiving Error', 'Pick Short', 'Customer Return'];
+  for (let i = 0; i < 30; i++) {
+    await prisma.adjustmentSnapshot.create({
+      data: {
+        ingestionId: ingestion.id,
+        sku: `SKU-${padNumber(Math.floor(Math.random() * 20) + 1, 3)}`,
+        locationCode: `PICK-${['A', 'B', 'C'][Math.floor(Math.random() * 3)]}-0${Math.floor(Math.random() * 3) + 1}-0${Math.floor(Math.random() * 3) + 1}`,
+        adjustmentQty: Math.floor(Math.random() * 20) - 10,
+        reason: reasons[Math.floor(Math.random() * reasons.length)],
+        adjustmentDate: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000)
+      }
+    });
+  }
+  console.log('Created adjustment history for analytics');
+
+  // Create cycle count snapshots
+  for (let i = 0; i < 20; i++) {
+    const systemQty = Math.floor(Math.random() * 100) + 20;
+    const variance = Math.floor(Math.random() * 20) - 10;
+    const countedQty = systemQty + variance;
+    await prisma.cycleCountSnapshot.create({
+      data: {
+        ingestionId: ingestion.id,
+        sku: `SKU-${padNumber(Math.floor(Math.random() * 20) + 1, 3)}`,
+        locationCode: `PICK-${['A', 'B', 'C'][Math.floor(Math.random() * 3)]}-0${Math.floor(Math.random() * 3) + 1}-0${Math.floor(Math.random() * 3) + 1}`,
+        systemQty,
+        countedQty,
+        variance,
+        variancePercent: (variance / systemQty) * 100,
+        countDate: new Date(Date.now() - Math.floor(Math.random() * 14) * 24 * 60 * 60 * 1000)
+      }
+    });
+  }
+  console.log('Created cycle count history for analytics');
+
+  console.log('Intelligence Platform demo data created');
+
   console.log('\n========================================');
   console.log('Database seeding completed successfully!');
   console.log('========================================');
   console.log('\nDemo Credentials:');
   console.log('  Username: admin');
   console.log('  Password: admin123 (change in production)');
+  console.log('\nIntelligence Platform:');
+  console.log('  5 sample discrepancies (1 critical, 1 high, 2 medium, 1 low)');
+  console.log('  5 action recommendations');
+  console.log('  30 adjustment snapshots for analytics');
+  console.log('  20 cycle count snapshots');
 }
 
 main()

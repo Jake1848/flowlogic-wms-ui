@@ -100,6 +100,7 @@ const SupplierReturns = lazy(() => import('../pages/SupplierReturns'))
 const AdjustmentHistoryBrowser = lazy(() => import('../pages/AdjustmentHistoryBrowser'))
 const MovementAuditLog = lazy(() => import('../pages/MovementAuditLog'))
 const Setup = lazy(() => import('../pages/Setup'))
+const IntelligenceDashboard = lazy(() => import('../pages/IntelligenceDashboard'))
 
 // Wrap lazy components with Suspense
 const withSuspense = (Component: React.LazyExoticComponent<FC>): ReactNode => (
@@ -204,6 +205,7 @@ export const protectedRoutes: RouteObject[] = [
   { path: '/integrations', element: withSuspense(Integrations) },
   { path: '/reports', element: withSuspense(Reports) },
   { path: '/settings', element: withSuspense(Settings) },
+  { path: '/intelligence', element: withSuspense(IntelligenceDashboard) },
 ]
 
 // All routes combined (for backwards compatibility)
@@ -303,6 +305,7 @@ export const pageIdToPath: Record<string, string> = {
   integrations: '/integrations',
   reports: '/reports',
   settings: '/settings',
+  intelligence: '/intelligence',
 }
 
 // Path to page ID mapping for determining current page from URL
