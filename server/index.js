@@ -1,5 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 import { createServer } from 'http';
 import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
@@ -116,6 +119,64 @@ if (process.env.NODE_ENV === 'production' && (!corsOptions.origin || (Array.isAr
 }
 
 app.use(cors(corsOptions));
+
+// Security headers - Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'", "wss:", "ws:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Allow embedding for API docs
+}));
+
+// Compression for responses
+app.use(compression());
+
+// Rate limiting - different limits for different endpoints
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // 1000 requests per 15 minutes
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 auth attempts per 15 minutes
+  message: { error: 'Too many authentication attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 AI requests per minute
+  message: { error: 'AI rate limit exceeded, please try again in a minute.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply general rate limiting
+app.use(generalLimiter);
+
+// Request logging in production
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      console.log(`${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+    });
+    next();
+  });
+}
+
 app.use(express.json({ limit: '10mb' }));
 
 // Swagger API documentation
@@ -248,7 +309,7 @@ app.use('/api/tasks', taskRoutes(prisma));
 app.use('/api/alerts', alertRoutes(prisma));
 app.use('/api/docks', dockRoutes(prisma));
 app.use('/api/chat-history', chatRoutes(prisma));
-app.use('/api/auth', authRoutes(prisma));
+app.use('/api/auth', authLimiter, authRoutes(prisma));
 app.use('/api/receiving', receivingRoutes(prisma));
 app.use('/api/shipping', shippingRoutes(prisma));
 app.use('/api/cycle-counts', cycleCountRoutes(prisma));
@@ -393,7 +454,7 @@ app.get('/api/dashboard', async (req, res) => {
 // ==========================================
 
 // Main chat endpoint with streaming
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', aiLimiter, async (req, res) => {
   const { message, sessionId = 'default', stream = true } = req.body;
 
   if (!message) {
