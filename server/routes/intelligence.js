@@ -14,31 +14,91 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
 import { parse } from 'csv-parse/sync';
+import sanitizeFilename from 'sanitize-filename';
+import crypto from 'crypto';
 
 const router = express.Router();
 
-// File upload configuration
+// Allowed MIME types and their magic bytes for verification
+const ALLOWED_FILE_TYPES = {
+  'text/csv': { extensions: ['.csv'], magicBytes: null }, // CSV has no magic bytes
+  'application/json': { extensions: ['.json'], magicBytes: null },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+    extensions: ['.xlsx'],
+    magicBytes: Buffer.from([0x50, 0x4B, 0x03, 0x04]) // ZIP/XLSX magic bytes
+  },
+  'application/vnd.ms-excel': {
+    extensions: ['.xls'],
+    magicBytes: Buffer.from([0xD0, 0xCF, 0x11, 0xE0]) // OLE compound document
+  }
+};
+
+// File upload configuration with security
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
+    // Store uploads outside web root
     const uploadDir = process.env.UPLOAD_PATH || './uploads/ingestion';
     await fs.mkdir(uploadDir, { recursive: true }).catch(() => {});
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-    cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+    // Sanitize and generate secure filename
+    const sanitized = sanitizeFilename(file.originalname);
+    const ext = path.extname(sanitized).toLowerCase();
+    const randomId = crypto.randomBytes(16).toString('hex');
+    cb(null, `${randomId}${ext}`);
   }
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max
+    files: 1 // Only allow single file upload
+  },
   fileFilter: (req, file, cb) => {
     const allowed = ['.csv', '.xlsx', '.xls', '.json'];
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, allowed.includes(ext));
+
+    // Check extension
+    if (!allowed.includes(ext)) {
+      return cb(new Error(`File type ${ext} not allowed. Allowed: ${allowed.join(', ')}`), false);
+    }
+
+    cb(null, true);
   }
 });
+
+// Verify file magic bytes after upload
+async function verifyFileType(filePath, expectedExt) {
+  try {
+    const buffer = Buffer.alloc(8);
+    const fileHandle = await fs.open(filePath, 'r');
+    await fileHandle.read(buffer, 0, 8, 0);
+    await fileHandle.close();
+
+    // Check magic bytes for binary files
+    if (expectedExt === '.xlsx') {
+      const xlsxMagic = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+      return buffer.slice(0, 4).equals(xlsxMagic);
+    }
+    if (expectedExt === '.xls') {
+      const xlsMagic = Buffer.from([0xD0, 0xCF, 0x11, 0xE0]);
+      return buffer.slice(0, 4).equals(xlsMagic);
+    }
+    // CSV and JSON are text files - verify they're valid text
+    if (expectedExt === '.csv' || expectedExt === '.json') {
+      const content = await fs.readFile(filePath, 'utf8');
+      if (expectedExt === '.json') {
+        JSON.parse(content); // Will throw if invalid JSON
+      }
+      return true;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // Column mappings for different WMS systems
 const COLUMN_MAPPINGS = {
@@ -73,6 +133,18 @@ export default function createIntelligenceRoutes(prisma) {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Verify file type matches extension (prevent malicious file uploads)
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      const isValidFile = await verifyFileType(req.file.path, ext);
+      if (!isValidFile) {
+        // Delete the suspicious file
+        await fs.unlink(req.file.path).catch(() => {});
+        return res.status(400).json({
+          error: 'Invalid file',
+          message: 'File content does not match the expected format'
+        });
       }
 
       const { dataType = 'inventory_snapshot', mappingType = 'generic' } = req.body;

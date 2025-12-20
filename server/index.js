@@ -233,26 +233,26 @@ IMPORTANT: Your name is "Flow" - you are the personal AI assistant built into th
 
 When users ask about issues, investigate thoroughly using the available tools and data. Provide confidence levels for your findings and always suggest next steps.`;
 
-// Get current system context from database using $queryRawUnsafe
+// Get current system context from database using parameterized queries
 async function getSystemContext() {
   try {
-    const inventoryCount = await prisma.$queryRawUnsafe(`
+    const inventoryCount = await prisma.$queryRaw`
       SELECT COUNT(*) as count,
              COALESCE(SUM("quantityOnHand"), 0) as "onHand",
              COALESCE(SUM("quantityAllocated"), 0) as allocated
       FROM inventory
-    `);
-    const orderStats = await prisma.$queryRawUnsafe(`
+    `;
+    const orderStats = await prisma.$queryRaw`
       SELECT status, COUNT(*) as count FROM orders GROUP BY status
-    `);
-    const alertStats = await prisma.$queryRawUnsafe(`
+    `;
+    const alertStats = await prisma.$queryRaw`
       SELECT COUNT(*) as count FROM alerts WHERE "isResolved" = false
-    `);
-    const taskStats = await prisma.$queryRawUnsafe(`
+    `;
+    const taskStats = await prisma.$queryRaw`
       SELECT status, COUNT(*) as count FROM tasks
       WHERE status NOT IN ('COMPLETED', 'CANCELLED')
       GROUP BY status
-    `);
+    `;
 
     const inv = inventoryCount[0];
     const context = `
@@ -338,45 +338,45 @@ app.use('/api/ship-notices', shipNoticeRoutes);
 // FlowLogic Intelligence Platform routes
 app.use('/api/intelligence', intelligenceRoutes(prisma));
 
-// Dashboard summary endpoint using $queryRawUnsafe to avoid prepared statement issues
+// Dashboard summary endpoint using parameterized queries
 app.get('/api/dashboard', async (req, res) => {
   try {
-    // Use $queryRawUnsafe to avoid prepared statement caching entirely
-    const inventorySummary = await prisma.$queryRawUnsafe(`
+    // Use $queryRaw with tagged template literals for safe queries
+    const inventorySummary = await prisma.$queryRaw`
       SELECT
         COUNT(*) as count,
         COALESCE(SUM("quantityOnHand"), 0) as "totalOnHand",
         COALESCE(SUM("quantityAllocated"), 0) as "totalAllocated",
         COALESCE(SUM("quantityAvailable"), 0) as "totalAvailable"
       FROM inventory
-    `);
+    `;
 
-    const orderCounts = await prisma.$queryRawUnsafe(`
+    const orderCounts = await prisma.$queryRaw`
       SELECT status, COUNT(*) as count
       FROM orders
       GROUP BY status
-    `);
+    `;
 
-    const lateOrders = await prisma.$queryRawUnsafe(`
+    const lateOrders = await prisma.$queryRaw`
       SELECT COUNT(*) as count
       FROM orders
       WHERE "requiredDate" < NOW()
         AND status NOT IN ('SHIPPED', 'DELIVERED', 'CANCELLED')
-    `);
+    `;
 
-    const pendingTasks = await prisma.$queryRawUnsafe(`
+    const pendingTasks = await prisma.$queryRaw`
       SELECT COUNT(*) as count
       FROM tasks
       WHERE status NOT IN ('COMPLETED', 'CANCELLED')
-    `);
+    `;
 
-    const unresolvedAlerts = await prisma.$queryRawUnsafe(`
+    const unresolvedAlerts = await prisma.$queryRaw`
       SELECT COUNT(*) as count
       FROM alerts
       WHERE "isResolved" = false
-    `);
+    `;
 
-    const recentTransactions = await prisma.$queryRawUnsafe(`
+    const recentTransactions = await prisma.$queryRaw`
       SELECT
         it.id, it.type, it.quantity, it."createdAt",
         p.sku as "productSku", p.name as "productName",
@@ -388,7 +388,7 @@ app.get('/api/dashboard', async (req, res) => {
       LEFT JOIN users u ON it."userId" = u.id
       ORDER BY it."createdAt" DESC
       LIMIT 10
-    `);
+    `;
 
     const inv = inventorySummary[0];
     const byStatus = {};

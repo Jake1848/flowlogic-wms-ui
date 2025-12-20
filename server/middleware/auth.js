@@ -1,7 +1,23 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'flowlogic-dev-secret-change-in-production';
+// Validate JWT_SECRET in production - fail fast if not set
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && !process.env.JWT_SECRET) {
+  console.error('❌ FATAL: JWT_SECRET is required in production.');
+  console.error('   Generate one with: openssl rand -hex 32');
+  process.exit(1);
+}
+
+// In development, generate a random secret per server restart (forces re-login)
+const DEV_SECRET = crypto.randomBytes(32).toString('hex');
+const JWT_SECRET = process.env.JWT_SECRET || DEV_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
+if (!process.env.JWT_SECRET && !isProduction) {
+  console.warn('⚠️  JWT_SECRET not set - using random dev secret (sessions reset on restart)');
+}
 
 // Generate a JWT token
 export function generateToken(user) {
