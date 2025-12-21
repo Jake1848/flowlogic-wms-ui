@@ -50,7 +50,7 @@ import shipNoticeRoutes from './routes/shipNotices.js';
 import intelligenceRoutes from './routes/intelligence.js';
 
 // Import auth middleware
-import { optionalAuth } from './middleware/auth.js';
+import { authMiddleware, optionalAuth } from './middleware/auth.js';
 
 // Import tools for AI
 import { tools, createToolExecutor } from './tools.js';
@@ -195,6 +195,7 @@ if (process.env.NODE_ENV === 'production') {
 
     const origin = req.get('Origin');
     const referer = req.get('Referer');
+    const customHeader = req.get('X-Requested-With');
     const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
 
     // Check Origin header first
@@ -208,17 +209,29 @@ if (process.env.NODE_ENV === 'production') {
 
     // Fall back to Referer header
     if (referer) {
-      const refererOrigin = new URL(referer).origin;
-      if (!allowedOrigins.includes(refererOrigin)) {
-        console.warn(`CSRF: Blocked request from referer ${refererOrigin}`);
-        return res.status(403).json({ error: 'Forbidden', message: 'Invalid referer' });
+      try {
+        const refererOrigin = new URL(referer).origin;
+        if (!allowedOrigins.includes(refererOrigin)) {
+          console.warn(`CSRF: Blocked request from referer ${refererOrigin}`);
+          return res.status(403).json({ error: 'Forbidden', message: 'Invalid referer' });
+        }
+        return next();
+      } catch {
+        return res.status(403).json({ error: 'Forbidden', message: 'Invalid referer format' });
       }
+    }
+
+    // For requests without Origin/Referer, require custom header
+    // This prevents CSRF from simple HTML forms while allowing API clients
+    if (customHeader === 'FlowLogic') {
       return next();
     }
 
-    // Allow requests without Origin/Referer (e.g., API clients with tokens)
-    // These are protected by JWT authentication
-    next();
+    console.warn('CSRF: Blocked request without Origin/Referer/X-Requested-With');
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Missing required headers. Include Origin or X-Requested-With: FlowLogic'
+    });
   });
 }
 
@@ -344,45 +357,48 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Mount API routes
-app.use('/api/inventory', inventoryRoutes(prisma));
-app.use('/api/orders', orderRoutes(prisma));
-app.use('/api/products', productRoutes(prisma));
-app.use('/api/locations', locationRoutes(prisma));
-app.use('/api/tasks', taskRoutes(prisma));
-app.use('/api/alerts', alertRoutes(prisma));
-app.use('/api/docks', dockRoutes(prisma));
-app.use('/api/chat-history', chatRoutes(prisma));
+// Public routes (no authentication required)
 app.use('/api/auth', authLimiter, authRoutes(prisma));
-app.use('/api/receiving', receivingRoutes(prisma));
-app.use('/api/shipping', shippingRoutes(prisma));
-app.use('/api/cycle-counts', cycleCountRoutes(prisma));
-app.use('/api/labor', laborRoutes(prisma));
-app.use('/api/replenishment', replenishmentRoutes(prisma));
-app.use('/api/customers', customerRoutes(prisma));
-app.use('/api/vendors', vendorRoutes(prisma));
-app.use('/api/users', userRoutes(prisma));
-app.use('/api/carriers', carrierRoutes(prisma));
-app.use('/api/warehouses', warehouseRoutes(prisma));
-app.use('/api/reports', reportRoutes(prisma));
-app.use('/api/pallets', palletRoutes(prisma));
-app.use('/api/physical-inventory', physicalInventoryRoutes(prisma));
-app.use('/api/work-orders', workOrderRoutes(prisma));
-app.use('/api/rma', rmaRoutes(prisma));
-app.use('/api/asn', asnRoutes(prisma));
-app.use('/api/integrations', integrationRoutes(prisma));
-app.use('/api/settings', settingsRoutes(prisma));
-app.use('/api/audit-logs', auditLogRoutes(prisma));
-app.use('/api/containers', containerRoutes);
-app.use('/api/appointments', appointmentRoutes);
-app.use('/api/purchase-orders', purchaseOrderRoutes);
-app.use('/api/gate', gateRoutes);
-app.use('/api/ship-notices', shipNoticeRoutes);
 
-// FlowLogic Intelligence Platform routes
-app.use('/api/intelligence', intelligenceRoutes(prisma));
+// Protected routes (authentication required)
+app.use('/api/inventory', authMiddleware, inventoryRoutes(prisma));
+app.use('/api/orders', authMiddleware, orderRoutes(prisma));
+app.use('/api/products', authMiddleware, productRoutes(prisma));
+app.use('/api/locations', authMiddleware, locationRoutes(prisma));
+app.use('/api/tasks', authMiddleware, taskRoutes(prisma));
+app.use('/api/alerts', authMiddleware, alertRoutes(prisma));
+app.use('/api/docks', authMiddleware, dockRoutes(prisma));
+app.use('/api/chat-history', authMiddleware, chatRoutes(prisma));
+app.use('/api/receiving', authMiddleware, receivingRoutes(prisma));
+app.use('/api/shipping', authMiddleware, shippingRoutes(prisma));
+app.use('/api/cycle-counts', authMiddleware, cycleCountRoutes(prisma));
+app.use('/api/labor', authMiddleware, laborRoutes(prisma));
+app.use('/api/replenishment', authMiddleware, replenishmentRoutes(prisma));
+app.use('/api/customers', authMiddleware, customerRoutes(prisma));
+app.use('/api/vendors', authMiddleware, vendorRoutes(prisma));
+app.use('/api/users', authMiddleware, userRoutes(prisma));
+app.use('/api/carriers', authMiddleware, carrierRoutes(prisma));
+app.use('/api/warehouses', authMiddleware, warehouseRoutes(prisma));
+app.use('/api/reports', authMiddleware, reportRoutes(prisma));
+app.use('/api/pallets', authMiddleware, palletRoutes(prisma));
+app.use('/api/physical-inventory', authMiddleware, physicalInventoryRoutes(prisma));
+app.use('/api/work-orders', authMiddleware, workOrderRoutes(prisma));
+app.use('/api/rma', authMiddleware, rmaRoutes(prisma));
+app.use('/api/asn', authMiddleware, asnRoutes(prisma));
+app.use('/api/integrations', authMiddleware, integrationRoutes(prisma));
+app.use('/api/settings', authMiddleware, settingsRoutes(prisma));
+app.use('/api/audit-logs', authMiddleware, auditLogRoutes(prisma));
+app.use('/api/containers', authMiddleware, containerRoutes);
+app.use('/api/appointments', authMiddleware, appointmentRoutes);
+app.use('/api/purchase-orders', authMiddleware, purchaseOrderRoutes);
+app.use('/api/gate', authMiddleware, gateRoutes);
+app.use('/api/ship-notices', authMiddleware, shipNoticeRoutes);
 
-// Dashboard summary endpoint using parameterized queries
-app.get('/api/dashboard', async (req, res) => {
+// FlowLogic Intelligence Platform routes (protected)
+app.use('/api/intelligence', authMiddleware, intelligenceRoutes(prisma));
+
+// Dashboard summary endpoint using parameterized queries (protected)
+app.get('/api/dashboard', authMiddleware, async (req, res) => {
   try {
     // Use $queryRaw with tagged template literals for safe queries
     const inventorySummary = await prisma.$queryRaw`
@@ -496,8 +512,8 @@ app.get('/api/dashboard', async (req, res) => {
 // AI Chat Endpoints
 // ==========================================
 
-// Main chat endpoint with streaming
-app.post('/api/chat', aiLimiter, async (req, res) => {
+// Main chat endpoint with streaming (protected)
+app.post('/api/chat', authMiddleware, aiLimiter, async (req, res) => {
   const { message, sessionId = 'default', stream = true } = req.body;
 
   if (!message) {

@@ -6,19 +6,42 @@ interface ApiResponse<T = unknown> {
   status: number
 }
 
+// Get auth token from localStorage
+function getAuthToken(): string | null {
+  return localStorage.getItem('token')
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE}${endpoint}`
+  const token = getAuthToken()
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'FlowLogic', // CSRF protection header
+  }
+
+  // Add auth token if available
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
 
   const response = await fetch(url, {
     headers: {
-      'Content-Type': 'application/json',
+      ...headers,
       ...options.headers,
     },
     ...options,
   })
+
+  // Handle 401 - redirect to login
+  if (response.status === 401) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    window.location.href = '/login'
+  }
 
   const data = await response.json()
 
