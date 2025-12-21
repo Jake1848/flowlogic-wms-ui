@@ -8,6 +8,7 @@ import {
   validateDateRange,
   validateArray,
 } from '../middleware/validation.js';
+import { authMiddleware, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -16,12 +17,15 @@ export default function createUserRoutes(prisma) {
   const asyncHandler = (fn) => (req, res, next) =>
     Promise.resolve(fn(req, res, next)).catch(next);
 
+  // Apply authentication to all user routes
+  router.use(authMiddleware);
+
   // ============================================
   // USER CRUD
   // ============================================
 
-  // List users with filters
-  router.get('/', validatePagination, asyncHandler(async (req, res) => {
+  // List users with filters (Admin/Manager only)
+  router.get('/', requireRole('ADMIN', 'MANAGER'), validatePagination, asyncHandler(async (req, res) => {
     const { search, role, isActive, warehouseId, page = 1, limit = 20 } = req.query;
 
     const where = {};
@@ -127,8 +131,8 @@ export default function createUserRoutes(prisma) {
     });
   }));
 
-  // Create user
-  router.post('/', validateRequired(['username', 'email', 'password']), sanitizeFields(['username', 'email', 'firstName', 'lastName']), asyncHandler(async (req, res) => {
+  // Create user (Admin only)
+  router.post('/', requireRole('ADMIN'), validateRequired(['username', 'email', 'password']), sanitizeFields(['username', 'email', 'firstName', 'lastName']), asyncHandler(async (req, res) => {
     const {
       username,
       email,
@@ -265,8 +269,8 @@ export default function createUserRoutes(prisma) {
     res.json(user);
   }));
 
-  // Deactivate user
-  router.delete('/:id', validateUUID('id'), asyncHandler(async (req, res) => {
+  // Deactivate user (Admin only)
+  router.delete('/:id', requireRole('ADMIN'), validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     // Check for open tasks
@@ -292,8 +296,8 @@ export default function createUserRoutes(prisma) {
     res.json({ success: true, userId: user.id });
   }));
 
-  // Reactivate user
-  router.patch('/:id/reactivate', validateUUID('id'), asyncHandler(async (req, res) => {
+  // Reactivate user (Admin only)
+  router.patch('/:id/reactivate', requireRole('ADMIN'), validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     const user = await prisma.user.update({
@@ -308,8 +312,8 @@ export default function createUserRoutes(prisma) {
   // ROLE & PERMISSIONS
   // ============================================
 
-  // Update user role
-  router.patch('/:id/role', validateUUID('id'), validateRequired(['role']), asyncHandler(async (req, res) => {
+  // Update user role (Admin only)
+  router.patch('/:id/role', requireRole('ADMIN'), validateUUID('id'), validateRequired(['role']), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
 
@@ -396,8 +400,8 @@ export default function createUserRoutes(prisma) {
     res.json({ success: true, message: 'Password updated successfully' });
   }));
 
-  // Reset password (admin)
-  router.post('/:id/reset-password', validateUUID('id'), validateRequired(['newPassword']), asyncHandler(async (req, res) => {
+  // Reset password (Admin only)
+  router.post('/:id/reset-password', requireRole('ADMIN'), validateUUID('id'), validateRequired(['newPassword']), asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { newPassword } = req.body;
 

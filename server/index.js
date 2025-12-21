@@ -88,16 +88,22 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// Production environment validation
+// Production environment validation - fail fast for missing required config
 if (process.env.NODE_ENV === 'production') {
-  // Validate required environment variables for production
+  const missingVars = [];
+
   if (!process.env.ALLOWED_ORIGINS) {
-    console.error('⚠️  WARNING: ALLOWED_ORIGINS not set in production. CORS may not be properly restricted.');
-    console.error('   Set ALLOWED_ORIGINS=https://yourdomain.com,https://admin.yourdomain.com');
+    missingVars.push('ALLOWED_ORIGINS');
   }
   if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'your-super-secret-session-key-change-in-production') {
-    console.error('⚠️  WARNING: SESSION_SECRET not properly configured for production.');
-    console.error('   Generate a secure random string for SESSION_SECRET.');
+    missingVars.push('SESSION_SECRET');
+  }
+
+  if (missingVars.length > 0) {
+    console.error('❌ FATAL: Missing required environment variables for production:');
+    missingVars.forEach(v => console.error(`   - ${v}`));
+    console.error('\nGenerate secrets with: openssl rand -hex 32');
+    process.exit(1);
   }
 }
 
@@ -178,6 +184,43 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.use(express.json({ limit: '10mb' }));
+
+// CSRF Protection - Validate Origin header for state-changing requests
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    // Skip for safe methods
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      return next();
+    }
+
+    const origin = req.get('Origin');
+    const referer = req.get('Referer');
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
+
+    // Check Origin header first
+    if (origin) {
+      if (!allowedOrigins.includes(origin)) {
+        console.warn(`CSRF: Blocked request from origin ${origin}`);
+        return res.status(403).json({ error: 'Forbidden', message: 'Invalid origin' });
+      }
+      return next();
+    }
+
+    // Fall back to Referer header
+    if (referer) {
+      const refererOrigin = new URL(referer).origin;
+      if (!allowedOrigins.includes(refererOrigin)) {
+        console.warn(`CSRF: Blocked request from referer ${refererOrigin}`);
+        return res.status(403).json({ error: 'Forbidden', message: 'Invalid referer' });
+      }
+      return next();
+    }
+
+    // Allow requests without Origin/Referer (e.g., API clients with tokens)
+    // These are protected by JWT authentication
+    next();
+  });
+}
 
 // Swagger API documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {

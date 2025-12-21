@@ -69,33 +69,59 @@ const upload = multer({
   }
 });
 
-// Verify file magic bytes after upload
+// Allowed MIME types for each extension
+const ALLOWED_MIME_TYPES = {
+  '.xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip'],
+  '.xls': ['application/vnd.ms-excel', 'application/x-cfb'],
+  '.csv': null, // Text file - no magic bytes
+  '.json': null, // Text file - no magic bytes
+};
+
+// Verify file type using file-type library and content validation
 async function verifyFileType(filePath, expectedExt) {
   try {
-    const buffer = Buffer.alloc(8);
-    const fileHandle = await fs.open(filePath, 'r');
-    await fileHandle.read(buffer, 0, 8, 0);
-    await fileHandle.close();
+    // For binary files, use file-type library for magic byte detection
+    if (expectedExt === '.xlsx' || expectedExt === '.xls') {
+      const { fileTypeFromFile } = await import('file-type');
+      const type = await fileTypeFromFile(filePath);
 
-    // Check magic bytes for binary files
-    if (expectedExt === '.xlsx') {
-      const xlsxMagic = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
-      return buffer.slice(0, 4).equals(xlsxMagic);
-    }
-    if (expectedExt === '.xls') {
-      const xlsMagic = Buffer.from([0xD0, 0xCF, 0x11, 0xE0]);
-      return buffer.slice(0, 4).equals(xlsMagic);
-    }
-    // CSV and JSON are text files - verify they're valid text
-    if (expectedExt === '.csv' || expectedExt === '.json') {
-      const content = await fs.readFile(filePath, 'utf8');
-      if (expectedExt === '.json') {
-        JSON.parse(content); // Will throw if invalid JSON
+      if (!type) {
+        return false; // Could not determine file type
+      }
+
+      const allowedMimes = ALLOWED_MIME_TYPES[expectedExt];
+      if (!allowedMimes.includes(type.mime)) {
+        console.warn(`File type mismatch: expected ${expectedExt}, got ${type.mime}`);
+        return false;
       }
       return true;
     }
-    return true;
-  } catch {
+
+    // For text files (CSV, JSON), validate content
+    if (expectedExt === '.csv' || expectedExt === '.json') {
+      const content = await fs.readFile(filePath, 'utf8');
+
+      // Check for binary content (non-printable characters)
+      if (/[\x00-\x08\x0E-\x1F]/.test(content.slice(0, 1000))) {
+        return false; // Binary content in text file
+      }
+
+      if (expectedExt === '.json') {
+        JSON.parse(content); // Will throw if invalid JSON
+      }
+
+      // Basic CSV validation - check for consistent delimiters
+      if (expectedExt === '.csv') {
+        const lines = content.split('\n').filter(l => l.trim());
+        if (lines.length < 1) return false;
+      }
+
+      return true;
+    }
+
+    return false; // Unknown extension
+  } catch (error) {
+    console.error('File validation error:', error.message);
     return false;
   }
 }
