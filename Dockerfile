@@ -12,8 +12,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
+# Generate Prisma client (schema is in server/prisma)
+RUN npx prisma generate --schema=server/prisma/schema.prisma
 
 # Build frontend
 RUN npm run build
@@ -30,7 +30,6 @@ RUN npm ci --omit=dev
 # Copy built assets
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server ./server
-COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Create non-root user
