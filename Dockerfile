@@ -30,7 +30,6 @@ RUN npm ci --omit=dev
 # Copy built assets
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server ./server
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Create non-root user
 RUN addgroup -g 1001 -S flowlogic && \
