@@ -208,7 +208,7 @@ export default function DockScheduling() {
     setIsLoading(true);
     try {
       const dateStr = selectedDate.toISOString().split('T')[0];
-      const response = await fetch(`http://localhost:3001/api/docks/appointments?date=${dateStr}`);
+      const response = await fetch(`/api/docks/appointments?date=${dateStr}`);
       const data = await response.json();
 
       // If we got appointments from API, use them; otherwise use demo data

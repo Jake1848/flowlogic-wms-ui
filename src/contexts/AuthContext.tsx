@@ -49,7 +49,7 @@ export interface RegisterData {
   role?: string
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3001')
 const TOKEN_KEY = 'flowlogic_token'
 const USER_KEY = 'flowlogic_user'
 

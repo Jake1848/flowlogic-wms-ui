@@ -15,7 +15,8 @@ export const queryClient = new QueryClient({
   },
 })
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// Use relative URLs in production (same origin), localhost in dev
+export const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3001')
 
 // Generic fetch wrapper with error handling
 export async function apiFetch<T>(
