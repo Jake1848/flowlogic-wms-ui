@@ -754,10 +754,30 @@ app.get('/api/users', async (req, res) => {
 });
 
 // ==========================================
+// Static File Serving (Frontend)
+// ==========================================
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static files from dist folder
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// SPA fallback - serve index.html for all non-API routes
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
+// ==========================================
 // Error Handling Middleware (must be last)
 // ==========================================
 
-// 404 handler for undefined routes
+// 404 handler for undefined API routes
 app.use(notFoundHandler);
 
 // Centralized error handler
