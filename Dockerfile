@@ -12,8 +12,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Generate Prisma client (schema is in server/prisma)
-RUN npx prisma generate --schema=server/prisma/schema.prisma
+# Generate Prisma client (schema is in server/prisma, use pinned version)
+RUN npx prisma@6 generate --schema=server/prisma/schema.prisma
 
 # Build frontend
 RUN npm run build
