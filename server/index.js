@@ -63,6 +63,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy for Railway/reverse proxy (needed for rate limiting)
+app.set('trust proxy', 1);
+
 // Initialize Prisma client with reconnection support for prisma dev
 let prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
