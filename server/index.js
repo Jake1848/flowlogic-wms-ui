@@ -48,6 +48,7 @@ import purchaseOrderRoutes from './routes/purchaseOrders.js';
 import gateRoutes from './routes/gate.js';
 import shipNoticeRoutes from './routes/shipNotices.js';
 import intelligenceRoutes from './routes/intelligence.js';
+import aiRoutes from './routes/ai.js';
 
 // Import auth middleware
 import { authMiddleware, optionalAuth } from './middleware/auth.js';
@@ -187,6 +188,10 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.use(express.json({ limit: '10mb' }));
+
+// Make prisma and anthropic available to routes
+app.locals.prisma = prisma;
+app.locals.anthropic = anthropic;
 
 // CSRF Protection - Validate Origin header for state-changing requests
 if (process.env.NODE_ENV === 'production') {
@@ -399,6 +404,9 @@ app.use('/api/ship-notices', authMiddleware, shipNoticeRoutes);
 
 // FlowLogic Intelligence Platform routes (protected)
 app.use('/api/intelligence', authMiddleware, intelligenceRoutes(prisma));
+
+// AI Engine routes (protected)
+app.use('/api/ai', aiRoutes);
 
 // Dashboard summary endpoint using parameterized queries (protected)
 app.get('/api/dashboard', authMiddleware, async (req, res) => {

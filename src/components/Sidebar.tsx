@@ -7,7 +7,7 @@ import {
   ChevronDown,
   ArrowRight,
   Circle,
-  Warehouse as WarehouseIcon,
+  Brain,
 } from 'lucide-react'
 import { useWMSStore } from '../store/useWMSStore'
 import { pageIdToPath } from '../routes'
@@ -26,7 +26,7 @@ interface SidebarProps {
 export default function Sidebar({ currentPage }: SidebarProps) {
   const navigate = useNavigate()
   const { sidebarOpen, toggleSidebar } = useWMSStore()
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['dashboard']))
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['intelligence']))
   const [commandInput, setCommandInput] = useState('')
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
@@ -34,7 +34,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
 
   // Navigate to a page using React Router
   const navigateTo = (pageId: PageType) => {
-    const path = pageIdToPath[pageId] || '/dashboard'
+    const path = pageIdToPath[pageId] || '/'
     navigate(path)
   }
 
@@ -222,21 +222,21 @@ export default function Sidebar({ currentPage }: SidebarProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 shadow-2xl transition-all duration-300 z-40 flex flex-col ${
-          sidebarOpen ? 'w-72' : 'w-20'
-        }`}
+        className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 shadow-2xl transition-all duration-300 z-40 flex flex-col
+          ${sidebarOpen ? 'w-72 translate-x-0' : 'lg:w-20 w-72 -translate-x-full lg:translate-x-0'}
+        `}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-800">
           {sidebarOpen ? (
             <>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/25">
-                  <WarehouseIcon className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                  <Brain className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <h1 className="text-lg font-bold text-white">FlowLogic</h1>
-                  <p className="text-xs text-gray-500">Warehouse Management</p>
+                  <p className="text-xs text-gray-500">AI Intelligence Platform</p>
                 </div>
               </div>
               <button

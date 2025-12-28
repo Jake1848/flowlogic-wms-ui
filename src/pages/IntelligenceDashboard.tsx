@@ -173,18 +173,18 @@ export default function IntelligenceDashboard() {
   const isLoading = dashboardLoading || discrepanciesLoading || actionsLoading || briefLoading
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-            <Brain className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+          <div className="p-2 sm:p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+            <Brain className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
               Inventory Intelligence
             </h1>
-            <p className="text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
               AI-powered inventory analysis and root cause detection
             </p>
           </div>
@@ -193,42 +193,45 @@ export default function IntelligenceDashboard() {
           <button
             onClick={() => analyzeMutation.mutate()}
             disabled={analyzeMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm"
           >
             <Search className="w-4 h-4" />
-            {analyzeMutation.isPending ? 'Analyzing...' : 'Run Analysis'}
+            <span className="hidden sm:inline">{analyzeMutation.isPending ? 'Analyzing...' : 'Run Analysis'}</span>
+            <span className="sm:hidden">{analyzeMutation.isPending ? '...' : 'Analyze'}</span>
           </button>
           <button
             onClick={() => generateActionsMutation.mutate()}
             disabled={generateActionsMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
           >
-            <RefreshCw className="w-4 h-4" />
-            Generate Actions
+            <RefreshCw className={`w-4 h-4 ${generateActionsMutation.isPending ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Generate Actions</span>
+            <span className="sm:hidden">Actions</span>
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="flex gap-4">
+      <div className="border-b border-gray-200 dark:border-gray-700 -mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto">
+        <nav className="flex gap-1 sm:gap-4 min-w-max">
           {[
-            { id: 'overview', label: 'Overview', icon: Brain },
-            { id: 'discrepancies', label: 'Discrepancies', icon: AlertTriangle },
-            { id: 'actions', label: 'Action Queue', icon: Target },
-            { id: 'reports', label: 'Executive Reports', icon: FileText }
+            { id: 'overview', label: 'Overview', shortLabel: 'Overview', icon: Brain },
+            { id: 'discrepancies', label: 'Discrepancies', shortLabel: 'Issues', icon: AlertTriangle },
+            { id: 'actions', label: 'Action Queue', shortLabel: 'Actions', icon: Target },
+            { id: 'reports', label: 'Executive Reports', shortLabel: 'Reports', icon: FileText }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-3 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-purple-500 text-purple-600 dark:text-purple-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
               }`}
             >
               <tab.icon className="w-4 h-4" />
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.shortLabel}</span>
             </button>
           ))}
         </nav>
@@ -242,61 +245,61 @@ export default function IntelligenceDashboard() {
         <>
           {/* Overview Tab */}
           {activeTab === 'overview' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* KPI Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Open Issues</p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Open Issues</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                         {dashboard?.summary.openDiscrepancies || 0}
                       </p>
                     </div>
-                    <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                      <AlertTriangle className="w-6 h-6 text-yellow-600" />
+                    <div className="p-2 sm:p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                      <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Critical</p>
-                      <p className="text-3xl font-bold text-red-600">
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Critical</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-red-600">
                         {dashboard?.summary.criticalIssues || 0}
                       </p>
                     </div>
-                    <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                      <AlertTriangle className="w-6 h-6 text-red-600" />
+                    <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                      <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Pending Actions</p>
-                      <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Pending</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                         {actions?.filter(a => a.status === 'PENDING').length || 0}
                       </p>
                     </div>
-                    <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                      <Target className="w-6 h-6 text-purple-600" />
+                    <div className="p-2 sm:p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                      <Target className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Est. Impact</p>
-                      <p className="text-3xl font-bold text-green-600">
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Impact</p>
+                      <p className="text-xl sm:text-3xl font-bold text-green-600">
                         ${actions?.reduce((sum, a) => sum + (a.estimatedImpact || 0), 0).toLocaleString() || '0'}
                       </p>
                     </div>
-                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                      <TrendingUp className="w-6 h-6 text-green-600" />
+                    <div className="p-2 sm:p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                      <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                     </div>
                   </div>
                 </div>

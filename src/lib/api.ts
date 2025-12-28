@@ -8,7 +8,7 @@ interface ApiResponse<T = unknown> {
 
 // Get auth token from localStorage
 function getAuthToken(): string | null {
-  return localStorage.getItem('token')
+  return localStorage.getItem('flowlogic_token')
 }
 
 async function request<T>(
@@ -38,8 +38,8 @@ async function request<T>(
 
   // Handle 401 - redirect to login
   if (response.status === 401) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    localStorage.removeItem('flowlogic_token')
+    localStorage.removeItem('flowlogic_user')
     window.location.href = '/login'
   }
 
