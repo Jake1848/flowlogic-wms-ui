@@ -406,7 +406,7 @@ app.use('/api/ship-notices', authMiddleware, shipNoticeRoutes);
 app.use('/api/intelligence', authMiddleware, intelligenceRoutes(prisma));
 
 // AI Engine routes (protected)
-app.use('/api/ai', aiRoutes);
+app.use('/api/ai', authMiddleware, aiRoutes);
 
 // Dashboard summary endpoint using parameterized queries (protected)
 app.get('/api/dashboard', authMiddleware, async (req, res) => {

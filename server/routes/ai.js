@@ -18,12 +18,30 @@ const router = express.Router();
 router.use(authMiddleware);
 
 /**
+ * Input validation helper
+ */
+const validatePositiveInt = (value, defaultVal, max = 365) => {
+  const num = parseInt(value, 10);
+  if (isNaN(num) || num < 1) return defaultVal;
+  return Math.min(num, max);
+};
+
+const validateString = (value, maxLength = 100) => {
+  if (typeof value !== 'string') return null;
+  return value.trim().slice(0, maxLength) || null;
+};
+
+/**
  * @route POST /api/ai/forecast
  * @desc Generate demand forecast for a SKU or category
  */
 router.post('/forecast', asyncHandler(async (req, res) => {
-  const { sku, categoryId, warehouseId, horizonDays = 30 } = req.body;
-  const prisma = req.app.locals.prisma;
+  try {
+    const sku = validateString(req.body.sku);
+    const categoryId = validateString(req.body.categoryId);
+    const warehouseId = validateString(req.body.warehouseId);
+    const horizonDays = validatePositiveInt(req.body.horizonDays, 30, 365);
+    const prisma = req.app.locals.prisma;
 
   // Get historical data
   let historicalData = [];
@@ -112,16 +130,24 @@ router.post('/forecast', asyncHandler(async (req, res) => {
     }));
   }
 
-  // Generate forecast
-  const forecast = forecastingEngine.forecast(historicalData, horizonDays);
+    // Generate forecast
+    const forecast = forecastingEngine.forecast(historicalData, horizonDays);
 
-  res.json({
-    success: true,
-    sku,
-    categoryId,
-    warehouseId,
-    ...forecast
-  });
+    res.json({
+      success: true,
+      sku,
+      categoryId,
+      warehouseId,
+      ...forecast
+    });
+  } catch (error) {
+    console.error('Forecast error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Forecast generation failed',
+      message: error.message || 'Insufficient data or internal error'
+    });
+  }
 }));
 
 /**
@@ -129,8 +155,14 @@ router.post('/forecast', asyncHandler(async (req, res) => {
  * @desc Detect anomalies in inventory or transaction data
  */
 router.post('/anomaly-detection', asyncHandler(async (req, res) => {
-  const { type = 'inventory', warehouseId, sku, locationCode, lookbackDays = 30 } = req.body;
-  const prisma = req.app.locals.prisma;
+  try {
+    const validTypes = ['inventory', 'adjustments', 'cycle-counts'];
+    const type = validTypes.includes(req.body.type) ? req.body.type : 'inventory';
+    const warehouseId = validateString(req.body.warehouseId);
+    const sku = validateString(req.body.sku);
+    const locationCode = validateString(req.body.locationCode);
+    const lookbackDays = validatePositiveInt(req.body.lookbackDays, 30, 90);
+    const prisma = req.app.locals.prisma;
 
   let data = [];
 
@@ -205,15 +237,23 @@ router.post('/anomaly-detection', asyncHandler(async (req, res) => {
     }));
   }
 
-  // Run anomaly detection
-  const results = anomalyDetectionEngine.detect(data, 'value');
+    // Run anomaly detection
+    const results = anomalyDetectionEngine.detect(data, 'value');
 
-  res.json({
-    success: true,
-    type,
-    parameters: { warehouseId, sku, locationCode, lookbackDays },
-    ...results
-  });
+    res.json({
+      success: true,
+      type,
+      parameters: { warehouseId, sku, locationCode, lookbackDays },
+      ...results
+    });
+  } catch (error) {
+    console.error('Anomaly detection error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Anomaly detection failed',
+      message: error.message || 'Data unavailable or internal error'
+    });
+  }
 }));
 
 /**
@@ -221,8 +261,10 @@ router.post('/anomaly-detection', asyncHandler(async (req, res) => {
  * @desc Analyze patterns in transactions
  */
 router.post('/pattern-analysis', asyncHandler(async (req, res) => {
-  const { warehouseId, lookbackDays = 60 } = req.body;
-  const prisma = req.app.locals.prisma;
+  try {
+    const warehouseId = validateString(req.body.warehouseId);
+    const lookbackDays = validatePositiveInt(req.body.lookbackDays, 60, 90);
+    const prisma = req.app.locals.prisma;
 
   // Get transactions for analysis
   const transactions = await prisma.inventoryTransaction.findMany({
@@ -268,14 +310,22 @@ router.post('/pattern-analysis', asyncHandler(async (req, res) => {
     }))
   ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-  // Run pattern analysis
-  const results = patternRecognitionEngine.analyzePatterns(combinedData);
+    // Run pattern analysis
+    const results = patternRecognitionEngine.analyzePatterns(combinedData);
 
-  res.json({
-    success: true,
-    parameters: { warehouseId, lookbackDays },
-    ...results
-  });
+    res.json({
+      success: true,
+      parameters: { warehouseId, lookbackDays },
+      ...results
+    });
+  } catch (error) {
+    console.error('Pattern analysis error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Pattern analysis failed',
+      message: error.message || 'Data unavailable or internal error'
+    });
+  }
 }));
 
 /**
@@ -283,8 +333,10 @@ router.post('/pattern-analysis', asyncHandler(async (req, res) => {
  * @desc Generate AI recommendations based on comprehensive analysis
  */
 router.post('/recommendations', asyncHandler(async (req, res) => {
-  const { warehouseId, sku } = req.body;
-  const prisma = req.app.locals.prisma;
+  try {
+    const warehouseId = validateString(req.body.warehouseId);
+    const sku = validateString(req.body.sku);
+    const prisma = req.app.locals.prisma;
 
   // Run all analyses
   const lookbackDays = 30;
@@ -357,23 +409,31 @@ router.post('/recommendations', asyncHandler(async (req, res) => {
 
   const patterns = patternRecognitionEngine.analyzePatterns(combinedTransactions);
 
-  // Generate recommendations
-  const recommendations = recommendationEngine.generateRecommendations({
-    anomalies,
-    forecasts,
-    patterns
-  });
+    // Generate recommendations
+    const recommendations = recommendationEngine.generateRecommendations({
+      anomalies,
+      forecasts,
+      patterns
+    });
 
-  res.json({
-    success: true,
-    parameters: { warehouseId, sku },
-    analysis: {
-      anomalies: anomalies.success ? anomalies.summary : null,
-      forecasts: forecasts.success ? forecasts.summary : null,
-      patterns: patterns.success ? patterns.summary : null
-    },
-    ...recommendations
-  });
+    res.json({
+      success: true,
+      parameters: { warehouseId, sku },
+      analysis: {
+        anomalies: anomalies.success ? anomalies.summary : null,
+        forecasts: forecasts.success ? forecasts.summary : null,
+        patterns: patterns.success ? patterns.summary : null
+      },
+      ...recommendations
+    });
+  } catch (error) {
+    console.error('Recommendations error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Recommendations generation failed',
+      message: error.message || 'Data unavailable or internal error'
+    });
+  }
 }));
 
 /**
@@ -381,7 +441,6 @@ router.post('/recommendations', asyncHandler(async (req, res) => {
  * @desc Check AI engine health status
  */
 router.get('/health', asyncHandler(async (req, res) => {
-  const anthropic = req.app.locals.anthropic;
   const anthropicConfigured = !!process.env.ANTHROPIC_API_KEY;
 
   res.json({
@@ -406,11 +465,12 @@ router.get('/health', asyncHandler(async (req, res) => {
  * @desc Get AI dashboard summary
  */
 router.get('/dashboard', asyncHandler(async (req, res) => {
-  const { warehouseId } = req.query;
-  const prisma = req.app.locals.prisma;
+  try {
+    const warehouseId = validateString(req.query.warehouseId);
+    const prisma = req.app.locals.prisma;
 
-  // Get recent discrepancies
-  const discrepancies = await prisma.discrepancy.findMany({
+    // Get recent discrepancies
+    const discrepancies = await prisma.discrepancy.findMany({
     where: {
       warehouseId: warehouseId || undefined,
       status: { in: ['OPEN', 'INVESTIGATING'] }
@@ -454,14 +514,22 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
       analysesLast24h: analysisCount,
       forecastAccuracy
     },
-    recentDiscrepancies: discrepancies,
-    topActions: actions,
-    aiStatus: {
-      lastAnalysis: new Date().toISOString(),
-      modelsActive: 4,
-      dataQuality: 'good'
-    }
-  });
+      recentDiscrepancies: discrepancies,
+      topActions: actions,
+      aiStatus: {
+        lastAnalysis: new Date().toISOString(),
+        modelsActive: 4,
+        dataQuality: 'good'
+      }
+    });
+  } catch (error) {
+    console.error('AI Dashboard error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Dashboard data unavailable',
+      message: error.message || 'Internal error'
+    });
+  }
 }));
 
 export default router;
