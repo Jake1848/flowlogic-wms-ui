@@ -363,8 +363,8 @@ export default function taskRoutes(prisma) {
           status: 'COMPLETED',
           completedAt,
           actualMinutes,
-          completedLines: task.details.length,
-          completedUnits: task.details.reduce((sum, d) => sum + d.quantityRequired, 0),
+          completedLines: task.details?.length || 0,
+          completedUnits: task.details?.reduce((sum, d) => sum + (d.quantityRequired || 0), 0) || 0,
         },
       });
 
