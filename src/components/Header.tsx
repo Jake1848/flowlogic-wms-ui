@@ -1,8 +1,10 @@
-import { Bell, User, Moon, Sun, Menu, Brain, LogOut } from 'lucide-react'
+import { Bell, User, Moon, Sun, Menu, Brain, LogOut, Settings } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWMSStore } from '../store/useWMSStore'
 import { useAuth } from '../contexts/AuthContext'
+import { Button } from './ui/button'
+import { Badge } from './ui/badge'
 
 export default function Header() {
   const navigate = useNavigate()
@@ -29,93 +31,97 @@ export default function Header() {
   }
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20">
-      <div className="flex items-center justify-between px-3 sm:px-4 md:px-6 py-3 md:py-4">
-        {/* Left side - Menu button and title */}
-        <div className="flex items-center gap-3">
+    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-20 backdrop-blur-sm bg-white/95 dark:bg-gray-900/95">
+      <div className="flex items-center justify-between px-4 lg:px-6 h-16">
+        {/* Left side - Menu button and branding */}
+        <div className="flex items-center gap-4">
           {/* Mobile menu button */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={toggleSidebar}
-            className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            aria-label="Toggle menu"
+            className="lg:hidden"
           >
-            <Menu className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-          </button>
+            <Menu className="w-5 h-5" />
+          </Button>
 
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
-              <Brain className="w-4 h-4 text-white" />
+          {/* Logo and title */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
+              <Brain className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-gray-800 dark:text-white">FlowLogic</span>
-          </div>
-
-          {/* Desktop title */}
-          <div className="hidden lg:block">
-            <h2 className="text-lg md:text-xl lg:text-2xl font-semibold text-gray-800 dark:text-gray-100">
-              AI Intelligence Platform
-            </h2>
-            <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-              Predictive analytics and intelligent automation
-            </p>
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+                FlowLogic AI
+              </h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Intelligence Platform
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Right side - Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+        <div className="flex items-center gap-2">
           {/* Dark mode toggle */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={toggleDarkMode}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            aria-label="Toggle dark mode"
           >
             {darkMode ? (
-              <Sun className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              <Sun className="w-5 h-5" />
             ) : (
-              <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              <Moon className="w-5 h-5" />
             )}
-          </button>
+          </Button>
 
           {/* Notifications */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate('/alerts')}
-            className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="relative"
           >
-            <Bell className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            <Bell className="w-5 h-5" />
             {unreadAlerts > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+              <Badge 
+                variant="destructive" 
+                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+              >
                 {unreadAlerts > 9 ? '9+' : unreadAlerts}
-              </span>
+              </Badge>
             )}
-          </button>
+          </Button>
 
           {/* User menu */}
-          <div className="relative" ref={userMenuRef}>
-            <button
+          <div className="relative ml-2" ref={userMenuRef}>
+            <Button
+              variant="ghost"
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg p-1 sm:p-2 transition-colors"
+              className="flex items-center gap-3 h-10"
             >
-              <div className="hidden sm:block text-right">
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="hidden md:block text-right">
+                <div className="text-sm font-medium">
                   {user?.firstName || 'User'} {user?.lastName || ''}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   {user?.role || 'Operator'}
                 </div>
               </div>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
-                <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
               </div>
-            </button>
+            </Button>
 
             {/* Dropdown menu */}
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
-                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 sm:hidden">
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
                     {user?.firstName || 'User'} {user?.lastName || ''}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     {user?.email || 'user@flowlogic.ai'}
                   </div>
                 </div>
@@ -124,14 +130,14 @@ export default function Header() {
                     setShowUserMenu(false)
                     navigate('/settings')
                   }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
                 >
-                  <User className="w-4 h-4" />
-                  Profile Settings
+                  <Settings className="w-4 h-4" />
+                  Settings
                 </button>
                 <button
                   onClick={handleLogout}
-                  className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                   Sign Out

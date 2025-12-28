@@ -5,6 +5,8 @@ import AlertsPanel from '../components/AlertsPanel'
 import ProductionGraph from '../components/ProductionGraph'
 import { useDashboard } from '../hooks/useDashboard'
 import { useWMSStore } from '../store/useWMSStore'
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
 
 export default function Dashboard() {
   const { updateMetrics, addAlert } = useWMSStore()
@@ -87,43 +89,47 @@ export default function Dashboard() {
 
       {/* Additional Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Top 5 Skipped Locations
-          </h3>
-          <div className="space-y-3">
-            {skippedLocations.map((item) => (
-              <div
-                key={item.location}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
-              >
-                <span className="font-medium text-gray-900 dark:text-gray-100">{item.location}</span>
-                <span className="px-3 py-1 text-sm font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 rounded-full">
-                  {item.skipCount} skips
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 5 Skipped Locations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {skippedLocations.map((item) => (
+                <div
+                  key={item.location}
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                >
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{item.location}</span>
+                  <Badge variant="destructive">
+                    {item.skipCount} skips
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Most Frequently Adjusted SKUs
-          </h3>
-          <div className="space-y-3">
-            {frequentAdjustments.map((item) => (
-              <div
-                key={item.sku}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
-              >
-                <span className="font-medium text-gray-900 dark:text-gray-100">{item.sku}</span>
-                <span className="px-3 py-1 text-sm font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 rounded-full">
-                  {item.adjustmentCount} adjustments
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Most Frequently Adjusted SKUs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {frequentAdjustments.map((item) => (
+                <div
+                  key={item.sku}
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                >
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{item.sku}</span>
+                  <Badge variant="warning">
+                    {item.adjustmentCount} adjustments
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

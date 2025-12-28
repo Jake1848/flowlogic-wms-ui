@@ -1,5 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { cn } from '../lib/utils'
 
 interface DashboardCardProps {
   title: string
@@ -34,36 +36,30 @@ export default function DashboardCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.1 }}
-      className="bg-white dark:bg-gray-800 rounded-2xl shadow-md hover:shadow-lg transition-shadow p-6"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-1">
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
             {title}
-          </p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          </CardTitle>
+          <div className={cn("p-3 rounded-xl", colorClasses[color])}>
+            <Icon className="w-6 h-6" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
             {value}
-          </p>
+          </div>
           {trend && (
-            <div className="flex items-center space-x-1">
-              <span
-                className={`text-sm font-medium ${
-                  trend.isPositive ? 'text-green-600' : 'text-red-600'
-                }`}
-              >
-                {trend.isPositive ? '+' : '-'}
-                {Math.abs(trend.value)}%
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                vs last week
-              </span>
-            </div>
+            <p className={cn(
+              "text-xs mt-1 font-medium",
+              trend.isPositive ? "text-green-600" : "text-red-600"
+            )}>
+              {trend.isPositive ? '+' : '-'}{Math.abs(trend.value)}% vs last week
+            </p>
           )}
-        </div>
-        <div className={`p-4 rounded-xl ${colorClasses[color]}`}>
-          <Icon className="w-8 h-8" />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </motion.div>
   )
 }

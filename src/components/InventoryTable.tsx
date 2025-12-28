@@ -1,6 +1,18 @@
 import { useState, useMemo, useCallback } from 'react'
 import { ChevronDown, ChevronUp, Search } from 'lucide-react'
 import type { SKUData } from '../store/useWMSStore'
+import { Card, CardContent, CardHeader } from './ui/card'
+import { Input } from './ui/input'
+import { Button } from './ui/button'
+import { Badge } from './ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './ui/table'
 
 interface InventoryTableProps {
   data: SKUData[]
@@ -67,189 +79,131 @@ export default function InventoryTable({ data, onRowClick }: InventoryTableProps
     )
   }, [sortField, sortDirection])
 
-  const getEPStatusColor = useCallback((status: SKUData['epStatus']) => {
+  const getEPStatusBadge = useCallback((status: SKUData['epStatus']) => {
     switch (status) {
       case 'critical':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+        return <Badge variant="destructive">Critical</Badge>
       case 'flagged':
-        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+        return <Badge variant="warning">Flagged</Badge>
       default:
-        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+        return <Badge variant="success">Normal</Badge>
     }
   }, [])
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md" role="region" aria-label="Inventory table">
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+    <Card>
+      <CardHeader className="pb-3">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" aria-hidden="true" />
-          <input
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
             type="text"
             placeholder="Search by SKU or Location..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
-            aria-label="Search inventory by SKU or location"
-            role="searchbox"
+            className="pl-10"
           />
         </div>
-      </div>
+      </CardHeader>
 
-      <div className="overflow-x-auto">
-        <table className="w-full" role="grid" aria-label="Inventory data">
-          <thead className="bg-gray-50 dark:bg-gray-700/50">
-            <tr role="row">
-              <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => handleSort('sku')}
-                role="columnheader"
-                aria-sort={sortField === 'sku' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleSort('sku')}
-              >
-                <div className="flex items-center space-x-1">
-                  <span>SKU</span>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>
+                <button
+                  onClick={() => handleSort('sku')}
+                  className="flex items-center gap-1 font-semibold hover:text-blue-600 transition-colors"
+                >
+                  SKU
                   <SortIcon field="sku" />
-                </div>
-              </th>
-              <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => handleSort('location')}
-                role="columnheader"
-                aria-sort={sortField === 'location' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleSort('location')}
-              >
-                <div className="flex items-center space-x-1">
-                  <span>Location</span>
+                </button>
+              </TableHead>
+              <TableHead>
+                <button
+                  onClick={() => handleSort('location')}
+                  className="flex items-center gap-1 font-semibold hover:text-blue-600 transition-colors"
+                >
+                  Location
                   <SortIcon field="location" />
-                </div>
-              </th>
-              <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => handleSort('quantity')}
-                role="columnheader"
-                aria-sort={sortField === 'quantity' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleSort('quantity')}
-              >
-                <div className="flex items-center space-x-1">
-                  <span>Quantity</span>
+                </button>
+              </TableHead>
+              <TableHead>
+                <button
+                  onClick={() => handleSort('quantity')}
+                  className="flex items-center gap-1 font-semibold hover:text-blue-600 transition-colors"
+                >
+                  Quantity
                   <SortIcon field="quantity" />
-                </div>
-              </th>
-              <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => handleSort('abnCount')}
-                role="columnheader"
-                aria-sort={sortField === 'abnCount' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleSort('abnCount')}
-              >
-                <div className="flex items-center space-x-1">
-                  <span>ABN Count</span>
+                </button>
+              </TableHead>
+              <TableHead>
+                <button
+                  onClick={() => handleSort('abnCount')}
+                  className="flex items-center gap-1 font-semibold hover:text-blue-600 transition-colors"
+                >
+                  ABN Count
                   <SortIcon field="abnCount" />
-                </div>
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" role="columnheader">
-                EP Status
-              </th>
-              <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => handleSort('variance')}
-                role="columnheader"
-                aria-sort={sortField === 'variance' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleSort('variance')}
-              >
-                <div className="flex items-center space-x-1">
-                  <span>Variance</span>
+                </button>
+              </TableHead>
+              <TableHead>
+                <button
+                  onClick={() => handleSort('variance')}
+                  className="flex items-center gap-1 font-semibold hover:text-blue-600 transition-colors"
+                >
+                  Variance
                   <SortIcon field="variance" />
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                </button>
+              </TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {paginatedData.map((item) => (
-              <tr
-                key={item.id}
+              <TableRow
+                key={`${item.sku}-${item.location}`}
                 onClick={() => onRowClick(item)}
-                className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
-                role="row"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && onRowClick(item)}
-                aria-label={`SKU ${item.sku} at location ${item.location}, quantity ${item.quantity}`}
+                className="cursor-pointer"
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {item.sku}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                  {item.location}
-                </td>
-                <td
-                  className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    item.quantity < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  {item.quantity}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                  {item.abnCount > 0 && (
-                    <span className="px-2 py-1 text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 rounded-full">
-                      {item.abnCount}
-                    </span>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${getEPStatusColor(
-                      item.epStatus
-                    )}`}
-                  >
-                    {item.epStatus}
+                <TableCell className="font-medium">{item.sku}</TableCell>
+                <TableCell>{item.location}</TableCell>
+                <TableCell>{item.quantity.toLocaleString()}</TableCell>
+                <TableCell>{item.abnCount}</TableCell>
+                <TableCell>
+                  <span className={item.variance > 0 ? 'text-red-600' : 'text-gray-900 dark:text-white'}>
+                    {item.variance > 0 ? '+' : ''}{item.variance}
                   </span>
-                </td>
-                <td
-                  className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    Math.abs(item.variance) > 5
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-gray-900 dark:text-gray-100'
-                  }`}
-                >
-                  {item.variance > 0 ? '+' : ''}
-                  {item.variance}%
-                </td>
-              </tr>
+                </TableCell>
+                <TableCell>{getEPStatusBadge(item.epStatus)}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
 
-      <nav className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between" aria-label="Pagination">
-        <div className="text-sm text-gray-600 dark:text-gray-400" aria-live="polite">
-          Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-          {Math.min(currentPage * itemsPerPage, sortedData.length)} of {sortedData.length}{' '}
-          results
+        {/* Pagination */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, sortedData.length)} of {sortedData.length} results
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
         </div>
-        <div className="flex space-x-2" role="group" aria-label="Pagination controls">
-          <button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Go to previous page"
-          >
-            Previous
-          </button>
-          <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Go to next page"
-          >
-            Next
-          </button>
-        </div>
-      </nav>
-    </div>
+      </CardContent>
+    </Card>
   )
 }
