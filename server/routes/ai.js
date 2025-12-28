@@ -1,10 +1,12 @@
 /**
  * AI Engine API Routes
  * Production-ready endpoints for AI/ML capabilities
+ *
+ * Note: Authentication is enforced at the app level in server/index.js
+ * via: app.use('/api/ai', authMiddleware, aiRoutes)
  */
 import express from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { authMiddleware } from '../middleware/auth.js';
 import {
   forecastingEngine,
   anomalyDetectionEngine,
@@ -13,9 +15,6 @@ import {
 } from '../modules/ai-engine/index.js';
 
 const router = express.Router();
-
-// All AI routes require authentication
-router.use(authMiddleware);
 
 /**
  * Input validation helper
