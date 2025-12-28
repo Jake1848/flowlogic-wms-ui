@@ -1,17 +1,24 @@
-# FlowLogic WMS UI
+# FlowLogic AI Intelligence Platform
 
-A modern, feature-rich Warehouse Management System (WMS) user interface built with React, TypeScript, and Vite. This application provides comprehensive warehouse operations management including inventory control, order fulfillment, receiving, shipping, labor management, and AI-assisted operations.
+A modern, AI-powered Warehouse Management System (WMS) with advanced analytics, anomaly detection, and intelligent forecasting. Built with React, TypeScript, and Vite on the frontend, with a Node.js/Express backend featuring production-ready AI engines.
 
 ## Features
 
+### Core WMS Functionality
 - **Dashboard** - Real-time warehouse metrics and KPIs
 - **Inventory Management** - Track stock levels, locations, and movements
 - **Order Processing** - Manage customer orders and fulfillment
 - **Receiving & Shipping** - Inbound/outbound logistics management
 - **Dock Scheduling** - Appointment management for dock doors
 - **Labor Management** - Workforce scheduling and productivity tracking
-- **AI Assistant (Flow)** - Intelligent assistant for warehouse operations
 - **100+ Transaction Screens** - Comprehensive WMS functionality
+
+### AI Intelligence Platform
+- **Demand Forecasting** - Ensemble statistical methods (SMA, WMA, exponential smoothing, trend analysis) with confidence intervals
+- **Anomaly Detection** - Multi-method detection (Z-score, IQR, MAD) for identifying inventory discrepancies
+- **Pattern Recognition** - Temporal, behavioral, and correlation pattern analysis
+- **AI Recommendations** - Actionable insights prioritized by severity
+- **AI Assistant (Flow)** - Natural language interface for warehouse operations
 
 ## Tech Stack
 
@@ -95,11 +102,19 @@ npm test
 flowlogic-ui/
 ├── src/
 │   ├── components/           # Reusable UI components
-│   │   ├── AIAssistant/      # AI assistant module (refactored)
+│   │   ├── AIAssistant/      # AI assistant module
+│   │   ├── alerts/           # Alert page components
+│   │   ├── integrations/     # Integration page components
 │   │   ├── Header.tsx        # Application header
 │   │   └── Sidebar.tsx       # Navigation sidebar
 │   ├── config/
 │   │   └── navigation.ts     # Navigation menu configuration
+│   ├── constants/            # Application constants
+│   │   └── wmsConnectors.ts  # WMS connector definitions
+│   ├── hooks/                # Custom React hooks
+│   │   ├── useAlerts.ts      # Alert data fetching
+│   │   ├── useAIAnalysis.ts  # AI analysis hooks
+│   │   └── useIntegrations.ts # Integration hooks
 │   ├── pages/                # Page components (100+)
 │   ├── routes/
 │   │   └── index.tsx         # Route definitions
@@ -107,26 +122,57 @@ flowlogic-ui/
 │   │   └── aiService.ts      # AI backend integration
 │   ├── store/
 │   │   └── useWMSStore.ts    # Zustand global state
-│   ├── __tests__/            # Test files
-│   │   ├── components/
-│   │   └── store/
+│   ├── types/                # TypeScript type definitions
+│   │   ├── alerts.ts
+│   │   └── integrations.ts
 │   ├── App.tsx
 │   └── main.tsx
 ├── server/
+│   ├── __tests__/            # Backend tests
+│   │   ├── ai-engine.test.js # AI engine tests
+│   │   └── routes/           # Route tests
 │   ├── middleware/           # Express middleware
+│   │   ├── authMiddleware.js # JWT authentication
 │   │   ├── errorHandler.js   # Centralized error handling
 │   │   └── validate.js       # Zod validation middleware
-│   ├── schemas/              # Zod validation schemas
-│   │   ├── common.js
-│   │   ├── inventory.js
+│   ├── modules/
+│   │   └── ai-engine/        # AI engine implementations
+│   │       └── index.js      # Forecasting, anomaly detection, etc.
+│   ├── routes/               # API route handlers
+│   │   ├── ai.js             # AI endpoints
+│   │   ├── alerts.js
 │   │   ├── orders.js
-│   │   └── docks.js
+│   │   └── tasks.js
+│   ├── schemas/              # Zod validation schemas
 │   └── index.js              # Express server entry
-├── jest.config.js            # Jest configuration
+├── prisma/
+│   └── schema.prisma         # Database schema
 └── vite.config.ts            # Vite configuration
 ```
 
 ## Key Components
+
+### AI Engine (`server/modules/ai-engine/`)
+
+Production-ready statistical AI engines for warehouse intelligence:
+
+| Engine | Purpose | Methods |
+|--------|---------|---------|
+| **ForecastingEngine** | Demand prediction | SMA, WMA, Exponential Smoothing, Linear Trend, Seasonality Detection |
+| **AnomalyDetectionEngine** | Outlier identification | Z-Score, IQR, MAD (requires 2+ methods for confirmation) |
+| **PatternRecognitionEngine** | Behavior analysis | Temporal, Behavioral, Correlation patterns |
+| **RecommendationEngine** | Action prioritization | Severity-based recommendations from analysis |
+
+#### API Endpoints
+
+```
+POST /api/ai/forecast         # Generate demand forecasts
+POST /api/ai/anomaly-detection # Detect inventory anomalies
+POST /api/ai/pattern-analysis # Analyze transaction patterns
+POST /api/ai/recommendations  # Get AI recommendations
+GET  /api/ai/health          # Check AI engine status
+GET  /api/ai/dashboard       # AI dashboard summary
+```
 
 ### AI Assistant (Flow)
 
@@ -141,9 +187,6 @@ Components:
 - `ChatTab.tsx` - Chat interface
 - `InsightsTab.tsx` - Analytics dashboard
 - `AlertsTab.tsx` - Alert management
-- `MessageBubble.tsx` - Message rendering
-- `AnalysisResultCard.tsx` - Analysis display
-- `SuggestedActionsCard.tsx` - Action buttons
 
 ### Navigation
 
@@ -161,6 +204,71 @@ Global state is managed with Zustand in `src/store/useWMSStore.ts`:
 - Selected SKU
 - Warehouse metrics
 - Filters
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Frontend (React)                        │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────┐ │
+│  │  Pages   │  │Components│  │  Hooks   │  │  State (Zustand) │ │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────────┬─────────┘ │
+└───────┼─────────────┼─────────────┼─────────────────┼───────────┘
+        │             │             │                 │
+        └─────────────┴──────┬──────┴─────────────────┘
+                             │ HTTP/REST
+        ┌────────────────────▼────────────────────────┐
+        │              API Gateway                     │
+        │         (Express.js + Middleware)            │
+        │  ┌──────────┐  ┌──────────┐  ┌───────────┐  │
+        │  │   Auth   │  │ Validate │  │  Error    │  │
+        │  │Middleware│  │  (Zod)   │  │ Handler   │  │
+        │  └──────────┘  └──────────┘  └───────────┘  │
+        └────────────────────┬────────────────────────┘
+                             │
+        ┌────────────────────▼────────────────────────┐
+        │              Route Handlers                  │
+        │  ┌────────┐ ┌────────┐ ┌────────┐ ┌──────┐  │
+        │  │   AI   │ │ Orders │ │ Alerts │ │ Tasks│  │
+        │  └───┬────┘ └───┬────┘ └───┬────┘ └──┬───┘  │
+        └──────┼──────────┼──────────┼─────────┼──────┘
+               │          │          │         │
+        ┌──────▼──────────▼──────────▼─────────▼──────┐
+        │              AI Engine Module                │
+        │  ┌───────────┐ ┌───────────┐ ┌───────────┐  │
+        │  │Forecasting│ │ Anomaly   │ │  Pattern  │  │
+        │  │  Engine   │ │ Detection │ │Recognition│  │
+        │  └───────────┘ └───────────┘ └───────────┘  │
+        └─────────────────────┬───────────────────────┘
+                              │
+        ┌─────────────────────▼───────────────────────┐
+        │           Database (PostgreSQL/Prisma)       │
+        └─────────────────────────────────────────────┘
+```
+
+## Security
+
+The application implements multiple security layers:
+
+### Authentication & Authorization
+- JWT-based authentication with secure token handling
+- Role-based access control (ADMIN, MANAGER, OPERATOR, VIEWER)
+- Company-scoped data isolation
+
+### Input Validation
+- Zod schemas for all API request validation
+- Parameterized queries via Prisma ORM (SQL injection prevention)
+- Request size limits and rate limiting ready
+
+### Security Headers
+- Helmet.js middleware for HTTP security headers
+- CORS configuration for allowed origins
+- XSS protection via content security policy
+
+### Best Practices
+- Environment variables for secrets (never committed)
+- Secure password hashing with bcrypt
+- Audit logging for sensitive operations
 
 ## API Validation
 
@@ -206,6 +314,32 @@ npm run test:coverage
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Run tests with coverage |
 
+## Database
+
+The application uses PostgreSQL with Prisma ORM:
+
+```bash
+# Initialize database (first time setup)
+npx prisma db push
+
+# Generate Prisma client after schema changes
+npx prisma generate
+
+# Seed the database with sample data
+node prisma/seed.js
+
+# Open Prisma Studio (database GUI)
+npx prisma studio
+```
+
+Key models:
+- **User** - Authentication and role management
+- **Company** - Multi-tenant data isolation
+- **Product** - Inventory items with SKU tracking
+- **Order** - Customer orders and fulfillment
+- **Task** - Warehouse work assignments
+- **Alert** - System notifications and warnings
+
 ## Environment Variables
 
 ### Frontend (.env)
@@ -216,6 +350,8 @@ VITE_API_URL=http://localhost:3001
 ### Backend (server/.env)
 ```
 PORT=3001
+DATABASE_URL=postgresql://user:password@localhost:5432/flowlogic
+JWT_SECRET=your_jwt_secret
 ANTHROPIC_API_KEY=your_api_key
 ```
 
