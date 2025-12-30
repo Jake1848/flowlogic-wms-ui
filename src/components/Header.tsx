@@ -31,7 +31,7 @@ export default function Header() {
   }
 
   return (
-    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-20 backdrop-blur-sm bg-white/95 dark:bg-gray-900/95">
+    <header className="bg-white/80 dark:bg-slate-900/80 border-b border-gray-200/50 dark:border-slate-800/50 sticky top-0 z-20 backdrop-blur-xl">
       <div className="flex items-center justify-between px-4 lg:px-6 h-16">
         {/* Left side - Menu button and branding */}
         <div className="flex items-center gap-4">
@@ -40,18 +40,20 @@ export default function Header() {
             variant="ghost"
             size="icon"
             onClick={toggleSidebar}
-            className="lg:hidden"
+            className="lg:hidden hover:bg-gray-100 dark:hover:bg-slate-800"
           >
             <Menu className="w-5 h-5" />
           </Button>
 
           {/* Logo and title */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
-              <Brain className="w-5 h-5 text-white" />
+            <div className="relative">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                <Brain className="w-5 h-5 text-white" />
+              </div>
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+              <h1 className="text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                 FlowLogic AI
               </h1>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -109,39 +111,52 @@ export default function Header() {
                   {user?.role || 'Operator'}
                 </div>
               </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center ring-2 ring-white dark:ring-slate-800 shadow-lg">
                 <User className="w-5 h-5 text-white" />
               </div>
             </Button>
 
             {/* Dropdown menu */}
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    {user?.firstName || 'User'} {user?.lastName || ''}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {user?.email || 'user@flowlogic.ai'}
+              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 overflow-hidden z-50 animate-fade-in">
+                {/* Gradient accent */}
+                <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
+
+                <div className="px-4 py-4 bg-gray-50 dark:bg-slate-800/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {user?.firstName || 'User'} {user?.lastName || ''}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {user?.email || 'user@flowlogic.ai'}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false)
-                    navigate('/settings')
-                  }}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
-                >
-                  <Settings className="w-4 h-4" />
-                  Settings
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="w-full px-4 py-2.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
-                </button>
+
+                <div className="p-2">
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false)
+                      navigate('/settings')
+                    }}
+                    className="w-full px-3 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl flex items-center gap-3 transition-colors"
+                  >
+                    <Settings className="w-4 h-4 text-gray-400" />
+                    Settings
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-3 py-2.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl flex items-center gap-3 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
               </div>
             )}
           </div>
