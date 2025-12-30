@@ -24,7 +24,7 @@
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.18.1",
+    "framer-motion": "^12.23.26",
     "lucide-react": "^0.515.0",
     "postcss": "^8.5.5",
     "react": "^19.1.0",
