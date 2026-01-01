@@ -11,17 +11,60 @@ import { useWMSStore } from './store/useWMSStore'
 import { publicRoutes, protectedRoutes, pathToPageId } from './routes'
 import { queryClient } from './lib/queryClient'
 
+// ============================================
+// DEBUG LOGGING UTILITY
+// ============================================
+const DEBUG_PREFIX = '%c[FlowLogic]'
+const log = {
+  info: (msg: string, ...args: unknown[]) => console.log(DEBUG_PREFIX + ' ' + msg, 'color: #3b82f6;', ...args),
+  success: (msg: string, ...args: unknown[]) => console.log(DEBUG_PREFIX + ' ' + msg, 'color: #10b981;', ...args),
+  warn: (msg: string, ...args: unknown[]) => console.log(DEBUG_PREFIX + ' ' + msg, 'color: #f59e0b;', ...args),
+  error: (msg: string, ...args: unknown[]) => console.log(DEBUG_PREFIX + ' ' + msg, 'color: #ef4444;', ...args),
+  component: (name: string, action: string, data?: unknown) => {
+    console.log(`%c[Component: ${name}] ${action}`, 'color: #8b5cf6; font-weight: bold;', data || '')
+  },
+  render: (name: string, props?: unknown) => {
+    console.log(`%c[RENDER] ${name}`, 'color: #ec4899; font-style: italic;', props || '')
+  }
+}
+
+console.log('%c[App.tsx] Module loaded', 'color: #10b981; font-weight: bold;')
+
 // Layout for authenticated pages
 function AuthenticatedLayout() {
-  const { sidebarOpen, toggleSidebar } = useWMSStore()
+  const { sidebarOpen, toggleSidebar, darkMode } = useWMSStore()
   const location = useLocation()
   const routeElement = useRoutes(protectedRoutes)
 
   // Determine current page from URL path
   const currentPage = pathToPageId[location.pathname] || 'intelligence'
 
+  // DEBUG: Log every render
+  log.render('AuthenticatedLayout', {
+    pathname: location.pathname,
+    currentPage,
+    sidebarOpen,
+    darkMode
+  })
+
+  // DEBUG: Check dark mode class
+  useEffect(() => {
+    const isDarkClass = document.documentElement.classList.contains('dark')
+    log.info('Dark mode check:', { darkMode, hasDarkClass: isDarkClass })
+
+    // Log main container classes
+    const mainEl = document.querySelector('main')
+    if (mainEl) {
+      log.info('Main element classes:', mainEl.className)
+      const styles = getComputedStyle(mainEl)
+      log.info('Main element computed bg:', styles.backgroundColor)
+    }
+  }, [darkMode])
+
   // Close sidebar on route change for mobile
   useEffect(() => {
+    log.component('AuthenticatedLayout', 'Route changed to: ' + location.pathname)
+
     const handleResize = () => {
       if (window.innerWidth < 1024 && sidebarOpen) {
         toggleSidebar()

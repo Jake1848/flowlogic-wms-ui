@@ -1,7 +1,14 @@
 import type { LucideIcon } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { cn } from '../lib/utils'
+
+// ============================================
+// DASHBOARDCARD DEBUG LOGGING
+// ============================================
+console.log('%c[DashboardCard.tsx] Module loaded - WITH FRAMER-MOTION', 'color: #8b5cf6; font-weight: bold; font-size: 14px;')
+console.log('%c[DashboardCard] motion import:', 'color: #3b82f6;', typeof motion !== 'undefined' ? 'LOADED' : 'FAILED')
 
 interface DashboardCardProps {
   title: string
@@ -31,11 +38,21 @@ export default function DashboardCard({
   color = 'blue',
   index = 0,
 }: DashboardCardProps) {
+  // DEBUG: Log each card render
+  console.log('%c[DashboardCard] Rendering:', 'color: #ec4899;', { title, value, color, index })
+
+  useEffect(() => {
+    console.log('%c[DashboardCard] "' + title + '" MOUNTED with animation delay: ' + (index * 0.1) + 's', 'color: #10b981;')
+    return () => console.log('%c[DashboardCard] "' + title + '" UNMOUNTED', 'color: #ef4444;')
+  }, [title, index])
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.1 }}
+      onAnimationStart={() => console.log('%c[DashboardCard] Animation START: ' + title, 'color: #f59e0b;')}
+      onAnimationComplete={() => console.log('%c[DashboardCard] Animation COMPLETE: ' + title, 'color: #10b981;')}
     >
       <Card className="hover:shadow-lg transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Activity, AlertTriangle, TrendingUp, CheckCircle } from 'lucide-react'
 import DashboardCard from '../components/DashboardCard'
 import AlertsPanel from '../components/AlertsPanel'
@@ -8,13 +8,56 @@ import { useWMSStore } from '../store/useWMSStore'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 
+// ============================================
+// DASHBOARD DEBUG LOGGING
+// ============================================
+console.log('%c[Dashboard.tsx] Module loaded - Shadcn Upgrade Version', 'color: #10b981; font-weight: bold; font-size: 14px;')
+
 export default function Dashboard() {
   const { updateMetrics, addAlert } = useWMSStore()
   const { metrics, alerts, skippedLocations, frequentAdjustments } = useDashboard()
+  const renderCount = useRef(0)
+  renderCount.current++
+
+  // DEBUG: Log every render with detailed info
+  console.log('%c[Dashboard] RENDER #' + renderCount.current, 'color: #ec4899; font-weight: bold;', {
+    timestamp: new Date().toISOString(),
+    metricsLoaded: !!metrics,
+    alertsCount: alerts?.length || 0,
+    skippedLocationsCount: skippedLocations?.length || 0,
+    frequentAdjustmentsCount: frequentAdjustments?.length || 0
+  })
+
+  // DEBUG: Log component mounting and check for Shadcn components
+  useEffect(() => {
+    console.log('%c[Dashboard] MOUNTED - Checking UI components...', 'color: #8b5cf6; font-weight: bold;')
+
+    // Check if Card component is rendering correctly
+    const cards = document.querySelectorAll('[class*="rounded-lg"]')
+    console.log('%c[Dashboard] Found ' + cards.length + ' rounded-lg elements', 'color: #3b82f6;')
+
+    // Check for DashboardCard with framer-motion
+    const dashboardCards = document.querySelectorAll('[class*="hover:shadow"]')
+    console.log('%c[Dashboard] Found ' + dashboardCards.length + ' hover:shadow elements', 'color: #3b82f6;')
+
+    // Log all Card elements and their classes
+    document.querySelectorAll('.space-y-6 > div').forEach((el, i) => {
+      console.log('%c[Dashboard] Container ' + i + ' classes:', 'color: #6b7280;', el.className)
+    })
+
+    // Check Badge component
+    const badges = document.querySelectorAll('[class*="rounded-md"][class*="px-2"]')
+    console.log('%c[Dashboard] Found ' + badges.length + ' Badge-like elements', 'color: #f59e0b;')
+
+    return () => {
+      console.log('%c[Dashboard] UNMOUNTED', 'color: #ef4444;')
+    }
+  }, [])
 
   // Sync metrics to global store
   useEffect(() => {
     if (metrics) {
+      console.log('%c[Dashboard] Metrics updated:', 'color: #10b981;', metrics)
       updateMetrics(metrics)
     }
   }, [metrics, updateMetrics])
@@ -22,6 +65,7 @@ export default function Dashboard() {
   // Sync alerts to global store
   useEffect(() => {
     if (alerts && Array.isArray(alerts)) {
+      console.log('%c[Dashboard] Alerts synced:', 'color: #f59e0b;', alerts.length, 'alerts')
       alerts.forEach((alert) => {
         addAlert(alert)
       })

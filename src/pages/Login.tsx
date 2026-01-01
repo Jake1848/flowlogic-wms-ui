@@ -1,9 +1,48 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LogIn, Loader2, AlertCircle, Brain, Sparkles, Shield, Zap, BarChart3 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
+// ============================================
+// LOGIN PAGE DEBUG LOGGING
+// ============================================
+console.log('%c[Login.tsx] Module loaded - MODERN SPLIT-SCREEN VERSION', 'color: #8b5cf6; font-weight: bold; font-size: 16px;')
+
 export default function Login() {
+  // DEBUG: Log render
+  console.log('%c[Login] Component rendering...', 'color: #ec4899; font-weight: bold;')
+
+  useEffect(() => {
+    console.log('%c[Login] MOUNTED - Checking visual elements...', 'color: #10b981; font-weight: bold;')
+
+    // Check for gradient elements
+    const gradients = document.querySelectorAll('[class*="gradient"]')
+    console.log('%c[Login] Found ' + gradients.length + ' gradient elements', 'color: #3b82f6;')
+
+    // Check for the split-screen layout
+    const leftPanel = document.querySelector('[class*="lg:w-1/2"][class*="bg-gradient"]')
+    console.log('%c[Login] Left panel (gradient bg):', 'color: #f59e0b;', leftPanel ? 'FOUND' : 'NOT FOUND')
+
+    // Check for animated blur elements
+    const blurElements = document.querySelectorAll('[class*="blur-3xl"]')
+    console.log('%c[Login] Found ' + blurElements.length + ' blur-3xl animated elements', 'color: #8b5cf6;')
+
+    // Check for feature cards
+    const featureCards = document.querySelectorAll('[class*="backdrop-blur"]')
+    console.log('%c[Login] Found ' + featureCards.length + ' backdrop-blur feature cards', 'color: #10b981;')
+
+    // Log body/main classes
+    const main = document.querySelector('main')
+    if (main) {
+      console.log('%c[Login] Main element classes:', 'color: #6b7280;', main.className)
+    }
+
+    // Check the form container
+    const formContainer = document.querySelector('[class*="rounded-2xl"][class*="shadow-xl"]')
+    console.log('%c[Login] Form container:', 'color: #f59e0b;', formContainer ? 'FOUND with modern styling' : 'NOT FOUND')
+
+    return () => console.log('%c[Login] UNMOUNTED', 'color: #ef4444;')
+  }, [])
   const navigate = useNavigate()
   const location = useLocation()
   const { login, isLoading, error, clearError } = useAuth()
