@@ -39,12 +39,24 @@ function AuthenticatedLayout() {
   // Determine current page from URL path
   const currentPage = pathToPageId[location.pathname] || 'intelligence'
 
+  // DEBUG: Log route matching details
+  console.log('%c[ROUTES] protectedRoutes count:', 'color: #f59e0b; font-weight: bold;', protectedRoutes.length)
+  console.log('%c[ROUTES] Current pathname:', 'color: #f59e0b;', location.pathname)
+  console.log('%c[ROUTES] useRoutes result:', 'color: #f59e0b;', routeElement ? 'MATCHED' : 'NULL/NO MATCH')
+  console.log('%c[ROUTES] Route element type:', 'color: #f59e0b;', typeof routeElement?.type === 'function' ? (routeElement.type as {name?: string}).name : routeElement?.type || 'null')
+
+  // Log each route for debugging
+  protectedRoutes.forEach((route, i) => {
+    console.log(`%c[ROUTES] Route ${i}: path="${route.path}"`, 'color: #6b7280;')
+  })
+
   // DEBUG: Log every render
   log.render('AuthenticatedLayout', {
     pathname: location.pathname,
     currentPage,
     sidebarOpen,
-    darkMode
+    darkMode,
+    hasRouteElement: !!routeElement
   })
 
   // DEBUG: Check dark mode class
