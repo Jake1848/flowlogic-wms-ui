@@ -1,4 +1,4 @@
-import { Bell, User, Moon, Sun, Menu, Brain, LogOut, Settings } from 'lucide-react'
+import { Bell, User, Menu, Brain, LogOut, Settings } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWMSStore } from '../store/useWMSStore'
@@ -8,7 +8,7 @@ import { Badge } from './ui/badge'
 
 export default function Header() {
   const navigate = useNavigate()
-  const { alerts, darkMode, toggleDarkMode, toggleSidebar } = useWMSStore()
+  const { alerts, toggleSidebar } = useWMSStore()
   const { user, logout } = useAuth()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
@@ -63,20 +63,6 @@ export default function Header() {
 
         {/* Right side - Actions */}
         <div className="flex items-center gap-2">
-          {/* Dark mode toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleDarkMode}
-            className="text-white/70 hover:text-white hover:bg-white/10"
-          >
-            {darkMode ? (
-              <Sun className="w-5 h-5" />
-            ) : (
-              <Moon className="w-5 h-5" />
-            )}
-          </Button>
-
           {/* Notifications */}
           <Button
             variant="ghost"
