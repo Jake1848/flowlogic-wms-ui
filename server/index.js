@@ -24,6 +24,7 @@ import auditLogRoutes from './routes/auditLogs.js';
 import intelligenceRoutes from './routes/intelligence.js';
 import aiRoutes from './routes/ai.js';
 import connectorRoutes from './routes/connectors.js';
+import billingRoutes from './routes/billing.js';
 
 // Import auth middleware
 import { authMiddleware, optionalAuth } from './middleware/auth.js';
@@ -345,6 +346,7 @@ app.use('/api/chat-history', authMiddleware, chatRoutes(prisma));
 app.use('/api/users', authMiddleware, userRoutes(prisma));
 app.use('/api/integrations', authMiddleware, integrationRoutes(prisma));
 app.use('/api/connectors', authMiddleware, connectorRoutes(prisma));
+app.use('/api/billing', authMiddleware, billingRoutes(prisma));
 app.use('/api/settings', authMiddleware, settingsRoutes(prisma));
 app.use('/api/audit-logs', authMiddleware, auditLogRoutes(prisma));
 

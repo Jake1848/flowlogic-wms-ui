@@ -217,6 +217,10 @@ model User {
   isActive        Boolean  @default(true)
   lastLoginAt     DateTime?
 
+  // Password reset
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

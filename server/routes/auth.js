@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { generateToken } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import emailService from '../services/email.js';
 
 export default function authRoutes(prisma) {
   const router = Router();
@@ -339,6 +341,252 @@ export default function authRoutes(prisma) {
       message: 'Logged out successfully',
     });
   });
+
+  // Request password reset
+  router.post('/forgot-password', asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: 'Email is required',
+      });
+    }
+
+    // Find user by email
+    const user = await prisma.user.findFirst({
+      where: { email, isActive: true },
+    });
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return res.json({
+        success: true,
+        message: 'If an account exists with this email, a password reset link has been sent.',
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Store reset token
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: resetTokenHash,
+        passwordResetExpires: resetExpires,
+      },
+    });
+
+    // Send reset email
+    try {
+      await emailService.sendPasswordReset(user, resetToken);
+    } catch (error) {
+      console.error('Failed to send password reset email:', error);
+      // Don't expose email sending failures
+    }
+
+    res.json({
+      success: true,
+      message: 'If an account exists with this email, a password reset link has been sent.',
+    });
+  }));
+
+  // Reset password with token
+  router.post('/reset-password', asyncHandler(async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: 'Token and new password are required',
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: 'Password must be at least 8 characters',
+      });
+    }
+
+    // Hash the token to compare with stored hash
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user with valid reset token
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: tokenHash,
+        passwordResetExpires: { gt: new Date() },
+        isActive: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        error: 'Invalid token',
+        message: 'Password reset token is invalid or has expired',
+      });
+    }
+
+    // Hash new password and clear reset token
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Password has been reset successfully. You can now log in with your new password.',
+    });
+  }));
+
+  // Self-service registration (for new companies)
+  router.post('/signup', asyncHandler(async (req, res) => {
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      companyName,
+      companySize,
+      role: userRole,
+    } = req.body;
+
+    // Validate required fields
+    if (!firstName || !lastName || !email || !password || !companyName) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: 'First name, last name, email, password, and company name are required',
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: 'Password must be at least 8 characters',
+      });
+    }
+
+    // Check if email already exists
+    const existing = await prisma.user.findFirst({
+      where: { email },
+    });
+
+    if (existing) {
+      return res.status(409).json({
+        error: 'Email already registered',
+        message: 'An account with this email already exists. Please sign in or use a different email.',
+      });
+    }
+
+    // Generate company code from name
+    const companyCode = companyName
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .substring(0, 10) + Date.now().toString(36).toUpperCase().slice(-4);
+
+    // Create company
+    const company = await prisma.company.create({
+      data: {
+        code: companyCode,
+        name: companyName,
+        settings: {
+          companySize,
+          plan: 'trial',
+          trialStartedAt: new Date().toISOString(),
+          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      },
+    });
+
+    // Create default warehouse
+    const warehouse = await prisma.warehouse.create({
+      data: {
+        code: 'WH01',
+        name: 'Main Warehouse',
+        companyId: company.id,
+        isActive: true,
+      },
+    });
+
+    // Create zone for warehouse
+    await prisma.zone.create({
+      data: {
+        code: 'MAIN',
+        name: 'Main Zone',
+        warehouseId: warehouse.id,
+      },
+    });
+
+    // Generate username from email
+    const username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create admin user
+    const user = await prisma.user.create({
+      data: {
+        username,
+        email,
+        passwordHash,
+        firstName,
+        lastName,
+        fullName: `${firstName} ${lastName}`,
+        role: 'ADMIN',
+        companyId: company.id,
+        defaultWarehouseId: warehouse.id,
+      },
+      include: {
+        company: {
+          select: { id: true, code: true, name: true },
+        },
+      },
+    });
+
+    // Assign user to warehouse
+    await prisma.userWarehouse.create({
+      data: {
+        userId: user.id,
+        warehouseId: warehouse.id,
+        isDefault: true,
+      },
+    });
+
+    // Send welcome email
+    try {
+      await emailService.sendWelcome(user, company);
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
+    }
+
+    // Generate token
+    const token = generateToken(user);
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName,
+        role: user.role,
+        company: user.company,
+      },
+      expiresIn: 24 * 60 * 60,
+    });
+  }));
 
   return router;
 }

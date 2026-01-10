@@ -12,6 +12,12 @@ const PageLoader = () => (
 const Login = lazy(() => import('../pages/ModernLogin'))
 const Setup = lazy(() => import('../pages/Setup'))
 
+// Public marketing pages
+const Landing = lazy(() => import('../pages/Landing'))
+const Register = lazy(() => import('../pages/Register'))
+const Terms = lazy(() => import('../pages/Terms'))
+const Privacy = lazy(() => import('../pages/Privacy'))
+
 // AI Intelligence Platform pages - Using Modern UI
 const IntelligenceDashboard = lazy(() => import('../pages/ModernIntelligenceDashboard'))
 const Alerts = lazy(() => import('../pages/Alerts'))
@@ -35,14 +41,18 @@ const withSuspense = (Component: React.LazyExoticComponent<FC>): ReactNode => (
 
 // Public routes (no authentication required)
 export const publicRoutes: RouteObject[] = [
+  { path: '/', element: withSuspense(Landing) },
   { path: '/login', element: withSuspense(Login) },
+  { path: '/register', element: withSuspense(Register) },
   { path: '/setup', element: withSuspense(Setup) },
+  { path: '/terms', element: withSuspense(Terms) },
+  { path: '/privacy', element: withSuspense(Privacy) },
 ]
 
 // Protected routes (authentication required) - AI Intelligence Platform
 export const protectedRoutes: RouteObject[] = [
-  // Default route is Intelligence Dashboard
-  { path: '/', element: withSuspense(IntelligenceDashboard) },
+  // Dashboard routes
+  { path: '/dashboard', element: withSuspense(IntelligenceDashboard) },
   { path: '/intelligence', element: withSuspense(IntelligenceDashboard) },
 
   // Alerts & Monitoring
@@ -75,7 +85,8 @@ export const routes: RouteObject[] = [
 
 // Page ID to path mapping for navigation
 export const pageIdToPath: Record<string, string> = {
-  intelligence: '/',
+  intelligence: '/dashboard',
+  dashboard: '/dashboard',
   alerts: '/alerts',
   notifications: '/notifications',
   reports: '/reports',
@@ -91,7 +102,7 @@ export const pageIdToPath: Record<string, string> = {
 
 // Path to page ID mapping for determining current page from URL
 export const pathToPageId: Record<string, string> = {
-  '/': 'intelligence',
+  '/dashboard': 'intelligence',
   '/intelligence': 'intelligence',
   '/alerts': 'alerts',
   '/notifications': 'notifications',
