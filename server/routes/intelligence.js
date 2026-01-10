@@ -16,6 +16,7 @@ import fs from 'fs/promises';
 import { parse } from 'csv-parse/sync';
 import sanitizeFilename from 'sanitize-filename';
 import crypto from 'crypto';
+import { createOrderIntegrityRoutes } from '../modules/order-integrity/index.js';
 
 const router = express.Router();
 
@@ -780,6 +781,14 @@ export default function createIntelligenceRoutes(prisma) {
       res.status(500).json({ error: 'Failed to generate summary' });
     }
   });
+
+  // ==========================================
+  // ORDER INTEGRITY & OVERAGE DETECTION
+  // ==========================================
+
+  // Mount order integrity routes
+  const orderIntegrityRouter = createOrderIntegrityRoutes(prisma);
+  router.use('/orders', orderIntegrityRouter);
 
   return router;
 }
