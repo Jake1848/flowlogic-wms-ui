@@ -1,4 +1,5 @@
-// FlowLogic WMS - Comprehensive Database Schema
+// FlowLogic AI Intelligence Platform - Simplified Schema
+// Strategic pivot: AI add-on for existing WMS systems
 // PostgreSQL with Prisma ORM
 
 generator client {
@@ -12,7 +13,7 @@ datasource db {
 }
 
 // ============================================
-// COMPANY & WAREHOUSE STRUCTURE
+// COMPANY & WAREHOUSE STRUCTURE (Reference Data)
 // ============================================
 
 model Company {
@@ -33,8 +34,6 @@ model Company {
   updatedAt   DateTime @updatedAt
 
   warehouses  Warehouse[]
-  customers   Customer[]
-  vendors     Vendor[]
   users       User[]
   integrations Integration[]
 
@@ -55,7 +54,7 @@ model Warehouse {
   isDefault       Boolean  @default(false)
   squareFootage   Int?
   maxCapacity     Int?
-  operatingHours  Json?    // { start: "06:00", end: "22:00" }
+  operatingHours  Json?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -64,16 +63,7 @@ model Warehouse {
 
   zones           Zone[]
   docks           Dock[]
-  inventory       Inventory[]
-  orders          Order[]
-  purchaseOrders  PurchaseOrder[]
-  receipts        Receipt[]
-  shipments       Shipment[]
-  waves           Wave[]
-  tasks           Task[]
   users           UserWarehouse[]
-  laborEntries    LaborEntry[]
-  cycleCounts     CycleCount[]
   alerts          Alert[]
 
   @@unique([companyId, code])
@@ -88,7 +78,7 @@ model Zone {
   description     String?
   pickSequence    Int      @default(0)
   isActive        Boolean  @default(true)
-  temperature     String?  // ambient, refrigerated, frozen
+  temperature     String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -138,18 +128,13 @@ model Location {
   minQuantity     Int?
   maxQuantity     Int?
   reorderPoint    Int?
-  velocityCode    String?  // A, B, C for ABC analysis
+  velocityCode    String?
   lastCountDate   DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   zoneId          String
   zone            Zone     @relation(fields: [zoneId], references: [id])
-
-  inventory       Inventory[]
-  inventoryTransactions InventoryTransaction[]
-  taskDetails     TaskDetail[]
-  cycleCountLines CycleCountLine[]
 
   @@unique([zoneId, code])
   @@map("locations")
@@ -186,9 +171,6 @@ model Dock {
   warehouseId     String
   warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
 
-  receipts        Receipt[]
-  shipments       Shipment[]
-
   @@unique([warehouseId, code])
   @@map("docks")
 }
@@ -207,1082 +189,7 @@ enum DockStatus {
 }
 
 // ============================================
-// PRODUCTS & INVENTORY
-// ============================================
-
-model ProductCategory {
-  id          String   @id @default(uuid())
-  code        String   @unique
-  name        String
-  description String?
-  parentId    String?
-  parent      ProductCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children    ProductCategory[] @relation("CategoryHierarchy")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  products    Product[]
-
-  @@map("product_categories")
-}
-
-model Product {
-  id              String   @id @default(uuid())
-  sku             String   @unique
-  upc             String?  @unique
-  name            String
-  description     String?
-  shortDescription String?
-  categoryId      String?
-  category        ProductCategory? @relation(fields: [categoryId], references: [id])
-
-  // Dimensions & Weight
-  weight          Decimal? @db.Decimal(10, 4)
-  weightUom       String   @default("LB")
-  length          Decimal? @db.Decimal(10, 2)
-  width           Decimal? @db.Decimal(10, 2)
-  height          Decimal? @db.Decimal(10, 2)
-  dimensionUom    String   @default("IN")
-  volume          Decimal? @db.Decimal(10, 4)
-
-  // Units of Measure
-  baseUom         String   @default("EA")
-  caseQty         Int      @default(1)
-  caseUom         String   @default("CS")
-  palletQty       Int?
-  palletTi        Int?     // Tier (layers)
-  palletHi        Int?     // High (per layer)
-
-  // Costing
-  cost            Decimal? @db.Decimal(10, 4)
-  price           Decimal? @db.Decimal(10, 4)
-  currency        String   @default("USD")
-
-  // Attributes
-  brand           String?
-  manufacturer    String?
-  countryOfOrigin String?
-  hazmat          Boolean  @default(false)
-  hazmatClass     String?
-  serialTracked   Boolean  @default(false)
-  lotTracked      Boolean  @default(false)
-  expirationTracked Boolean @default(false)
-  shelfLife       Int?     // Days
-
-  // Velocity & Storage
-  velocityCode    String?  // A, B, C
-  storageTemp     String?  // ambient, refrigerated, frozen
-  minStock        Int?
-  maxStock        Int?
-  reorderPoint    Int?
-  reorderQty      Int?
-
-  imageUrl        String?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  inventory       Inventory[]
-  inventoryTransactions InventoryTransaction[]
-  orderLines      OrderLine[]
-  purchaseOrderLines PurchaseOrderLine[]
-  receiptLines    ReceiptLine[]
-  replenishmentRules ReplenishmentRule[]
-  cycleCountLines CycleCountLine[]
-  productVendors  ProductVendor[]
-  kitComponents   KitComponent[] @relation("KitProduct")
-  kitParents      KitComponent[] @relation("ComponentProduct")
-
-  @@map("products")
-}
-
-model ProductVendor {
-  id              String   @id @default(uuid())
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-  vendorId        String
-  vendor          Vendor   @relation(fields: [vendorId], references: [id])
-  vendorSku       String?
-  cost            Decimal? @db.Decimal(10, 4)
-  leadTimeDays    Int?
-  minOrderQty     Int?
-  isPrimary       Boolean  @default(false)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([productId, vendorId])
-  @@map("product_vendors")
-}
-
-model KitComponent {
-  id              String   @id @default(uuid())
-  kitProductId    String
-  kitProduct      Product  @relation("KitProduct", fields: [kitProductId], references: [id])
-  componentProductId String
-  componentProduct Product @relation("ComponentProduct", fields: [componentProductId], references: [id])
-  quantity        Int      @default(1)
-  sequence        Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([kitProductId, componentProductId])
-  @@map("kit_components")
-}
-
-model Inventory {
-  id              String   @id @default(uuid())
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-  locationId      String
-  location        Location @relation(fields: [locationId], references: [id])
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
-
-  // Quantities
-  quantityOnHand  Int      @default(0)
-  quantityAllocated Int    @default(0)
-  quantityAvailable Int    @default(0) // Computed: onHand - allocated
-  quantityInbound Int      @default(0)
-  quantityInQC    Int      @default(0)
-
-  // Tracking
-  lotNumber       String?
-  serialNumber    String?
-  expirationDate  DateTime?
-  manufactureDate DateTime?
-
-  // Status
-  status          InventoryStatus @default(AVAILABLE)
-  holdReason      String?
-
-  // License Plate / Container
-  lpn             String?  // License Plate Number
-  containerId     String?
-
-  lastMovedAt     DateTime?
-  lastCountedAt   DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  transactions    InventoryTransaction[]
-
-  @@unique([productId, locationId, lotNumber, serialNumber, lpn])
-  @@index([warehouseId, productId])
-  @@index([locationId])
-  @@index([lpn])
-  @@map("inventory")
-}
-
-enum InventoryStatus {
-  AVAILABLE
-  ALLOCATED
-  PICKED
-  HOLD
-  DAMAGED
-  EXPIRED
-  QUALITY_HOLD
-  IN_TRANSIT
-}
-
-model InventoryTransaction {
-  id              String   @id @default(uuid())
-  transactionType TransactionType
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-  locationId      String
-  location        Location @relation(fields: [locationId], references: [id])
-  inventoryId     String?
-  inventory       Inventory? @relation(fields: [inventoryId], references: [id])
-
-  quantity        Int
-  quantityBefore  Int
-  quantityAfter   Int
-
-  lotNumber       String?
-  serialNumber    String?
-  lpn             String?
-
-  // Reference
-  referenceType   String?  // ORDER, RECEIPT, ADJUSTMENT, etc.
-  referenceId     String?
-  referenceNumber String?
-
-  reason          String?
-  notes           String?
-
-  userId          String
-  user            User     @relation(fields: [userId], references: [id])
-
-  createdAt       DateTime @default(now())
-
-  @@index([productId, createdAt])
-  @@index([locationId, createdAt])
-  @@index([referenceType, referenceId])
-  @@map("inventory_transactions")
-}
-
-enum TransactionType {
-  RECEIVE
-  PUTAWAY
-  PICK
-  PACK
-  SHIP
-  ADJUST_IN
-  ADJUST_OUT
-  TRANSFER
-  CYCLE_COUNT
-  ALLOCATE
-  DEALLOCATE
-  RETURN
-  DAMAGE
-  SCRAP
-}
-
-// ============================================
-// CUSTOMERS & ORDERS
-// ============================================
-
-model Customer {
-  id              String   @id @default(uuid())
-  code            String
-  name            String
-  type            CustomerType @default(RETAIL)
-
-  // Contact
-  contactName     String?
-  email           String?
-  phone           String?
-
-  // Billing Address
-  billingAddress  String?
-  billingCity     String?
-  billingState    String?
-  billingZipCode  String?
-  billingCountry  String   @default("USA")
-
-  // Shipping Address
-  shippingAddress String?
-  shippingCity    String?
-  shippingState   String?
-  shippingZipCode String?
-  shippingCountry String   @default("USA")
-
-  // Settings
-  defaultCarrierId String?
-  defaultCarrier  Carrier? @relation(fields: [defaultCarrierId], references: [id])
-  defaultServiceLevel String?
-  creditLimit     Decimal? @db.Decimal(10, 2)
-  paymentTerms    String?  // NET30, NET60, etc.
-
-  taxExempt       Boolean  @default(false)
-  taxId           String?
-
-  isActive        Boolean  @default(true)
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  companyId       String
-  company         Company  @relation(fields: [companyId], references: [id])
-
-  orders          Order[]
-
-  @@unique([companyId, code])
-  @@map("customers")
-}
-
-enum CustomerType {
-  RETAIL
-  WHOLESALE
-  DISTRIBUTOR
-  ECOMMERCE
-  INTERNAL
-}
-
-model Order {
-  id              String   @id @default(uuid())
-  orderNumber     String
-  externalOrderId String?  // From ERP/eCommerce
-  type            OrderType @default(SALES)
-  status          OrderStatus @default(NEW)
-  priority        Int      @default(5) // 1-10, 1 highest
-
-  // Customer
-  customerId      String
-  customer        Customer @relation(fields: [customerId], references: [id])
-
-  // Warehouse
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
-
-  // Dates
-  orderDate       DateTime @default(now())
-  requiredDate    DateTime?
-  promisedDate    DateTime?
-  shipByDate      DateTime?
-  cancelDate      DateTime?
-  shippedDate     DateTime?
-  deliveredDate   DateTime?
-
-  // Shipping
-  shipToName      String?
-  shipToAddress   String?
-  shipToCity      String?
-  shipToState     String?
-  shipToZipCode   String?
-  shipToCountry   String   @default("USA")
-  shipToPhone     String?
-  shipToEmail     String?
-
-  carrierId       String?
-  carrier         Carrier? @relation(fields: [carrierId], references: [id])
-  serviceLevel    String?
-  shippingMethod  String?
-  trackingNumber  String?
-
-  // Totals
-  subtotal        Decimal  @default(0) @db.Decimal(10, 2)
-  taxAmount       Decimal  @default(0) @db.Decimal(10, 2)
-  shippingAmount  Decimal  @default(0) @db.Decimal(10, 2)
-  discountAmount  Decimal  @default(0) @db.Decimal(10, 2)
-  totalAmount     Decimal  @default(0) @db.Decimal(10, 2)
-
-  // Counts
-  totalLines      Int      @default(0)
-  totalUnits      Int      @default(0)
-  pickedUnits     Int      @default(0)
-  shippedUnits    Int      @default(0)
-
-  // References
-  customerPO      String?
-  referenceNumber String?
-  notes           String?
-  specialInstructions String?
-  giftMessage     String?
-
-  // Wave/Batch
-  waveId          String?
-  wave            Wave?    @relation(fields: [waveId], references: [id])
-
-  // Source
-  sourceSystem    String?  // ERP name, eCommerce platform
-  sourceChannel   String?  // Web, EDI, Phone, etc.
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  createdById     String?
-  createdBy       User?    @relation("OrderCreatedBy", fields: [createdById], references: [id])
-
-  lines           OrderLine[]
-  shipments       Shipment[]
-  tasks           Task[]
-
-  @@unique([warehouseId, orderNumber])
-  @@index([customerId])
-  @@index([status])
-  @@index([requiredDate])
-  @@index([waveId])
-  @@map("orders")
-}
-
-enum OrderType {
-  SALES
-  TRANSFER
-  RETURN
-  SAMPLE
-  INTERNAL
-}
-
-enum OrderStatus {
-  NEW
-  VALIDATED
-  RELEASED
-  ALLOCATED
-  WAVED
-  PICKING
-  PICKED
-  PACKING
-  PACKED
-  STAGED
-  SHIPPED
-  DELIVERED
-  CANCELLED
-  ON_HOLD
-  BACKORDERED
-}
-
-model OrderLine {
-  id              String   @id @default(uuid())
-  orderId         String
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  lineNumber      Int
-
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-
-  // Quantities
-  quantityOrdered Int
-  quantityAllocated Int    @default(0)
-  quantityPicked  Int      @default(0)
-  quantityPacked  Int      @default(0)
-  quantityShipped Int      @default(0)
-  quantityCancelled Int    @default(0)
-  quantityBackordered Int  @default(0)
-
-  uom             String   @default("EA")
-
-  // Pricing
-  unitPrice       Decimal  @default(0) @db.Decimal(10, 4)
-  discount        Decimal  @default(0) @db.Decimal(10, 4)
-  taxAmount       Decimal  @default(0) @db.Decimal(10, 2)
-  lineTotal       Decimal  @default(0) @db.Decimal(10, 2)
-
-  status          OrderLineStatus @default(NEW)
-
-  // Lot/Serial requirements
-  lotNumber       String?
-  serialNumber    String?
-
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  taskDetails     TaskDetail[]
-  shipmentLines   ShipmentLine[]
-
-  @@unique([orderId, lineNumber])
-  @@map("order_lines")
-}
-
-enum OrderLineStatus {
-  NEW
-  ALLOCATED
-  PARTIAL_ALLOCATED
-  PICKING
-  PICKED
-  PACKED
-  SHIPPED
-  CANCELLED
-  BACKORDERED
-}
-
-model Wave {
-  id              String   @id @default(uuid())
-  waveNumber      String
-  status          WaveStatus @default(NEW)
-  type            WaveType @default(STANDARD)
-
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
-
-  // Planning
-  plannedStartTime DateTime?
-  actualStartTime DateTime?
-  completedTime   DateTime?
-
-  // Counts
-  totalOrders     Int      @default(0)
-  totalLines      Int      @default(0)
-  totalUnits      Int      @default(0)
-  completedOrders Int      @default(0)
-
-  priority        Int      @default(5)
-  notes           String?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  createdById     String?
-  createdBy       User?    @relation(fields: [createdById], references: [id])
-
-  orders          Order[]
-  tasks           Task[]
-
-  @@unique([warehouseId, waveNumber])
-  @@map("waves")
-}
-
-enum WaveStatus {
-  NEW
-  PLANNING
-  RELEASED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-enum WaveType {
-  STANDARD
-  PRIORITY
-  BATCH
-  ZONE
-  CLUSTER
-}
-
-// ============================================
-// SHIPPING
-// ============================================
-
-model Carrier {
-  id              String   @id @default(uuid())
-  code            String   @unique
-  name            String
-  type            CarrierType @default(PARCEL)
-  accountNumber   String?
-  apiKey          String?
-  apiSecret       String?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  services        CarrierService[]
-  shipments       Shipment[]
-  orders          Order[]
-  customers       Customer[]
-
-  @@map("carriers")
-}
-
-enum CarrierType {
-  PARCEL
-  LTL
-  TL
-  AIR
-  OCEAN
-  RAIL
-  COURIER
-}
-
-model CarrierService {
-  id              String   @id @default(uuid())
-  carrierId       String
-  carrier         Carrier  @relation(fields: [carrierId], references: [id])
-  code            String
-  name            String
-  transitDays     Int?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  shipments       Shipment[]
-
-  @@unique([carrierId, code])
-  @@map("carrier_services")
-}
-
-model Shipment {
-  id              String   @id @default(uuid())
-  shipmentNumber  String
-  status          ShipmentStatus @default(NEW)
-
-  orderId         String
-  order           Order    @relation(fields: [orderId], references: [id])
-
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
-
-  // Carrier
-  carrierId       String?
-  carrier         Carrier? @relation(fields: [carrierId], references: [id])
-  serviceId       String?
-  service         CarrierService? @relation(fields: [serviceId], references: [id])
-
-  // Tracking
-  trackingNumber  String?
-  trackingUrl     String?
-  proNumber       String?  // For LTL
-  bolNumber       String?  // Bill of Lading
-
-  // Ship To
-  shipToName      String?
-  shipToAddress   String?
-  shipToCity      String?
-  shipToState     String?
-  shipToZipCode   String?
-  shipToCountry   String   @default("USA")
-
-  // Dimensions
-  totalWeight     Decimal? @db.Decimal(10, 2)
-  totalPackages   Int      @default(1)
-
-  // Dates
-  shipDate        DateTime?
-  deliveryDate    DateTime?
-  estimatedDelivery DateTime?
-
-  // Costs
-  shippingCost    Decimal? @db.Decimal(10, 2)
-  insuranceCost   Decimal? @db.Decimal(10, 2)
-
-  // Dock
-  dockId          String?
-  dock            Dock?    @relation(fields: [dockId], references: [id])
-
-  // Label
-  labelUrl        String?
-  labelData       String?  // Base64 encoded
-
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  shippedById     String?
-  shippedBy       User?    @relation(fields: [shippedById], references: [id])
-
-  lines           ShipmentLine[]
-  packages        Package[]
-
-  @@unique([warehouseId, shipmentNumber])
-  @@index([trackingNumber])
-  @@map("shipments")
-}
-
-enum ShipmentStatus {
-  NEW
-  PACKING
-  PACKED
-  LABELED
-  STAGED
-  SHIPPED
-  IN_TRANSIT
-  DELIVERED
-  EXCEPTION
-  RETURNED
-}
-
-model ShipmentLine {
-  id              String   @id @default(uuid())
-  shipmentId      String
-  shipment        Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  orderLineId     String
-  orderLine       OrderLine @relation(fields: [orderLineId], references: [id])
-  quantity        Int
-  createdAt       DateTime @default(now())
-
-  @@map("shipment_lines")
-}
-
-model Package {
-  id              String   @id @default(uuid())
-  shipmentId      String
-  shipment        Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  packageNumber   Int
-  trackingNumber  String?
-  weight          Decimal? @db.Decimal(10, 2)
-  length          Decimal? @db.Decimal(10, 2)
-  width           Decimal? @db.Decimal(10, 2)
-  height          Decimal? @db.Decimal(10, 2)
-  packageType     String?  // Box, Envelope, Pallet, etc.
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@map("packages")
-}
-
-// ============================================
-// VENDORS & PURCHASING
-// ============================================
-
-model Vendor {
-  id              String   @id @default(uuid())
-  code            String
-  name            String
-  type            VendorType @default(SUPPLIER)
-
-  // Contact
-  contactName     String?
-  email           String?
-  phone           String?
-  website         String?
-
-  // Address
-  address         String?
-  city            String?
-  state           String?
-  zipCode         String?
-  country         String   @default("USA")
-
-  // Terms
-  paymentTerms    String?
-  leadTimeDays    Int?
-  minimumOrder    Decimal? @db.Decimal(10, 2)
-  currency        String   @default("USD")
-
-  taxId           String?
-  isActive        Boolean  @default(true)
-  rating          Int?     // 1-5 stars
-  notes           String?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  companyId       String
-  company         Company  @relation(fields: [companyId], references: [id])
-
-  purchaseOrders  PurchaseOrder[]
-  receipts        Receipt[]
-  productVendors  ProductVendor[]
-
-  @@unique([companyId, code])
-  @@map("vendors")
-}
-
-enum VendorType {
-  SUPPLIER
-  MANUFACTURER
-  DISTRIBUTOR
-  DROPSHIP
-}
-
-model PurchaseOrder {
-  id              String   @id @default(uuid())
-  poNumber        String
-  status          POStatus @default(DRAFT)
-
-  vendorId        String
-  vendor          Vendor   @relation(fields: [vendorId], references: [id])
-
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
-
-  // Dates
-  orderDate       DateTime @default(now())
-  expectedDate    DateTime?
-  cancelDate      DateTime?
-  closedDate      DateTime?
-
-  // Ship To
-  shipToName      String?
-  shipToAddress   String?
-  shipToCity      String?
-  shipToState     String?
-  shipToZipCode   String?
-
-  // Totals
-  subtotal        Decimal  @default(0) @db.Decimal(10, 2)
-  taxAmount       Decimal  @default(0) @db.Decimal(10, 2)
-  shippingAmount  Decimal  @default(0) @db.Decimal(10, 2)
-  totalAmount     Decimal  @default(0) @db.Decimal(10, 2)
-
-  totalLines      Int      @default(0)
-  totalUnits      Int      @default(0)
-  receivedUnits   Int      @default(0)
-
-  paymentTerms    String?
-  currency        String   @default("USD")
-  notes           String?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  createdById     String?
-  createdBy       User?    @relation(fields: [createdById], references: [id])
-
-  lines           PurchaseOrderLine[]
-  receipts        Receipt[]
-
-  @@unique([warehouseId, poNumber])
-  @@map("purchase_orders")
-}
-
-enum POStatus {
-  DRAFT
-  SUBMITTED
-  APPROVED
-  CONFIRMED
-  PARTIAL_RECEIVED
-  RECEIVED
-  CLOSED
-  CANCELLED
-}
-
-model PurchaseOrderLine {
-  id              String   @id @default(uuid())
-  purchaseOrderId String
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  lineNumber      Int
-
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-
-  quantityOrdered Int
-  quantityReceived Int     @default(0)
-  quantityCancelled Int    @default(0)
-
-  uom             String   @default("EA")
-  unitCost        Decimal  @default(0) @db.Decimal(10, 4)
-  lineTotal       Decimal  @default(0) @db.Decimal(10, 2)
-
-  expectedDate    DateTime?
-  notes           String?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  receiptLines    ReceiptLine[]
-
-  @@unique([purchaseOrderId, lineNumber])
-  @@map("purchase_order_lines")
-}
-
-model Receipt {
-  id              String   @id @default(uuid())
-  receiptNumber   String
-  status          ReceiptStatus @default(NEW)
-  type            ReceiptType @default(PO_RECEIPT)
-
-  // References
-  purchaseOrderId String?
-  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  vendorId        String?
-  vendor          Vendor?  @relation(fields: [vendorId], references: [id])
-
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
-
-  // Dates
-  receiptDate     DateTime @default(now())
-  expectedDate    DateTime?
-  completedDate   DateTime?
-
-  // Dock
-  dockId          String?
-  dock            Dock?    @relation(fields: [dockId], references: [id])
-
-  // Counts
-  totalLines      Int      @default(0)
-  totalUnits      Int      @default(0)
-  receivedUnits   Int      @default(0)
-  putawayUnits    Int      @default(0)
-
-  // Carrier info
-  carrierName     String?
-  trackingNumber  String?
-  bolNumber       String?
-  sealNumber      String?
-
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  receivedById    String?
-  receivedBy      User?    @relation(fields: [receivedById], references: [id])
-
-  lines           ReceiptLine[]
-  tasks           Task[]
-
-  @@unique([warehouseId, receiptNumber])
-  @@map("receipts")
-}
-
-enum ReceiptStatus {
-  NEW
-  SCHEDULED
-  CHECKED_IN
-  RECEIVING
-  RECEIVED
-  PUTAWAY
-  COMPLETED
-  CANCELLED
-}
-
-enum ReceiptType {
-  PO_RECEIPT
-  RETURN
-  TRANSFER
-  ADJUSTMENT
-}
-
-model ReceiptLine {
-  id              String   @id @default(uuid())
-  receiptId       String
-  receipt         Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-  lineNumber      Int
-
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-  poLineId        String?
-  poLine          PurchaseOrderLine? @relation(fields: [poLineId], references: [id])
-
-  quantityExpected Int
-  quantityReceived Int     @default(0)
-  quantityDamaged Int      @default(0)
-  quantityRejected Int     @default(0)
-  quantityPutaway Int      @default(0)
-
-  uom             String   @default("EA")
-
-  lotNumber       String?
-  expirationDate  DateTime?
-  serialNumbers   String[] // Array of serial numbers
-
-  status          ReceiptLineStatus @default(PENDING)
-  notes           String?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  taskDetails     TaskDetail[]
-
-  @@unique([receiptId, lineNumber])
-  @@map("receipt_lines")
-}
-
-enum ReceiptLineStatus {
-  PENDING
-  RECEIVING
-  RECEIVED
-  PUTAWAY
-  COMPLETED
-  REJECTED
-}
-
-// ============================================
-// TASKS & LABOR
-// ============================================
-
-model Task {
-  id              String   @id @default(uuid())
-  taskNumber      String
-  type            TaskType
-  status          TaskStatus @default(PENDING)
-  priority        Int      @default(5) // 1-10
-
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
-
-  // Assignments
-  assignedToId    String?
-  assignedTo      User?    @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
-  assignedAt      DateTime?
-
-  // References
-  orderId         String?
-  order           Order?   @relation(fields: [orderId], references: [id])
-  waveId          String?
-  wave            Wave?    @relation(fields: [waveId], references: [id])
-  receiptId       String?
-  receipt         Receipt? @relation(fields: [receiptId], references: [id])
-
-  // Timing
-  plannedStartTime DateTime?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  estimatedMinutes Int?
-  actualMinutes   Int?
-
-  // Counts
-  totalLines      Int      @default(0)
-  completedLines  Int      @default(0)
-  totalUnits      Int      @default(0)
-  completedUnits  Int      @default(0)
-
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  createdById     String?
-  createdBy       User?    @relation("TaskCreatedBy", fields: [createdById], references: [id])
-
-  details         TaskDetail[]
-  laborEntries    LaborEntry[]
-
-  @@unique([warehouseId, taskNumber])
-  @@index([status, priority])
-  @@index([assignedToId])
-  @@map("tasks")
-}
-
-enum TaskType {
-  PICK
-  PUTAWAY
-  REPLENISHMENT
-  CYCLE_COUNT
-  PACK
-  SHIP
-  RECEIVE
-  TRANSFER
-  ADJUSTMENT
-  QUALITY_CHECK
-  LOAD
-  UNLOAD
-}
-
-enum TaskStatus {
-  PENDING
-  ASSIGNED
-  IN_PROGRESS
-  PAUSED
-  COMPLETED
-  CANCELLED
-  EXCEPTION
-}
-
-model TaskDetail {
-  id              String   @id @default(uuid())
-  taskId          String
-  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  lineNumber      Int
-
-  // Location
-  fromLocationId  String?
-  fromLocation    Location? @relation(fields: [fromLocationId], references: [id])
-  toLocationId    String?
-
-  // Product/Order
-  orderLineId     String?
-  orderLine       OrderLine? @relation(fields: [orderLineId], references: [id])
-  receiptLineId   String?
-  receiptLine     ReceiptLine? @relation(fields: [receiptLineId], references: [id])
-
-  // Quantities
-  quantityRequired Int
-  quantityCompleted Int    @default(0)
-
-  // Tracking
-  lotNumber       String?
-  serialNumber    String?
-  lpn             String?
-
-  status          TaskDetailStatus @default(PENDING)
-  completedAt     DateTime?
-  notes           String?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([taskId, lineNumber])
-  @@map("task_details")
-}
-
-enum TaskDetailStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  SKIPPED
-  EXCEPTION
-}
-
-model ReplenishmentRule {
-  id              String   @id @default(uuid())
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-
-  sourceZoneCode  String?  // Where to replenish from
-  targetZoneCode  String?  // Where to replenish to
-
-  minQuantity     Int      // Trigger replenishment when below
-  maxQuantity     Int      // Replenish up to this amount
-  reorderQuantity Int      // Standard replenishment quantity
-
-  priority        Int      @default(5)
-  isActive        Boolean  @default(true)
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@map("replenishment_rules")
-}
-
-// ============================================
-// USERS & LABOR TRACKING
+// USERS & AUTHENTICATION
 // ============================================
 
 model User {
@@ -1292,16 +199,14 @@ model User {
   passwordHash    String
   firstName       String
   lastName        String
-  fullName        String?  // Computed: firstName + lastName
+  fullName        String?
 
   role            UserRole @default(OPERATOR)
   departmentId    String?
 
-  // Contact
   phone           String?
   employeeId      String?
 
-  // Settings
   defaultWarehouseId String?
   locale          String   @default("en-US")
   timezone        String   @default("America/New_York")
@@ -1316,33 +221,6 @@ model User {
   company         Company  @relation(fields: [companyId], references: [id])
 
   warehouses      UserWarehouse[]
-  laborEntries    LaborEntry[]
-  transactions    InventoryTransaction[]
-
-  // Tasks
-  assignedTasks   Task[]   @relation("TaskAssignedTo")
-  createdTasks    Task[]   @relation("TaskCreatedBy")
-
-  // Orders
-  createdOrders   Order[]  @relation("OrderCreatedBy")
-
-  // Receipts
-  receipts        Receipt[]
-
-  // POs
-  purchaseOrders  PurchaseOrder[]
-
-  // Shipments
-  shipments       Shipment[]
-
-  // Waves
-  waves           Wave[]
-
-  // Cycle Counts
-  cycleCounts     CycleCount[]
-  cycleCountLines CycleCountLine[]
-
-  // Audit
   auditLogs       AuditLog[]
 
   @@map("users")
@@ -1374,145 +252,8 @@ model UserWarehouse {
   @@map("user_warehouses")
 }
 
-model LaborEntry {
-  id              String   @id @default(uuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id])
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
-
-  taskId          String?
-  task            Task?    @relation(fields: [taskId], references: [id])
-
-  activityType    ActivityType
-
-  startTime       DateTime
-  endTime         DateTime?
-  durationMinutes Int?
-
-  // Productivity
-  unitsProcessed  Int?
-  linesProcessed  Int?
-
-  // Indirect time
-  reason          String?  // For indirect activities
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([userId, startTime])
-  @@map("labor_entries")
-}
-
-enum ActivityType {
-  PICK
-  PACK
-  SHIP
-  RECEIVE
-  PUTAWAY
-  REPLENISHMENT
-  CYCLE_COUNT
-  BREAK
-  LUNCH
-  MEETING
-  TRAINING
-  CLEANING
-  MAINTENANCE
-  IDLE
-  OTHER
-}
-
 // ============================================
-// CYCLE COUNTING
-// ============================================
-
-model CycleCount {
-  id              String   @id @default(uuid())
-  countNumber     String
-  status          CycleCountStatus @default(NEW)
-  type            CycleCountType @default(STANDARD)
-
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
-
-  // Scheduling
-  scheduledDate   DateTime?
-  startedAt       DateTime?
-  completedAt     DateTime?
-
-  // Counts
-  totalLocations  Int      @default(0)
-  countedLocations Int     @default(0)
-  discrepancies   Int      @default(0)
-
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  createdById     String?
-  createdBy       User?    @relation(fields: [createdById], references: [id])
-
-  lines           CycleCountLine[]
-
-  @@unique([warehouseId, countNumber])
-  @@map("cycle_counts")
-}
-
-enum CycleCountStatus {
-  NEW
-  IN_PROGRESS
-  PENDING_APPROVAL
-  APPROVED
-  COMPLETED
-  CANCELLED
-}
-
-enum CycleCountType {
-  STANDARD
-  ABC
-  BLIND
-  AUDIT
-}
-
-model CycleCountLine {
-  id              String   @id @default(uuid())
-  cycleCountId    String
-  cycleCount      CycleCount @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
-
-  locationId      String
-  location        Location @relation(fields: [locationId], references: [id])
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-
-  // Quantities
-  systemQuantity  Int      // Expected
-  countedQuantity Int?     // Actual
-  variance        Int?     // Difference
-
-  lotNumber       String?
-  serialNumber    String?
-
-  status          CycleCountLineStatus @default(PENDING)
-  countedAt       DateTime?
-  countedById     String?
-  countedBy       User?    @relation(fields: [countedById], references: [id])
-
-  notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@map("cycle_count_lines")
-}
-
-enum CycleCountLineStatus {
-  PENDING
-  COUNTED
-  RECOUNTED
-  APPROVED
-  ADJUSTED
-}
-
-// ============================================
-// INTEGRATIONS & AUDIT
+// INTEGRATIONS & CONNECTORS
 // ============================================
 
 model Integration {
@@ -1524,17 +265,14 @@ model Integration {
   companyId       String
   company         Company  @relation(fields: [companyId], references: [id])
 
-  // Connection
   endpoint        String?
   apiKey          String?
   apiSecret       String?
   username        String?
   password        String?
 
-  // Settings
-  settings        Json?    // Integration-specific settings
+  settings        Json?
 
-  // Sync
   lastSyncAt      DateTime?
   lastErrorAt     DateTime?
   lastError       String?
@@ -1565,6 +303,12 @@ enum IntegrationType {
   AMAZON
   WALMART
   MAGENTO
+  MANHATTAN
+  BLUE_YONDER
+  INFOR
+  KORBER
+  HIGHJUMP
+  CUSTOM_WMS
 }
 
 enum IntegrationStatus {
@@ -1579,12 +323,12 @@ model IntegrationLog {
   integrationId   String
   integration     Integration @relation(fields: [integrationId], references: [id])
 
-  direction       String   // INBOUND, OUTBOUND
-  messageType     String   // ORDER, SHIPMENT, INVENTORY, etc.
+  direction       String
+  messageType     String
   referenceId     String?
   referenceNumber String?
 
-  status          String   // SUCCESS, ERROR, PENDING
+  status          String
   requestData     Json?
   responseData    Json?
   errorMessage    String?
@@ -1595,27 +339,9 @@ model IntegrationLog {
   @@map("integration_logs")
 }
 
-model AuditLog {
-  id              String   @id @default(uuid())
-  entityType      String   // Order, Inventory, User, etc.
-  entityId        String
-  action          String   // CREATE, UPDATE, DELETE
-
-  userId          String?
-  user            User?    @relation(fields: [userId], references: [id])
-
-  oldValues       Json?
-  newValues       Json?
-
-  ipAddress       String?
-  userAgent       String?
-
-  createdAt       DateTime @default(now())
-
-  @@index([entityType, entityId])
-  @@index([userId, createdAt])
-  @@map("audit_logs")
-}
+// ============================================
+// ALERTS & NOTIFICATIONS
+// ============================================
 
 model Alert {
   id              String   @id @default(uuid())
@@ -1628,17 +354,14 @@ model Alert {
   warehouseId     String?
   warehouse       Warehouse? @relation(fields: [warehouseId], references: [id])
 
-  // Reference
   entityType      String?
   entityId        String?
 
-  // Status
   isRead          Boolean  @default(false)
   isResolved      Boolean  @default(false)
   resolvedAt      DateTime?
   resolvedBy      String?
 
-  // AI-generated
   suggestedAction String?
   aiConfidence    Float?
 
@@ -1673,7 +396,33 @@ enum AlertSeverity {
 }
 
 // ============================================
-// SETTINGS & CONFIGURATION
+// AUDIT & COMPLIANCE
+// ============================================
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  entityType      String
+  entityId        String
+  action          String
+
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+
+  oldValues       Json?
+  newValues       Json?
+
+  ipAddress       String?
+  userAgent       String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// SYSTEM SETTINGS
 // ============================================
 
 model SystemSetting {
@@ -1681,7 +430,7 @@ model SystemSetting {
   key         String   @unique
   value       String
   description String?
-  dataType    String   @default("string") // string, number, boolean, json
+  dataType    String   @default("string")
   category    String?
   isEncrypted Boolean  @default(false)
   createdAt   DateTime @default(now())
@@ -1696,16 +445,14 @@ model SystemSetting {
 
 model ChatSession {
   id          String   @id @default(uuid())
-  sessionId   String   @unique // Client-facing session ID
-  title       String?  // Generated title from first message
+  sessionId   String   @unique
+  title       String?
 
-  userId      String?  // Optional user association
+  userId      String?
 
-  // Stats
   messageCount Int     @default(0)
   lastMessageAt DateTime?
 
-  // Settings
   isArchived  Boolean  @default(false)
 
   createdAt   DateTime @default(now())
@@ -1725,14 +472,12 @@ model ChatMessage {
   role        ChatRole
   content     String
 
-  // AI-specific fields
-  toolsUsed   String[] // Array of tool names used
-  analysis    Json?    // Structured analysis data
-  actions     Json?    // Suggested actions
+  toolsUsed   String[]
+  analysis    Json?
+  actions     Json?
 
-  // Metadata
-  tokenCount  Int?     // For usage tracking
-  modelId     String?  // Which model was used
+  tokenCount  Int?
+  modelId     String?
 
   createdAt   DateTime @default(now())
 
@@ -1751,17 +496,16 @@ enum ChatRole {
 // Data ingestion, truth engine, root cause analysis
 // ============================================
 
-// Data ingestion tracking
 model DataIngestion {
   id            String   @id @default(uuid())
   filename      String
   filePath      String
-  dataType      String   // inventory_snapshot, transaction_history, adjustment_log, etc.
-  source        String   // manual, api, scheduled
-  mappingType   String   @default("generic") // manhattan, sap, generic
+  dataType      String
+  source        String
+  mappingType   String   @default("generic")
   recordCount   Int      @default(0)
   errorCount    Int      @default(0)
-  status        String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  status        String   @default("PENDING")
   metadata      Json?
   createdAt     DateTime @default(now())
   completedAt   DateTime?
@@ -1775,13 +519,12 @@ model DataIngestion {
   @@map("data_ingestions")
 }
 
-// Scheduled data ingestion jobs
 model ScheduledIngestion {
   id              String   @id @default(uuid())
   name            String
-  source          String   // api, sftp, etc.
-  connectionConfig String  // JSON config
-  schedule        String   // cron expression
+  source          String
+  connectionConfig String
+  schedule        String
   dataType        String
   mappingType     String   @default("generic")
   isActive        Boolean  @default(true)
@@ -1793,7 +536,6 @@ model ScheduledIngestion {
   @@map("scheduled_ingestions")
 }
 
-// Inventory snapshots for comparison
 model InventorySnapshot {
   id              String   @id @default(uuid())
   ingestionId     String
@@ -1814,14 +556,13 @@ model InventorySnapshot {
   @@map("inventory_snapshots")
 }
 
-// Transaction history from WMS
 model TransactionSnapshot {
   id                    String   @id @default(uuid())
   ingestionId           String
   ingestion             DataIngestion @relation(fields: [ingestionId], references: [id])
 
   externalTransactionId String?
-  type                  String   // RECEIVE, PICK, MOVE, ADJUST, etc.
+  type                  String
   sku                   String
   fromLocation          String?
   toLocation            String?
@@ -1835,7 +576,6 @@ model TransactionSnapshot {
   @@map("transaction_snapshots")
 }
 
-// Adjustment history for analysis
 model AdjustmentSnapshot {
   id              String   @id @default(uuid())
   ingestionId     String
@@ -1856,7 +596,6 @@ model AdjustmentSnapshot {
   @@map("adjustment_snapshots")
 }
 
-// Cycle count results from WMS
 model CycleCountSnapshot {
   id              String   @id @default(uuid())
   ingestionId     String
@@ -1881,9 +620,9 @@ model CycleCountSnapshot {
 // Detected discrepancies
 model Discrepancy {
   id              String   @id @default(uuid())
-  type            String   // negative_on_hand, unexplained_shortage, etc.
-  severity        String   // critical, high, medium, low
-  status          String   @default("OPEN") // OPEN, INVESTIGATING, RESOLVED, CLOSED
+  type            String
+  severity        String
+  status          String   @default("OPEN")
 
   sku             String?
   locationCode    String?
@@ -1891,10 +630,10 @@ model Discrepancy {
   actualQty       Float?
   variance        Float
   variancePercent Float?
-  varianceValue   Float?   // Dollar value of variance
+  varianceValue   Float?
 
   description     String?
-  evidence        Json?    // Supporting data
+  evidence        Json?
   rootCause       String?
   rootCauseCategory String?
   resolution      String?
@@ -1915,20 +654,19 @@ model Discrepancy {
   @@map("discrepancies")
 }
 
-// Investigation records
 model Investigation {
   id              String   @id @default(uuid())
   discrepancyId   String
   discrepancy     Discrepancy @relation(fields: [discrepancyId], references: [id])
 
   rootCause       String?
-  category        String?  // process, human, system, external, etc.
+  category        String?
   notes           String?
   evidence        Json?
 
   assignedTo      String?
-  userId          String?  // Investigator
-  status          String   @default("OPEN") // OPEN, IN_PROGRESS, CONFIRMED, CLOSED
+  userId          String?
+  status          String   @default("OPEN")
   confirmedAt     DateTime?
 
   createdAt       DateTime @default(now())
@@ -1939,12 +677,11 @@ model Investigation {
   @@map("investigations")
 }
 
-// Action recommendations
 model ActionRecommendation {
   id              String   @id @default(uuid())
-  type            String   // cycle_count, physical_audit, reslot, training, etc.
-  priority        Int      @default(3) // 1=urgent, 2=high, 3=medium, 4=low
-  status          String   @default("PENDING") // PENDING, ACCEPTED, COMPLETED, REJECTED, EXPORTED
+  type            String
+  priority        Int      @default(3)
+  status          String   @default("PENDING")
 
   discrepancyId   String?
   discrepancy     Discrepancy? @relation(fields: [discrepancyId], references: [id])
@@ -1953,7 +690,7 @@ model ActionRecommendation {
   locationCode    String?
   description     String
   instructions    String?
-  estimatedImpact Float?   // Dollar value of potential savings
+  estimatedImpact Float?
 
   assignedTo      String?
   completedBy     String?
@@ -1970,13 +707,12 @@ model ActionRecommendation {
   @@map("action_recommendations")
 }
 
-// Scheduled reports
 model ScheduledReport {
   id          String   @id @default(uuid())
-  reportType  String   // weekly_summary, executive_brief, etc.
-  schedule    String   // cron expression
-  recipients  String   // JSON array of emails
-  format      String   @default("pdf") // pdf, csv, email
+  reportType  String
+  schedule    String
+  recipients  String
+  format      String   @default("pdf")
   isActive    Boolean  @default(true)
   lastSentAt  DateTime?
   nextSendAt  DateTime?

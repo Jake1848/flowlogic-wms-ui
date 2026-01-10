@@ -1,52 +1,34 @@
 /**
  * Task-related tool executors
+ * Updated for AI Intelligence Platform - creates action recommendations
  */
 
 export async function createTask(prisma, params) {
-  // Get default warehouse
-  const warehouse = await prisma.warehouse.findFirst({
-    where: { isDefault: true },
-  });
+  // In AI Intelligence Platform, we create action recommendations instead of tasks
+  // These get exported to the host WMS for execution
 
-  if (!warehouse) {
-    return { success: false, message: 'No default warehouse configured' };
-  }
-
-  // Generate task number
-  const lastTask = await prisma.task.findFirst({
-    orderBy: { createdAt: 'desc' },
-    select: { taskNumber: true },
-  });
-
-  let nextNum = 1;
-  if (lastTask) {
-    const parts = lastTask.taskNumber.split('-');
-    nextNum = parseInt(parts[parts.length - 1]) + 1;
-  }
-
-  const taskNumber = `TSK-${params.type.substring(0, 3)}-${nextNum.toString().padStart(6, '0')}`;
-
-  const task = await prisma.task.create({
+  const action = await prisma.actionRecommendation.create({
     data: {
-      taskNumber,
-      type: params.type,
-      warehouseId: warehouse.id,
-      priority: params.priority || 5,
-      orderId: params.order_id || null,
-      notes: params.notes ? `${params.notes} [Created by Flow AI]` : 'Created by Flow AI',
+      type: params.type || 'general_task',
+      priority: params.priority || 3,
+      sku: params.sku || null,
+      locationCode: params.location_code || null,
+      description: params.description || `${params.type} task`,
+      instructions: params.notes || 'Created by Flow AI',
       status: 'PENDING',
     },
   });
 
   return {
     success: true,
-    message: `Task ${taskNumber} created successfully`,
-    task: {
-      id: task.id,
-      taskNumber: task.taskNumber,
-      type: task.type,
-      priority: task.priority,
-      status: task.status,
+    message: `Action recommendation created successfully`,
+    action: {
+      id: action.id,
+      type: action.type,
+      priority: action.priority,
+      status: action.status,
+      description: action.description,
     },
+    note: 'This recommendation will be exported to your WMS for execution.',
   };
 }

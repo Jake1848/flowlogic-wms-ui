@@ -1,5 +1,4 @@
 import { ZodError } from 'zod';
-import { Prisma } from '@prisma/client';
 
 /**
  * Custom API error class
@@ -95,8 +94,8 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Handle Prisma errors
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+  // Handle Prisma errors (check by name since instanceof may not work with ESM)
+  if (err.name === 'PrismaClientKnownRequestError' || err.constructor?.name === 'PrismaClientKnownRequestError') {
     switch (err.code) {
       case 'P2002':
         // Unique constraint violation
@@ -127,7 +126,7 @@ export const errorHandler = (err, req, res, next) => {
     }
   }
 
-  if (err instanceof Prisma.PrismaClientValidationError) {
+  if (err.name === 'PrismaClientValidationError' || err.constructor?.name === 'PrismaClientValidationError') {
     return res.status(400).json({
       success: false,
       error: 'Invalid data provided',

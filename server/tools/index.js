@@ -54,7 +54,10 @@ const toolExecutors = {
  */
 export function createToolExecutor(prisma) {
   return async function executeAction(toolName, params) {
-    console.log(`Executing tool: ${toolName}`, params);
+    // Only log tool execution in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Flow AI] Tool: ${toolName}`);
+    }
 
     try {
       const executor = toolExecutors[toolName];

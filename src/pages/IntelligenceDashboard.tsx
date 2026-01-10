@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
 import {
   Brain,
   AlertTriangle,
@@ -15,7 +16,11 @@ import {
   MapPin,
   Package
 } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Button } from '../components/ui/button'
+import { Badge } from '../components/ui/badge'
 import api from '../lib/api'
+
 
 interface Discrepancy {
   id: string
@@ -173,15 +178,29 @@ export default function IntelligenceDashboard() {
   const isLoading = dashboardLoading || discrepanciesLoading || actionsLoading || briefLoading
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <motion.div
+      className="space-y-4 sm:space-y-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <div className="flex items-center gap-3">
-          <div className="p-2 sm:p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-            <Brain className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400" />
-          </div>
+          <motion.div
+            className="p-2 sm:p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg shadow-purple-500/25"
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 400 }}
+          >
+            <Brain className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          </motion.div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
               Inventory Intelligence
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
@@ -190,26 +209,27 @@ export default function IntelligenceDashboard() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button
+          <Button
             onClick={() => analyzeMutation.mutate()}
             disabled={analyzeMutation.isPending}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm"
+            className="flex-1 sm:flex-none bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg shadow-purple-500/25"
           >
             <Search className="w-4 h-4" />
             <span className="hidden sm:inline">{analyzeMutation.isPending ? 'Analyzing...' : 'Run Analysis'}</span>
             <span className="sm:hidden">{analyzeMutation.isPending ? '...' : 'Analyze'}</span>
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => generateActionsMutation.mutate()}
             disabled={generateActionsMutation.isPending}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+            variant="secondary"
+            className="flex-1 sm:flex-none"
           >
             <RefreshCw className={`w-4 h-4 ${generateActionsMutation.isPending ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Generate Actions</span>
             <span className="sm:hidden">Actions</span>
-          </button>
+          </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700 -mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto">
@@ -245,64 +265,101 @@ export default function IntelligenceDashboard() {
         <>
           {/* Overview Tab */}
           {activeTab === 'overview' && (
-            <div className="space-y-4 sm:space-y-6">
+            <motion.div
+              className="space-y-4 sm:space-y-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
               {/* KPI Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Open Issues</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                        {dashboard?.summary.openDiscrepancies || 0}
-                      </p>
-                    </div>
-                    <div className="p-2 sm:p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                      <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
-                    </div>
-                  </div>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0 }}
+                >
+                  <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-yellow-500">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Open Issues</p>
+                          <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                            {dashboard?.summary?.openDiscrepancies ?? 0}
+                          </p>
+                        </div>
+                        <div className="p-2 sm:p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl">
+                          <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Critical</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-red-600">
-                        {dashboard?.summary.criticalIssues || 0}
-                      </p>
-                    </div>
-                    <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                      <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
-                    </div>
-                  </div>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
+                >
+                  <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-red-500">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Critical</p>
+                          <p className="text-2xl sm:text-3xl font-bold text-red-600">
+                            {dashboard?.summary?.criticalIssues ?? 0}
+                          </p>
+                        </div>
+                        <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
+                          <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Pending</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                        {actions?.filter(a => a.status === 'PENDING').length || 0}
-                      </p>
-                    </div>
-                    <div className="p-2 sm:p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                      <Target className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
-                    </div>
-                  </div>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                >
+                  <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-purple-500">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Pending</p>
+                          <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                            {actions?.filter(a => a.status === 'PENDING').length || 0}
+                          </p>
+                        </div>
+                        <div className="p-2 sm:p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                          <Target className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Impact</p>
-                      <p className="text-xl sm:text-3xl font-bold text-green-600">
-                        ${actions?.reduce((sum, a) => sum + (a.estimatedImpact || 0), 0).toLocaleString() || '0'}
-                      </p>
-                    </div>
-                    <div className="p-2 sm:p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                      <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-                    </div>
-                  </div>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.3 }}
+                >
+                  <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-green-500">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Impact</p>
+                          <p className="text-xl sm:text-3xl font-bold text-green-600">
+                            ${actions?.reduce((sum, a) => sum + (a.estimatedImpact || 0), 0).toLocaleString() || '0'}
+                          </p>
+                        </div>
+                        <div className="p-2 sm:p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               </div>
 
               {/* Executive Brief Headline */}
@@ -324,70 +381,84 @@ export default function IntelligenceDashboard() {
               )}
 
               {/* Recent Discrepancies */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">Recent Discrepancies</h3>
-                </div>
-                <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {dashboard?.recentDiscrepancies.slice(0, 5).map((disc) => (
-                    <div key={disc.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                          {severityIcons[disc.severity]}
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${severityColors[disc.severity]}`}>
-                                {disc.severity.toUpperCase()}
-                              </span>
-                              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                {typeLabels[disc.type] || disc.type}
-                              </span>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.4 }}
+              >
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle>Recent Discrepancies</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {dashboard?.recentDiscrepancies.slice(0, 5).map((disc) => (
+                        <div key={disc.id} className="py-4 first:pt-0 last:pb-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 -mx-6 px-6 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                              {severityIcons[disc.severity]}
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={disc.severity === 'critical' ? 'destructive' : disc.severity === 'high' ? 'warning' : 'secondary'}>
+                                    {disc.severity.toUpperCase()}
+                                  </Badge>
+                                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {typeLabels[disc.type] || disc.type}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                  {disc.description}
+                                </p>
+                                <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                                  {disc.sku && (
+                                    <span className="flex items-center gap-1">
+                                      <Package className="w-3 h-3" />
+                                      {disc.sku}
+                                    </span>
+                                  )}
+                                  {disc.locationCode && (
+                                    <span className="flex items-center gap-1">
+                                      <MapPin className="w-3 h-3" />
+                                      {disc.locationCode}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                              {disc.description}
-                            </p>
-                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                              {disc.sku && (
-                                <span className="flex items-center gap-1">
-                                  <Package className="w-3 h-3" />
-                                  {disc.sku}
-                                </span>
-                              )}
-                              {disc.locationCode && (
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {disc.locationCode}
-                                </span>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                                {disc.variance > 0 ? '+' : ''}{disc.variance}
+                              </p>
+                              {disc.varianceValue && (
+                                <p className="text-sm text-gray-500">
+                                  ${disc.varianceValue.toLocaleString()}
+                                </p>
                               )}
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-gray-900 dark:text-white">
-                            {disc.variance > 0 ? '+' : ''}{disc.variance}
-                          </p>
-                          {disc.varianceValue && (
-                            <p className="text-sm text-gray-500">
-                              ${disc.varianceValue.toLocaleString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </motion.div>
           )}
 
           {/* Discrepancies Tab */}
           {activeTab === 'discrepancies' && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  All Open Discrepancies ({discrepancies?.length || 0})
-                </h3>
-              </div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    All Open Discrepancies ({discrepancies?.length || 0})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700">
@@ -449,121 +520,156 @@ export default function IntelligenceDashboard() {
                   </tbody>
                 </table>
               </div>
-            </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           )}
 
           {/* Actions Tab */}
           {activeTab === 'actions' && (
-            <div className="space-y-4">
-              {actions?.map((action) => (
-                <div key={action.id} className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-lg ${
-                        action.priority === 1 ? 'bg-red-100' :
-                        action.priority === 2 ? 'bg-orange-100' : 'bg-blue-100'
-                      }`}>
-                        <Target className={`w-5 h-5 ${
-                          action.priority === 1 ? 'text-red-600' :
-                          action.priority === 2 ? 'text-orange-600' : 'text-blue-600'
-                        }`} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            action.priority === 1 ? 'bg-red-100 text-red-800' :
-                            action.priority === 2 ? 'bg-orange-100 text-orange-800' :
-                            'bg-blue-100 text-blue-800'
+            <motion.div
+              className="space-y-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              {actions?.map((action, index) => (
+                <motion.div
+                  key={action.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                >
+                  <Card className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-xl ${
+                            action.priority === 1 ? 'bg-red-100 dark:bg-red-900/30' :
+                            action.priority === 2 ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-blue-100 dark:bg-blue-900/30'
                           }`}>
-                            {action.priority === 1 ? 'URGENT' : action.priority === 2 ? 'HIGH' : 'MEDIUM'}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                            {action.type.replace('_', ' ').toUpperCase()}
-                          </span>
+                            <Target className={`w-5 h-5 ${
+                              action.priority === 1 ? 'text-red-600' :
+                              action.priority === 2 ? 'text-orange-600' : 'text-blue-600'
+                            }`} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={action.priority === 1 ? 'destructive' : action.priority === 2 ? 'warning' : 'default'}>
+                                {action.priority === 1 ? 'URGENT' : action.priority === 2 ? 'HIGH' : 'MEDIUM'}
+                              </Badge>
+                              <Badge variant="secondary">
+                                {action.type.replace('_', ' ').toUpperCase()}
+                              </Badge>
+                            </div>
+                            <p className="font-medium text-gray-900 dark:text-white mt-1">
+                              {action.description}
+                            </p>
+                            {action.instructions && (
+                              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                {action.instructions}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                              {action.sku && (
+                                <span className="flex items-center gap-1">
+                                  <Package className="w-3 h-3" />
+                                  {action.sku}
+                                </span>
+                              )}
+                              {action.locationCode && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {action.locationCode}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <p className="font-medium text-gray-900 dark:text-white mt-1">
-                          {action.description}
-                        </p>
-                        {action.instructions && (
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            {action.instructions}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                          {action.sku && (
-                            <span className="flex items-center gap-1">
-                              <Package className="w-3 h-3" />
-                              {action.sku}
-                            </span>
+                        <div className="text-right">
+                          {action.estimatedImpact && (
+                            <p className="text-lg font-bold text-green-600">
+                              ${action.estimatedImpact.toLocaleString()}
+                            </p>
                           )}
-                          {action.locationCode && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {action.locationCode}
-                            </span>
-                          )}
+                          <Button variant="ghost" size="sm" className="mt-2 text-purple-600 hover:text-purple-700">
+                            View Details <ChevronRight className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      {action.estimatedImpact && (
-                        <p className="text-lg font-bold text-green-600">
-                          ${action.estimatedImpact.toLocaleString()}
-                        </p>
-                      )}
-                      <button className="mt-2 text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1">
-                        View Details <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
 
           {/* Reports Tab */}
           {activeTab === 'reports' && brief && (
-            <div className="space-y-6">
+            <motion.div
+              className="space-y-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
               {/* Executive Brief */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <Card>
+                <CardHeader className="border-b border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                        Executive Brief
-                      </h3>
-                      <p className="text-sm text-gray-500">
+                      <CardTitle className="text-xl">Executive Brief</CardTitle>
+                      <p className="text-sm text-gray-500 mt-1">
                         {brief.period.days}-day analysis ending {new Date(brief.period.to).toLocaleDateString()}
                       </p>
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm">
+                    <Button variant="secondary">
                       <FileText className="w-4 h-4" />
                       Export PDF
-                    </button>
+                    </Button>
                   </div>
-                </div>
+                </CardHeader>
 
-                <div className="p-6 space-y-6">
+                <CardContent className="pt-6 space-y-6">
                   {/* Metrics */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <motion.div
+                      className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3, delay: 0 }}
+                    >
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
                         {brief.metrics.totalDiscrepancies}
                       </p>
                       <p className="text-sm text-gray-500">Total Issues</p>
-                    </div>
-                    <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    </motion.div>
+                    <motion.div
+                      className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-xl"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
+                    >
                       <p className="text-2xl font-bold text-red-600">{brief.metrics.criticalIssues}</p>
                       <p className="text-sm text-gray-500">Critical</p>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    </motion.div>
+                    <motion.div
+                      className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3, delay: 0.2 }}
+                    >
                       <p className="text-2xl font-bold text-green-600">{brief.metrics.resolved}</p>
                       <p className="text-sm text-gray-500">Resolved</p>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                    </motion.div>
+                    <motion.div
+                      className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3, delay: 0.3 }}
+                    >
                       <p className="text-2xl font-bold text-purple-600">{brief.metrics.totalAdjustments}</p>
                       <p className="text-sm text-gray-500">Adjustments</p>
-                    </div>
+                    </motion.div>
                   </div>
 
                   {/* Top Issues */}
@@ -572,17 +678,23 @@ export default function IntelligenceDashboard() {
                       <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Top Issues</h4>
                       <div className="space-y-2">
                         {brief.topIssues.map((issue, i) => (
-                          <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <motion.div
+                            key={i}
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: 0.4 + i * 0.05 }}
+                          >
                             <div className="flex items-center gap-3">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${severityColors[issue.severity]}`}>
+                              <Badge variant={issue.severity === 'critical' ? 'destructive' : issue.severity === 'high' ? 'warning' : 'secondary'}>
                                 {issue.severity}
-                              </span>
+                              </Badge>
                               <span className="text-sm text-gray-900 dark:text-white">
                                 {issue.description || `${issue.type} at ${issue.location}`}
                               </span>
                             </div>
                             <span className="text-sm font-mono text-gray-500">{issue.sku}</span>
-                          </div>
+                          </motion.div>
                         ))}
                       </div>
                     </div>
@@ -594,29 +706,31 @@ export default function IntelligenceDashboard() {
                       <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Recommendations</h4>
                       <div className="space-y-2">
                         {brief.recommendations.map((rec, i) => (
-                          <div key={i} className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              rec.priority === 'URGENT' ? 'bg-red-100 text-red-800' :
-                              rec.priority === 'HIGH' ? 'bg-orange-100 text-orange-800' :
-                              'bg-blue-100 text-blue-800'
-                            }`}>
+                          <motion.div
+                            key={i}
+                            className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl"
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: 0.5 + i * 0.05 }}
+                          >
+                            <Badge variant={rec.priority === 'URGENT' ? 'destructive' : rec.priority === 'HIGH' ? 'warning' : 'default'}>
                               {rec.priority}
-                            </span>
+                            </Badge>
                             <div>
                               <p className="font-medium text-gray-900 dark:text-white">{rec.action}</p>
                               <p className="text-sm text-gray-500">{rec.rationale}</p>
                             </div>
-                          </div>
+                          </motion.div>
                         ))}
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
-            </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           )}
         </>
       )}
-    </div>
+    </motion.div>
   )
 }

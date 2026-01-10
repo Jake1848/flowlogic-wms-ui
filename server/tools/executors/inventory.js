@@ -1,80 +1,87 @@
 /**
  * Inventory-related tool executors
+ * Updated for AI Intelligence Platform - uses snapshot tables from WMS data
  */
 
 export async function investigateInventory(prisma, params) {
-  const product = await prisma.product.findUnique({
+  // Get inventory snapshots for this SKU
+  const snapshots = await prisma.inventorySnapshot.findMany({
     where: { sku: params.sku },
-    include: {
-      inventory: {
-        include: {
-          location: { select: { code: true, type: true } },
-          warehouse: { select: { code: true, name: true } },
-        },
-      },
-      category: { select: { name: true } },
-    },
+    orderBy: { snapshotDate: 'desc' },
+    take: 10,
   });
 
-  if (!product) {
-    return { success: false, message: `No product found with SKU ${params.sku}` };
+  if (snapshots.length === 0) {
+    return { success: false, message: `No inventory data found for SKU ${params.sku}` };
   }
 
+  // Get transaction history
   let transactions = [];
   if (params.include_transactions !== false) {
-    transactions = await prisma.inventoryTransaction.findMany({
-      where: { productId: product.id },
-      orderBy: { createdAt: 'desc' },
+    transactions = await prisma.transactionSnapshot.findMany({
+      where: { sku: params.sku },
+      orderBy: { transactionDate: 'desc' },
       take: 20,
-      include: {
-        location: { select: { code: true } },
-        user: { select: { fullName: true } },
-      },
     });
   }
 
+  // Get related discrepancies
+  const discrepancies = await prisma.discrepancy.findMany({
+    where: {
+      sku: params.sku,
+      status: 'OPEN',
+    },
+  });
+
+  // Get alerts
   const alerts = await prisma.alert.findMany({
     where: {
-      entityType: 'Product',
-      entityId: product.id,
+      entityType: 'SKU',
+      entityId: params.sku,
       isResolved: false,
     },
   });
 
-  const totalOnHand = product.inventory.reduce((sum, inv) => sum + inv.quantityOnHand, 0);
-  const totalAllocated = product.inventory.reduce((sum, inv) => sum + inv.quantityAllocated, 0);
-  const totalAvailable = product.inventory.reduce((sum, inv) => sum + inv.quantityAvailable, 0);
+  // Calculate totals from most recent snapshot per location
+  const latestByLocation = {};
+  for (const snap of snapshots) {
+    if (!latestByLocation[snap.locationCode]) {
+      latestByLocation[snap.locationCode] = snap;
+    }
+  }
+
+  const locations = Object.values(latestByLocation);
+  const totalOnHand = locations.reduce((sum, inv) => sum + inv.quantityOnHand, 0);
+  const totalAllocated = locations.reduce((sum, inv) => sum + inv.quantityAllocated, 0);
+  const totalAvailable = locations.reduce((sum, inv) => sum + inv.quantityAvailable, 0);
 
   return {
     success: true,
-    product: {
-      sku: product.sku,
-      name: product.name,
-      category: product.category?.name,
-      reorderPoint: product.reorderPoint,
-      minStock: product.minStock,
-      maxStock: product.maxStock,
-    },
+    sku: params.sku,
     inventory: {
       totalOnHand,
       totalAllocated,
       totalAvailable,
-      locations: product.inventory.map(inv => ({
-        location: inv.location.code,
-        warehouse: inv.warehouse.code,
+      locations: locations.map(inv => ({
+        location: inv.locationCode,
         onHand: inv.quantityOnHand,
         allocated: inv.quantityAllocated,
         available: inv.quantityAvailable,
-        status: inv.status,
+        snapshotDate: inv.snapshotDate,
       })),
     },
     recentTransactions: transactions.map(t => ({
-      type: t.transactionType,
+      type: t.type,
       quantity: t.quantity,
-      location: t.location.code,
-      user: t.user?.fullName,
-      timestamp: t.createdAt,
-      reason: t.reason,
+      fromLocation: t.fromLocation,
+      toLocation: t.toLocation,
+      timestamp: t.transactionDate,
+    })),
+    discrepancies: discrepancies.map(d => ({
+      type: d.type,
+      severity: d.severity,
+      variance: d.variance,
+      description: d.description,
     })),
     alerts: alerts.map(a => ({
       type: a.type,
@@ -82,114 +89,85 @@ export async function investigateInventory(prisma, params) {
       title: a.title,
       message: a.message,
     })),
-    needsReorder: totalOnHand < (product.reorderPoint || 0),
   };
 }
 
 export async function getInventorySummary(prisma, params) {
-  const where = params.warehouse_id ? { warehouseId: params.warehouse_id } : {};
+  // Get latest snapshots
+  const snapshots = await prisma.inventorySnapshot.findMany({
+    orderBy: { snapshotDate: 'desc' },
+    take: 1000,
+  });
 
-  const [summary, lowStock, statusCounts] = await Promise.all([
-    prisma.inventory.aggregate({
-      where,
-      _sum: { quantityOnHand: true, quantityAllocated: true, quantityAvailable: true },
-      _count: true,
-    }),
-    prisma.inventory.findMany({
-      where: {
-        ...where,
-        quantityOnHand: { lt: 10 },
-      },
-      include: {
-        product: { select: { sku: true, name: true, reorderPoint: true } },
-        location: { select: { code: true } },
-      },
-      take: 10,
-    }),
-    prisma.inventory.groupBy({
-      by: ['status'],
-      where,
-      _count: true,
-    }),
-  ]);
+  // Dedupe by SKU+location, keep most recent
+  const latestByKey = {};
+  for (const snap of snapshots) {
+    const key = `${snap.sku}:${snap.locationCode}`;
+    if (!latestByKey[key]) {
+      latestByKey[key] = snap;
+    }
+  }
+
+  const uniqueSnapshots = Object.values(latestByKey);
+
+  const totalOnHand = uniqueSnapshots.reduce((sum, s) => sum + s.quantityOnHand, 0);
+  const totalAllocated = uniqueSnapshots.reduce((sum, s) => sum + s.quantityAllocated, 0);
+  const totalAvailable = uniqueSnapshots.reduce((sum, s) => sum + s.quantityAvailable, 0);
+
+  // Get low stock items
+  const lowStock = uniqueSnapshots
+    .filter(s => s.quantityOnHand < 10)
+    .slice(0, 10);
+
+  // Get discrepancy counts
+  const discrepancyStats = await prisma.discrepancy.groupBy({
+    by: ['severity'],
+    where: { status: 'OPEN' },
+    _count: true,
+  });
 
   return {
     success: true,
     summary: {
-      totalRecords: summary._count,
-      totalOnHand: summary._sum.quantityOnHand || 0,
-      totalAllocated: summary._sum.quantityAllocated || 0,
-      totalAvailable: summary._sum.quantityAvailable || 0,
+      totalRecords: uniqueSnapshots.length,
+      totalOnHand,
+      totalAllocated,
+      totalAvailable,
+      uniqueSKUs: new Set(uniqueSnapshots.map(s => s.sku)).size,
+      uniqueLocations: new Set(uniqueSnapshots.map(s => s.locationCode)).size,
     },
-    statusBreakdown: statusCounts.reduce((acc, s) => {
-      acc[s.status] = s._count;
+    discrepancies: discrepancyStats.reduce((acc, s) => {
+      acc[s.severity] = s._count;
       return acc;
     }, {}),
     lowStockItems: lowStock.map(inv => ({
-      sku: inv.product.sku,
-      name: inv.product.name,
-      location: inv.location.code,
+      sku: inv.sku,
+      location: inv.locationCode,
       onHand: inv.quantityOnHand,
-      reorderPoint: inv.product.reorderPoint,
     })),
   };
 }
 
 export async function createInventoryAdjustment(prisma, params) {
-  const inventory = await prisma.inventory.findUnique({
-    where: { id: params.inventory_id },
+  // In AI Intelligence Platform mode, we don't directly adjust inventory
+  // Instead, we create an action recommendation for the host WMS
+  const action = await prisma.actionRecommendation.create({
+    data: {
+      type: 'inventory_adjustment',
+      priority: params.priority || 2,
+      sku: params.sku,
+      locationCode: params.location_code,
+      description: `Adjust inventory: ${params.adjustment_quantity > 0 ? '+' : ''}${params.adjustment_quantity} units`,
+      instructions: params.reason || 'AI-recommended adjustment based on analysis',
+      estimatedImpact: Math.abs(params.adjustment_quantity) * 10, // Estimated value
+      status: 'PENDING',
+    },
   });
-
-  if (!inventory) {
-    return { success: false, message: 'Inventory record not found' };
-  }
-
-  const quantityBefore = inventory.quantityOnHand;
-  const quantityAfter = quantityBefore + params.adjustment_quantity;
-
-  if (quantityAfter < 0) {
-    return { success: false, message: 'Cannot adjust below zero' };
-  }
-
-  // Find a system user for the adjustment
-  const systemUser = await prisma.user.findFirst({
-    where: { role: 'ADMIN' },
-  });
-
-  const [updatedInventory, transaction] = await prisma.$transaction([
-    prisma.inventory.update({
-      where: { id: params.inventory_id },
-      data: {
-        quantityOnHand: quantityAfter,
-        quantityAvailable: quantityAfter - inventory.quantityAllocated,
-      },
-    }),
-    prisma.inventoryTransaction.create({
-      data: {
-        transactionType: params.adjustment_quantity > 0 ? 'ADJUST_IN' : 'ADJUST_OUT',
-        productId: inventory.productId,
-        locationId: inventory.locationId,
-        inventoryId: inventory.id,
-        quantity: Math.abs(params.adjustment_quantity),
-        quantityBefore,
-        quantityAfter,
-        reason: params.reason,
-        notes: 'Created by Flow AI',
-        userId: systemUser?.id || inventory.productId, // Fallback
-        referenceType: 'AI_ADJUSTMENT',
-      },
-    }),
-  ]);
 
   return {
     success: true,
-    message: `Inventory adjusted from ${quantityBefore} to ${quantityAfter} (${params.adjustment_quantity > 0 ? '+' : ''}${params.adjustment_quantity})`,
-    adjustment: {
-      inventoryId: params.inventory_id,
-      quantityBefore,
-      quantityAfter,
-      change: params.adjustment_quantity,
-      reason: params.reason,
-    },
+    message: `Created adjustment recommendation for ${params.sku} at ${params.location_code}`,
+    actionId: action.id,
+    note: 'This is an AI Intelligence Platform. Adjustment will be exported to your WMS for execution.',
   };
 }

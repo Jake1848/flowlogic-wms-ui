@@ -38,7 +38,7 @@ export function useFetch<T>(
       }
 
       // Make real API call
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('flowlogic_token')
       const response = await fetch(`${API_BASE_URL}${url}`, {
         headers: {
           'Content-Type': 'application/json',

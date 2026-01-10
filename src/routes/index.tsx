@@ -8,12 +8,12 @@ const PageLoader = () => (
   </div>
 )
 
-// Lazy load Login page separately (public route)
-const Login = lazy(() => import('../pages/Login'))
+// Lazy load Login page separately (public route) - Using Modern UI
+const Login = lazy(() => import('../pages/ModernLogin'))
 const Setup = lazy(() => import('../pages/Setup'))
 
-// AI Intelligence Platform pages
-const IntelligenceDashboard = lazy(() => import('../pages/IntelligenceDashboard'))
+// AI Intelligence Platform pages - Using Modern UI
+const IntelligenceDashboard = lazy(() => import('../pages/ModernIntelligenceDashboard'))
 const Alerts = lazy(() => import('../pages/Alerts'))
 const Reports = lazy(() => import('../pages/Reports'))
 const DemandForecasting = lazy(() => import('../pages/DemandForecasting'))

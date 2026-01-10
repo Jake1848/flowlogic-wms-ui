@@ -1,36 +1,66 @@
 /**
  * Product-related tool executors
+ * Updated for AI Intelligence Platform - searches inventory snapshots
  */
 
 export async function searchProducts(prisma, params) {
-  const products = await prisma.product.findMany({
+  // Search through inventory snapshots for SKUs matching the query
+  const snapshots = await prisma.inventorySnapshot.findMany({
     where: {
-      OR: [
-        { sku: { contains: params.query, mode: 'insensitive' } },
-        { name: { contains: params.query, mode: 'insensitive' } },
-        { upc: { contains: params.query, mode: 'insensitive' } },
-      ],
+      sku: { contains: params.query, mode: 'insensitive' },
     },
-    include: {
-      category: { select: { name: true } },
-      _count: { select: { inventory: true } },
-    },
-    take: params.limit || 10,
+    orderBy: { snapshotDate: 'desc' },
+    take: 100,
   });
+
+  // Group by SKU and get unique SKUs with their data
+  const skuMap = new Map();
+  for (const snap of snapshots) {
+    if (!skuMap.has(snap.sku)) {
+      skuMap.set(snap.sku, {
+        sku: snap.sku,
+        locations: [],
+        totalOnHand: 0,
+        totalAllocated: 0,
+        totalAvailable: 0,
+      });
+    }
+    const skuData = skuMap.get(snap.sku);
+    skuData.locations.push(snap.locationCode);
+    skuData.totalOnHand += snap.quantityOnHand;
+    skuData.totalAllocated += snap.quantityAllocated;
+    skuData.totalAvailable += snap.quantityAvailable;
+  }
+
+  const results = Array.from(skuMap.values()).slice(0, params.limit || 10);
+
+  // Also check for discrepancies related to these SKUs
+  const skus = results.map(r => r.sku);
+  const discrepancies = await prisma.discrepancy.findMany({
+    where: {
+      sku: { in: skus },
+      status: 'OPEN',
+    },
+  });
+
+  const discrepancyBySku = {};
+  for (const d of discrepancies) {
+    if (!discrepancyBySku[d.sku]) discrepancyBySku[d.sku] = [];
+    discrepancyBySku[d.sku].push(d);
+  }
 
   return {
     success: true,
-    resultsCount: products.length,
-    products: products.map(p => ({
-      id: p.id,
+    resultsCount: results.length,
+    products: results.map(p => ({
       sku: p.sku,
-      name: p.name,
-      upc: p.upc,
-      category: p.category?.name,
-      cost: p.cost,
-      price: p.price,
-      inventoryLocations: p._count.inventory,
-      isActive: p.isActive,
+      locationCount: new Set(p.locations).size,
+      totalOnHand: p.totalOnHand,
+      totalAllocated: p.totalAllocated,
+      totalAvailable: p.totalAvailable,
+      hasDiscrepancies: !!discrepancyBySku[p.sku],
+      discrepancyCount: discrepancyBySku[p.sku]?.length || 0,
     })),
+    note: 'Product master data is maintained in your host WMS. This shows inventory snapshot data.',
   };
 }

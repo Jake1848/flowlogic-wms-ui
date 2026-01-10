@@ -13,40 +13,14 @@ import { swaggerSpec } from './swagger.js';
 // WebSocket and file upload support
 import { initializeWebSocket, WS_EVENTS, emitAlert, emitInventoryUpdate } from './lib/websocket/index.js';
 
-// Import routes
-import inventoryRoutes from './routes/inventory.js';
-import orderRoutes from './routes/orders.js';
-import productRoutes from './routes/products.js';
-import locationRoutes from './routes/locations.js';
-import taskRoutes from './routes/tasks.js';
+// Import routes - AI Intelligence Platform Core
 import alertRoutes from './routes/alerts.js';
-import dockRoutes from './routes/docks.js';
 import chatRoutes from './routes/chat.js';
 import authRoutes from './routes/auth.js';
-import receivingRoutes from './routes/receiving.js';
-import shippingRoutes from './routes/shipping.js';
-import cycleCountRoutes from './routes/cycleCounts.js';
-import laborRoutes from './routes/labor.js';
-import replenishmentRoutes from './routes/replenishment.js';
-import customerRoutes from './routes/customers.js';
-import vendorRoutes from './routes/vendors.js';
 import userRoutes from './routes/users.js';
-import carrierRoutes from './routes/carriers.js';
-import warehouseRoutes from './routes/warehouses.js';
-import reportRoutes from './routes/reports.js';
-import palletRoutes from './routes/pallets.js';
-import physicalInventoryRoutes from './routes/physicalInventory.js';
-import workOrderRoutes from './routes/workOrders.js';
-import rmaRoutes from './routes/rma.js';
-import asnRoutes from './routes/asn.js';
 import integrationRoutes from './routes/integrations.js';
 import settingsRoutes from './routes/settings.js';
 import auditLogRoutes from './routes/auditLogs.js';
-import containerRoutes from './routes/containers.js';
-import appointmentRoutes from './routes/appointments.js';
-import purchaseOrderRoutes from './routes/purchaseOrders.js';
-import gateRoutes from './routes/gate.js';
-import shipNoticeRoutes from './routes/shipNotices.js';
 import intelligenceRoutes from './routes/intelligence.js';
 import aiRoutes from './routes/ai.js';
 
@@ -300,38 +274,34 @@ When users ask about issues, investigate thoroughly using the available tools an
 // Get current system context from database using parameterized queries
 async function getSystemContext() {
   try {
-    const inventoryCount = await prisma.$queryRaw`
-      SELECT COUNT(*) as count,
-             COALESCE(SUM("quantityOnHand"), 0) as "onHand",
-             COALESCE(SUM("quantityAllocated"), 0) as allocated
-      FROM inventory
-    `;
-    const orderStats = await prisma.$queryRaw`
-      SELECT status, COUNT(*) as count FROM orders GROUP BY status
-    `;
     const alertStats = await prisma.$queryRaw`
       SELECT COUNT(*) as count FROM alerts WHERE "isResolved" = false
     `;
-    const taskStats = await prisma.$queryRaw`
-      SELECT status, COUNT(*) as count FROM tasks
-      WHERE status NOT IN ('COMPLETED', 'CANCELLED')
+    const discrepancyStats = await prisma.$queryRaw`
+      SELECT severity, COUNT(*) as count FROM discrepancies
+      WHERE status = 'OPEN'
+      GROUP BY severity
+    `;
+    const actionStats = await prisma.$queryRaw`
+      SELECT status, COUNT(*) as count FROM action_recommendations
       GROUP BY status
     `;
+    const integrationStats = await prisma.$queryRaw`
+      SELECT COUNT(*) as total,
+             SUM(CASE WHEN "isActive" = true THEN 1 ELSE 0 END) as active
+      FROM integrations
+    `;
 
-    const inv = inventoryCount[0];
     const context = `
-**Inventory Overview:**
-- Total inventory records: ${Number(inv.count)}
-- Total units on hand: ${Number(inv.onHand)}
-- Units allocated: ${Number(inv.allocated)}
-
-**Order Status:**
-${orderStats.map(s => `- ${s.status}: ${Number(s.count)}`).join('\n')}
-
 **Active Alerts:** ${Number(alertStats[0]?.count || 0)} unresolved
 
-**Active Tasks:**
-${taskStats.map(s => `- ${s.status}: ${Number(s.count)}`).join('\n')}
+**Open Discrepancies:**
+${discrepancyStats.map(s => `- ${s.severity}: ${Number(s.count)}`).join('\n') || '- None detected'}
+
+**Action Recommendations:**
+${actionStats.map(s => `- ${s.status}: ${Number(s.count)}`).join('\n') || '- None pending'}
+
+**Integrations:** ${Number(integrationStats[0]?.active || 0)} active of ${Number(integrationStats[0]?.total || 0)} total
 
 **Timestamp:** ${new Date().toISOString()}
 `;
@@ -364,43 +334,17 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-// Mount API routes
+// Mount API routes - AI Intelligence Platform
 // Public routes (no authentication required)
 app.use('/api/auth', authLimiter, authRoutes(prisma));
 
-// Protected routes (authentication required)
-app.use('/api/inventory', authMiddleware, inventoryRoutes(prisma));
-app.use('/api/orders', authMiddleware, orderRoutes(prisma));
-app.use('/api/products', authMiddleware, productRoutes(prisma));
-app.use('/api/locations', authMiddleware, locationRoutes(prisma));
-app.use('/api/tasks', authMiddleware, taskRoutes(prisma));
+// Protected routes (authentication required) - Core AI Platform
 app.use('/api/alerts', authMiddleware, alertRoutes(prisma));
-app.use('/api/docks', authMiddleware, dockRoutes(prisma));
 app.use('/api/chat-history', authMiddleware, chatRoutes(prisma));
-app.use('/api/receiving', authMiddleware, receivingRoutes(prisma));
-app.use('/api/shipping', authMiddleware, shippingRoutes(prisma));
-app.use('/api/cycle-counts', authMiddleware, cycleCountRoutes(prisma));
-app.use('/api/labor', authMiddleware, laborRoutes(prisma));
-app.use('/api/replenishment', authMiddleware, replenishmentRoutes(prisma));
-app.use('/api/customers', authMiddleware, customerRoutes(prisma));
-app.use('/api/vendors', authMiddleware, vendorRoutes(prisma));
 app.use('/api/users', authMiddleware, userRoutes(prisma));
-app.use('/api/carriers', authMiddleware, carrierRoutes(prisma));
-app.use('/api/warehouses', authMiddleware, warehouseRoutes(prisma));
-app.use('/api/reports', authMiddleware, reportRoutes(prisma));
-app.use('/api/pallets', authMiddleware, palletRoutes(prisma));
-app.use('/api/physical-inventory', authMiddleware, physicalInventoryRoutes(prisma));
-app.use('/api/work-orders', authMiddleware, workOrderRoutes(prisma));
-app.use('/api/rma', authMiddleware, rmaRoutes(prisma));
-app.use('/api/asn', authMiddleware, asnRoutes(prisma));
 app.use('/api/integrations', authMiddleware, integrationRoutes(prisma));
 app.use('/api/settings', authMiddleware, settingsRoutes(prisma));
 app.use('/api/audit-logs', authMiddleware, auditLogRoutes(prisma));
-app.use('/api/containers', authMiddleware, containerRoutes);
-app.use('/api/appointments', authMiddleware, appointmentRoutes);
-app.use('/api/purchase-orders', authMiddleware, purchaseOrderRoutes);
-app.use('/api/gate', authMiddleware, gateRoutes);
-app.use('/api/ship-notices', authMiddleware, shipNoticeRoutes);
 
 // FlowLogic Intelligence Platform routes (protected)
 app.use('/api/intelligence', authMiddleware, intelligenceRoutes(prisma));
@@ -408,113 +352,87 @@ app.use('/api/intelligence', authMiddleware, intelligenceRoutes(prisma));
 // AI Engine routes (protected)
 app.use('/api/ai', authMiddleware, aiRoutes);
 
-// Dashboard summary endpoint using parameterized queries (protected)
+// Dashboard summary endpoint - AI Intelligence Platform metrics (protected)
 app.get('/api/dashboard', authMiddleware, async (req, res) => {
   try {
-    // Use $queryRaw with tagged template literals for safe queries
-    const inventorySummary = await prisma.$queryRaw`
-      SELECT
-        COUNT(*) as count,
-        COALESCE(SUM("quantityOnHand"), 0) as "totalOnHand",
-        COALESCE(SUM("quantityAllocated"), 0) as "totalAllocated",
-        COALESCE(SUM("quantityAvailable"), 0) as "totalAvailable"
-      FROM inventory
-    `;
-
-    const orderCounts = await prisma.$queryRaw`
-      SELECT status, COUNT(*) as count
-      FROM orders
-      GROUP BY status
-    `;
-
-    const lateOrders = await prisma.$queryRaw`
-      SELECT COUNT(*) as count
-      FROM orders
-      WHERE "requiredDate" < NOW()
-        AND status NOT IN ('SHIPPED', 'DELIVERED', 'CANCELLED')
-    `;
-
-    const pendingTasks = await prisma.$queryRaw`
-      SELECT COUNT(*) as count
-      FROM tasks
-      WHERE status NOT IN ('COMPLETED', 'CANCELLED')
-    `;
-
+    // AI Intelligence Platform metrics
     const unresolvedAlerts = await prisma.$queryRaw`
-      SELECT COUNT(*) as count
-      FROM alerts
-      WHERE "isResolved" = false
+      SELECT COUNT(*) as count FROM alerts WHERE "isResolved" = false
     `;
 
-    const recentTransactions = await prisma.$queryRaw`
+    const discrepancyStats = await prisma.$queryRaw`
       SELECT
-        it.id, it.type, it.quantity, it."createdAt",
-        p.sku as "productSku", p.name as "productName",
-        l.code as "locationCode",
-        u."fullName" as "userName"
-      FROM inventory_transactions it
-      LEFT JOIN products p ON it."productId" = p.id
-      LEFT JOIN locations l ON it."locationId" = l.id
-      LEFT JOIN users u ON it."userId" = u.id
-      ORDER BY it."createdAt" DESC
-      LIMIT 10
+        COUNT(*) as total,
+        SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
+        SUM(CASE WHEN status = 'OPEN' THEN 1 ELSE 0 END) as open
+      FROM discrepancies
     `;
 
-    const inv = inventorySummary[0];
-    const byStatus = {};
-    for (const row of orderCounts) {
-      byStatus[row.status] = Number(row.count);
-    }
+    const actionStats = await prisma.$queryRaw`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed
+      FROM action_recommendations
+    `;
+
+    const integrationStats = await prisma.$queryRaw`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN "isActive" = true THEN 1 ELSE 0 END) as active
+      FROM integrations
+    `;
+
+    const recentDiscrepancies = await prisma.$queryRaw`
+      SELECT id, type, severity, status, sku, "locationCode", variance, "detectedAt"
+      FROM discrepancies
+      ORDER BY "detectedAt" DESC
+      LIMIT 5
+    `;
+
+    const disc = discrepancyStats[0] || {};
+    const actions = actionStats[0] || {};
+    const integrations = integrationStats[0] || {};
 
     return res.json({
-      inventory: {
-        totalRecords: Number(inv.count),
-        totalOnHand: Number(inv.totalOnHand),
-        totalAllocated: Number(inv.totalAllocated),
-        totalAvailable: Number(inv.totalAvailable),
-      },
-      orders: {
-        byStatus,
-        lateOrders: Number(lateOrders[0]?.count || 0),
-      },
-      tasks: {
-        pending: Number(pendingTasks[0]?.count || 0),
-      },
       alerts: {
         unresolved: Number(unresolvedAlerts[0]?.count || 0),
       },
-      recentActivity: recentTransactions.map(t => ({
-        id: t.id,
-        type: t.type,
-        quantity: t.quantity,
-        createdAt: t.createdAt,
-        product: { sku: t.productSku, name: t.productName },
-        location: { code: t.locationCode },
-        user: { fullName: t.userName },
+      discrepancies: {
+        total: Number(disc.total || 0),
+        critical: Number(disc.critical || 0),
+        open: Number(disc.open || 0),
+      },
+      actions: {
+        total: Number(actions.total || 0),
+        pending: Number(actions.pending || 0),
+        completed: Number(actions.completed || 0),
+      },
+      integrations: {
+        total: Number(integrations.total || 0),
+        active: Number(integrations.active || 0),
+      },
+      recentDiscrepancies: recentDiscrepancies.map(d => ({
+        id: d.id,
+        type: d.type,
+        severity: d.severity,
+        status: d.status,
+        sku: d.sku,
+        locationCode: d.locationCode,
+        variance: d.variance,
+        detectedAt: d.detectedAt,
       })),
     });
   } catch (error) {
     console.error('Dashboard error:', error);
-    // Return demo data if database query fails (common with prisma dev)
+    // Return demo data if database query fails
     return res.json({
-      inventory: {
-        totalRecords: 24,
-        totalOnHand: 15000,
-        totalAllocated: 2500,
-        totalAvailable: 12500,
-      },
-      orders: {
-        byStatus: { PENDING: 5, PROCESSING: 3, SHIPPED: 2 },
-        lateOrders: 1,
-      },
-      tasks: {
-        pending: 8,
-      },
-      alerts: {
-        unresolved: 3,
-      },
-      recentActivity: [],
-      _demo: true, // Flag to indicate this is demo data
+      alerts: { unresolved: 0 },
+      discrepancies: { total: 0, critical: 0, open: 0 },
+      actions: { total: 0, pending: 0, completed: 0 },
+      integrations: { total: 0, active: 0 },
+      recentDiscrepancies: [],
+      _demo: true,
     });
   }
 });
@@ -706,10 +624,10 @@ app.delete('/api/chat/:sessionId', (req, res) => {
 });
 
 // ==========================================
-// Warehouse & Company Endpoints
+// Warehouse & Company Endpoints (Reference Data)
 // ==========================================
 
-app.get('/api/warehouses', async (req, res) => {
+app.get('/api/warehouses', authMiddleware, async (req, res) => {
   try {
     const warehouses = await prisma.warehouse.findMany({
       where: { isActive: true },
@@ -718,8 +636,6 @@ app.get('/api/warehouses', async (req, res) => {
         _count: {
           select: {
             zones: true,
-            inventory: true,
-            orders: true,
           },
         },
       },
@@ -728,39 +644,6 @@ app.get('/api/warehouses', async (req, res) => {
   } catch (error) {
     console.error('Get warehouses error:', error);
     res.status(500).json({ error: 'Failed to fetch warehouses' });
-  }
-});
-
-app.get('/api/users', async (req, res) => {
-  try {
-    const { warehouseId, role, isActive } = req.query;
-
-    const where = {};
-    if (role) where.role = role;
-    if (isActive !== undefined) where.isActive = isActive === 'true';
-    if (warehouseId) {
-      where.warehouses = { some: { warehouseId } };
-    }
-
-    const users = await prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        fullName: true,
-        role: true,
-        isActive: true,
-        lastLoginAt: true,
-      },
-      orderBy: { fullName: 'asc' },
-    });
-    res.json(users);
-  } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 
@@ -822,51 +705,26 @@ async function startServer() {
     console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║   FlowLogic WMS Server                                        ║
+║   FlowLogic AI Intelligence Platform                          ║
 ║   ───────────────────────────────────────────────────────     ║
 ║                                                               ║
 ║   Server: http://localhost:${PORT}                              ║
 ║   API Docs: http://localhost:${PORT}/api/docs                   ║
 ║                                                               ║
 ║   Core API Routes:                                            ║
-║   • /api/dashboard      - Dashboard summary                   ║
-║   • /api/inventory      - Inventory management                ║
-║   • /api/orders         - Order management                    ║
-║   • /api/products       - Product catalog                     ║
-║   • /api/locations      - Location management                 ║
-║   • /api/tasks          - Task management                     ║
+║   • /api/dashboard      - AI Dashboard metrics                ║
 ║   • /api/alerts         - Alert system                        ║
-║   • /api/docks          - Dock scheduling & appointments      ║
-║   • /api/receiving      - Inbound/PO management               ║
-║   • /api/shipping       - Outbound/carrier management         ║
-║   • /api/cycle-counts   - Cycle counting & adjustments        ║
-║   • /api/labor          - Labor tracking & productivity       ║
-║   • /api/replenishment  - Replenishment rules & tasks         ║
-║   • /api/customers      - Customer management                 ║
-║   • /api/vendors        - Vendor management                   ║
 ║   • /api/users          - User & role management              ║
-║   • /api/carriers       - Carrier & services                  ║
-║   • /api/warehouses     - Warehouse & zone management         ║
-║   • /api/reports        - Reports & analytics                 ║
-║   • /api/pallets        - Pallet management & moves           ║
-║   • /api/physical-inventory - Physical inventory counts       ║
-║   • /api/work-orders    - Work orders & manufacturing        ║
-║   • /api/rma            - Returns & RMA processing           ║
-║   • /api/asn            - Advance ship notices               ║
-║   • /api/integrations   - EDI & trading partners             ║
-║   • /api/settings       - System configuration               ║
-║   • /api/audit-logs     - Audit trail & compliance           ║
-║   • /api/containers     - Container receiving & tracking     ║
-║   • /api/appointments   - Dock appointments & scheduling     ║
-║   • /api/purchase-orders - PO management & analysis         ║
-║   • /api/gate           - Gate in/out & compliance          ║
-║   • /api/ship-notices   - ASN/Ship notice management        ║
+║   • /api/integrations   - WMS connectors & EDI                ║
+║   • /api/settings       - System configuration                ║
+║   • /api/audit-logs     - Audit trail & compliance            ║
 ║                                                               ║
-║   AI Endpoints:                                               ║
+║   AI & Intelligence:                                          ║
 ║   • POST /api/chat      - Flow AI Assistant                   ║
 ║   • POST /api/actions   - Execute AI actions                  ║
+║   • /api/ai/*           - AI Engine (forecasting, anomaly)    ║
 ║                                                               ║
-║   Intelligence Platform (NEW):                                ║
+║   Intelligence Platform:                                      ║
 ║   • /api/intelligence/ingest/*     - WMS data ingestion       ║
 ║   • /api/intelligence/truth/*      - Inventory truth engine   ║
 ║   • /api/intelligence/root-cause/* - Root cause analysis      ║
@@ -875,7 +733,6 @@ async function startServer() {
 ║                                                               ║
 ║   Real-Time:                                                  ║
 ║   • WebSocket (Socket.io) - Real-time updates                 ║
-║   • /api/uploads        - File upload endpoints               ║
 ║                                                               ║
 ║   Status:                                                     ║
 ║   • AI: ${process.env.ANTHROPIC_API_KEY ? 'Configured' : 'Not configured'}                                      ║

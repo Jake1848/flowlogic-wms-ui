@@ -534,18 +534,20 @@ export default function settingsRoutes(prisma) {
   // System Information
   // ==========================================
 
-  // Get system info
+  // Get system info - AI Intelligence Platform
   router.get('/system', asyncHandler(async (req, res) => {
-    const [userCount, warehouseCount, productCount, orderCount] = await Promise.all([
+    const [userCount, warehouseCount, integrationCount, discrepancyCount, snapshotCount] = await Promise.all([
       prisma.user.count({ where: { isActive: true } }),
       prisma.warehouse.count({ where: { isActive: true } }),
-      prisma.product.count({ where: { isActive: true } }),
-      prisma.order.count()
+      prisma.integration.count({ where: { status: 'ACTIVE' } }),
+      prisma.discrepancy.count({ where: { status: 'OPEN' } }),
+      prisma.inventorySnapshot.count()
     ]);
 
     res.json({
       version: process.env.APP_VERSION || '1.0.0',
       environment: process.env.NODE_ENV || 'development',
+      platform: 'FlowLogic AI Intelligence Platform',
       database: {
         type: 'PostgreSQL',
         status: 'connected'
@@ -553,8 +555,9 @@ export default function settingsRoutes(prisma) {
       statistics: {
         users: userCount,
         warehouses: warehouseCount,
-        products: productCount,
-        orders: orderCount
+        activeIntegrations: integrationCount,
+        openDiscrepancies: discrepancyCount,
+        inventorySnapshots: snapshotCount
       },
       serverTime: new Date().toISOString(),
       uptime: process.uptime()

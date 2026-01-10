@@ -77,9 +77,11 @@ export function initializeWebSocket(httpServer, options = {}) {
     transports: ['websocket', 'polling'],
   });
 
+  const isDev = process.env.NODE_ENV !== 'production';
+
   // Connection handling
   io.on('connection', (socket) => {
-    console.log(`[WebSocket] Client connected: ${socket.id}`);
+    if (isDev) console.log(`[WebSocket] Client connected: ${socket.id}`);
 
     // Authenticate and join rooms based on user
     socket.on('authenticate', (data) => {
@@ -114,24 +116,22 @@ export function initializeWebSocket(httpServer, options = {}) {
         rooms: Array.from(socket.rooms)
       });
 
-      console.log(`[WebSocket] User ${userId} authenticated, rooms:`, Array.from(socket.rooms));
+      if (isDev) console.log(`[WebSocket] User ${userId} authenticated`);
     });
 
     // Join specific room
     socket.on('join_room', (room) => {
       socket.join(room);
-      console.log(`[WebSocket] ${socket.id} joined room: ${room}`);
     });
 
     // Leave specific room
     socket.on('leave_room', (room) => {
       socket.leave(room);
-      console.log(`[WebSocket] ${socket.id} left room: ${room}`);
     });
 
     // Handle disconnect
-    socket.on('disconnect', (reason) => {
-      console.log(`[WebSocket] Client disconnected: ${socket.id}, reason: ${reason}`);
+    socket.on('disconnect', () => {
+      // Silent disconnect - no logging needed in production
     });
 
     // Ping/pong for connection health
@@ -140,7 +140,7 @@ export function initializeWebSocket(httpServer, options = {}) {
     });
   });
 
-  console.log('[WebSocket] Socket.io initialized');
+  if (isDev) console.log('[WebSocket] Socket.io initialized');
   return io;
 }
 

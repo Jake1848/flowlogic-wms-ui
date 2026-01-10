@@ -21,6 +21,80 @@ export default function createUserRoutes(prisma) {
   router.use(authMiddleware);
 
   // ============================================
+  // STATIC ROUTES - Must come before /:id routes
+  // ============================================
+
+  // Get available roles
+  router.get('/roles/list', asyncHandler(async (req, res) => {
+    const roles = [
+      { code: 'ADMIN', name: 'Administrator', description: 'Full system access' },
+      { code: 'MANAGER', name: 'Manager', description: 'Manage operations and users' },
+      { code: 'SUPERVISOR', name: 'Supervisor', description: 'Supervise warehouse operations' },
+      { code: 'OPERATOR', name: 'Operator', description: 'General warehouse operations' },
+      { code: 'VIEWER', name: 'Viewer', description: 'Read-only access' },
+      { code: 'API', name: 'API User', description: 'Integration/API access only' },
+    ];
+
+    res.json(roles);
+  }));
+
+  // User summary stats
+  router.get('/summary/stats', asyncHandler(async (req, res) => {
+    const { warehouseId } = req.query;
+
+    const warehouseFilter = warehouseId ? {
+      warehouses: { some: { warehouseId } },
+    } : {};
+
+    const [
+      totalUsers,
+      activeUsers,
+      byRole,
+      byDepartment,
+      recentLogins,
+    ] = await Promise.all([
+      prisma.user.count({ where: warehouseFilter }),
+      prisma.user.count({ where: { isActive: true, ...warehouseFilter } }),
+      prisma.user.groupBy({
+        by: ['role'],
+        where: warehouseFilter,
+        _count: true,
+      }),
+      prisma.user.groupBy({
+        by: ['department'],
+        where: { department: { not: null }, ...warehouseFilter },
+        _count: true,
+      }),
+      prisma.user.findMany({
+        where: { lastLoginAt: { not: null }, ...warehouseFilter },
+        orderBy: { lastLoginAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          fullName: true,
+          role: true,
+          lastLoginAt: true,
+        },
+      }),
+    ]);
+
+    res.json({
+      total: totalUsers,
+      active: activeUsers,
+      inactive: totalUsers - activeUsers,
+      byRole: byRole.map(r => ({
+        role: r.role,
+        count: r._count,
+      })),
+      byDepartment: byDepartment.map(d => ({
+        department: d.department,
+        count: d._count,
+      })),
+      recentLogins,
+    });
+  }));
+
+  // ============================================
   // USER CRUD
   // ============================================
 
@@ -273,20 +347,15 @@ export default function createUserRoutes(prisma) {
   router.delete('/:id', requireRole('ADMIN'), validateUUID('id'), asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    // Check for open tasks
-    const openTasks = await prisma.task.count({
+    // Check for pending action recommendations assigned to this user
+    const pendingActions = await prisma.actionRecommendation.count({
       where: {
-        assignedToId: id,
-        status: { notIn: ['COMPLETED', 'CANCELLED'] },
+        status: 'PENDING',
       },
     });
 
-    if (openTasks > 0) {
-      return res.status(400).json({
-        error: 'Cannot deactivate user with open tasks',
-        openTasks,
-      });
-    }
+    // Note: In AI Intelligence Platform, users don't have assigned tasks
+    // Just deactivate the user
 
     const user = await prisma.user.update({
       where: { id },
@@ -337,24 +406,6 @@ export default function createUserRoutes(prisma) {
     });
 
     res.json(user);
-  }));
-
-  // Get available roles
-  router.get('/roles/list', asyncHandler(async (req, res) => {
-    const roles = [
-      { code: 'ADMIN', name: 'Administrator', description: 'Full system access' },
-      { code: 'MANAGER', name: 'Manager', description: 'Manage operations and users' },
-      { code: 'SUPERVISOR', name: 'Supervisor', description: 'Supervise warehouse operations' },
-      { code: 'OPERATOR', name: 'Operator', description: 'General warehouse operations' },
-      { code: 'PICKER', name: 'Picker', description: 'Order picking operations' },
-      { code: 'PACKER', name: 'Packer', description: 'Packing and shipping prep' },
-      { code: 'RECEIVER', name: 'Receiver', description: 'Receiving operations' },
-      { code: 'SHIPPER', name: 'Shipper', description: 'Shipping operations' },
-      { code: 'VIEWER', name: 'Viewer', description: 'Read-only access' },
-      { code: 'API', name: 'API User', description: 'Integration/API access only' },
-    ];
-
-    res.json(roles);
   }));
 
   // ============================================
@@ -519,23 +570,23 @@ export default function createUserRoutes(prisma) {
   // USER PERFORMANCE & ACTIVITY
   // ============================================
 
-  // Get user performance metrics
+  // Get user activity metrics - AI Intelligence Platform
   router.get('/:id/performance', validateUUID('id'), validateDateRange, asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
 
     const dateFilter = {};
     if (startDate || endDate) {
-      dateFilter.startTime = {};
-      if (startDate) dateFilter.startTime.gte = new Date(startDate);
-      if (endDate) dateFilter.startTime.lte = new Date(endDate);
+      dateFilter.createdAt = {};
+      if (startDate) dateFilter.createdAt.gte = new Date(startDate);
+      if (endDate) dateFilter.createdAt.lte = new Date(endDate);
     }
 
     const [
       user,
-      laborEntries,
-      completedTasks,
-      recentActivity,
+      auditLogs,
+      chatSessions,
+      investigations,
     ] = await Promise.all([
       prisma.user.findUnique({
         where: { id },
@@ -546,31 +597,22 @@ export default function createUserRoutes(prisma) {
           department: true,
         },
       }),
-      prisma.laborEntry.findMany({
+      prisma.auditLog.findMany({
         where: {
           userId: id,
-          endTime: { not: null },
+          ...dateFilter,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      prisma.chatSession.count({
+        where: {
+          userId: id,
           ...dateFilter,
         },
       }),
-      prisma.task.count({
-        where: {
-          assignedToId: id,
-          status: 'COMPLETED',
-          completedAt: dateFilter.startTime ? {
-            gte: dateFilter.startTime.gte,
-            lte: dateFilter.startTime.lte,
-          } : undefined,
-        },
-      }),
-      prisma.laborEntry.findMany({
-        where: { userId: id },
-        orderBy: { startTime: 'desc' },
-        take: 10,
-        include: {
-          warehouse: { select: { code: true } },
-          task: { select: { taskNumber: true, type: true } },
-        },
+      prisma.investigation.count({
+        where: dateFilter,
       }),
     ]);
 
@@ -578,104 +620,33 @@ export default function createUserRoutes(prisma) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Calculate metrics
-    const totalMinutes = laborEntries.reduce((sum, e) => sum + (e.durationMinutes || 0), 0);
-    const totalUnits = laborEntries.reduce((sum, e) => sum + (e.unitsProcessed || 0), 0);
-    const totalLines = laborEntries.reduce((sum, e) => sum + (e.linesProcessed || 0), 0);
-
-    // Group by activity type
-    const byActivity = {};
-    for (const entry of laborEntries) {
-      const type = entry.activityType;
-      if (!byActivity[type]) {
-        byActivity[type] = { minutes: 0, units: 0, entries: 0 };
+    // Group audit logs by action type
+    const byAction = {};
+    for (const log of auditLogs) {
+      const action = log.action;
+      if (!byAction[action]) {
+        byAction[action] = { count: 0 };
       }
-      byActivity[type].minutes += entry.durationMinutes || 0;
-      byActivity[type].units += entry.unitsProcessed || 0;
-      byActivity[type].entries += 1;
+      byAction[action].count += 1;
     }
 
     res.json({
       user,
       summary: {
-        totalHours: (totalMinutes / 60).toFixed(2),
-        totalUnits,
-        totalLines,
-        completedTasks,
-        unitsPerHour: totalMinutes > 0 ? Math.round((totalUnits / totalMinutes) * 60) : 0,
-        entriesCount: laborEntries.length,
+        totalActions: auditLogs.length,
+        chatSessions,
+        investigations,
       },
-      byActivity,
-      recentActivity: recentActivity.map(a => ({
+      byAction,
+      recentActivity: auditLogs.slice(0, 10).map(a => ({
         id: a.id,
-        activity: a.activityType,
-        warehouse: a.warehouse?.code,
-        task: a.task?.taskNumber,
-        startTime: a.startTime,
-        endTime: a.endTime,
-        duration: a.durationMinutes,
-        units: a.unitsProcessed,
+        action: a.action,
+        entityType: a.entityType,
+        entityId: a.entityId,
+        timestamp: a.createdAt,
+        details: a.oldValue || a.newValue ? 'Data changed' : null,
       })),
-    });
-  }));
-
-  // ============================================
-  // SUMMARY & STATS
-  // ============================================
-
-  // User summary stats
-  router.get('/summary/stats', asyncHandler(async (req, res) => {
-    const { warehouseId } = req.query;
-
-    const warehouseFilter = warehouseId ? {
-      warehouses: { some: { warehouseId } },
-    } : {};
-
-    const [
-      totalUsers,
-      activeUsers,
-      byRole,
-      byDepartment,
-      recentLogins,
-    ] = await Promise.all([
-      prisma.user.count({ where: warehouseFilter }),
-      prisma.user.count({ where: { isActive: true, ...warehouseFilter } }),
-      prisma.user.groupBy({
-        by: ['role'],
-        where: warehouseFilter,
-        _count: true,
-      }),
-      prisma.user.groupBy({
-        by: ['department'],
-        where: { department: { not: null }, ...warehouseFilter },
-        _count: true,
-      }),
-      prisma.user.findMany({
-        where: { lastLoginAt: { not: null }, ...warehouseFilter },
-        orderBy: { lastLoginAt: 'desc' },
-        take: 10,
-        select: {
-          id: true,
-          fullName: true,
-          role: true,
-          lastLoginAt: true,
-        },
-      }),
-    ]);
-
-    res.json({
-      total: totalUsers,
-      active: activeUsers,
-      inactive: totalUsers - activeUsers,
-      byRole: byRole.map(r => ({
-        role: r.role,
-        count: r._count,
-      })),
-      byDepartment: byDepartment.map(d => ({
-        department: d.department,
-        count: d._count,
-      })),
-      recentLogins,
+      note: 'Labor tracking is managed in your host WMS system.',
     });
   }));
 

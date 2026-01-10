@@ -1,66 +1,103 @@
 /**
  * Location-related tool executors
+ * Updated for AI Intelligence Platform - uses snapshot tables
  */
 
 export async function investigateLocation(prisma, params) {
+  // First check if location exists in our reference data
   const location = await prisma.location.findFirst({
     where: { code: params.location_code },
     include: {
       zone: {
         include: { warehouse: { select: { code: true, name: true } } },
       },
-      inventory: {
-        include: {
-          product: { select: { sku: true, name: true } },
-        },
-      },
     },
   });
 
-  if (!location) {
-    return { success: false, message: `No location found with code ${params.location_code}` };
-  }
+  // Get inventory snapshots for this location
+  const snapshots = await prisma.inventorySnapshot.findMany({
+    where: { locationCode: params.location_code },
+    orderBy: { snapshotDate: 'desc' },
+  });
 
-  const recentTransactions = await prisma.inventoryTransaction.findMany({
-    where: { locationId: location.id },
-    orderBy: { createdAt: 'desc' },
-    take: 10,
-    include: {
-      product: { select: { sku: true } },
-      user: { select: { fullName: true } },
+  // Dedupe by SKU, keep most recent
+  const latestBySku = {};
+  for (const snap of snapshots) {
+    if (!latestBySku[snap.sku]) {
+      latestBySku[snap.sku] = snap;
+    }
+  }
+  const contents = Object.values(latestBySku);
+
+  // Get recent transactions for this location
+  const recentTransactions = await prisma.transactionSnapshot.findMany({
+    where: {
+      OR: [
+        { fromLocation: params.location_code },
+        { toLocation: params.location_code },
+      ],
     },
+    orderBy: { transactionDate: 'desc' },
+    take: 10,
+  });
+
+  // Get discrepancies for this location
+  const discrepancies = await prisma.discrepancy.findMany({
+    where: {
+      locationCode: params.location_code,
+      status: 'OPEN',
+    },
+  });
+
+  // Get adjustments for this location
+  const adjustments = await prisma.adjustmentSnapshot.findMany({
+    where: { locationCode: params.location_code },
+    orderBy: { adjustmentDate: 'desc' },
+    take: 10,
   });
 
   return {
     success: true,
-    location: {
+    location: location ? {
       code: location.code,
       type: location.type,
-      zone: location.zone.name,
-      warehouse: location.zone.warehouse.name,
+      zone: location.zone?.name || 'Unknown',
+      warehouse: location.zone?.warehouse?.name || 'Unknown',
       minQuantity: location.minQuantity,
       maxQuantity: location.maxQuantity,
       reorderPoint: location.reorderPoint,
       isPickable: location.isPickable,
       isReplenishable: location.isReplenishable,
+    } : {
+      code: params.location_code,
+      note: 'Location not in reference data - data from WMS snapshots only',
     },
-    contents: location.inventory.map(inv => ({
-      sku: inv.product.sku,
-      productName: inv.product.name,
+    contents: contents.map(inv => ({
+      sku: inv.sku,
       onHand: inv.quantityOnHand,
       allocated: inv.quantityAllocated,
       available: inv.quantityAvailable,
-      status: inv.status,
+      snapshotDate: inv.snapshotDate,
     })),
     recentActivity: recentTransactions.map(t => ({
-      type: t.transactionType,
-      sku: t.product.sku,
+      type: t.type,
+      sku: t.sku,
       quantity: t.quantity,
-      user: t.user?.fullName,
-      timestamp: t.createdAt,
+      direction: t.toLocation === params.location_code ? 'IN' : 'OUT',
+      timestamp: t.transactionDate,
     })),
-    needsReplenishment: location.minQuantity
-      ? location.inventory.reduce((sum, inv) => sum + inv.quantityOnHand, 0) < location.minQuantity
-      : false,
+    recentAdjustments: adjustments.map(a => ({
+      sku: a.sku,
+      quantity: a.adjustmentQty,
+      reason: a.reason,
+      date: a.adjustmentDate,
+    })),
+    discrepancies: discrepancies.map(d => ({
+      type: d.type,
+      severity: d.severity,
+      variance: d.variance,
+      description: d.description,
+    })),
+    totalOnHand: contents.reduce((sum, inv) => sum + inv.quantityOnHand, 0),
   };
 }

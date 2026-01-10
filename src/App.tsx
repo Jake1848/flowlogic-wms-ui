@@ -93,11 +93,11 @@ function AuthenticatedLayout() {
   }, [location.pathname])
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-gradient-to-br from-dark-50 via-dark-100 to-dark-50">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"
           onClick={toggleSidebar}
         />
       )}
@@ -110,7 +110,7 @@ function AuthenticatedLayout() {
         ml-0
       `}>
         <Header />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900 p-3 sm:p-4 md:p-6">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-transparent p-3 sm:p-4 md:p-6">
           {routeElement}
         </main>
       </div>
