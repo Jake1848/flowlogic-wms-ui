@@ -154,6 +154,9 @@ enum LocationType {
   QUALITY_HOLD
   DAMAGE
   RETURNS
+  FWRD          // Forward pick location (reserve-type)
+  RESERVE       // General reserve location
+  MPP           // Multi-Product Pallet location
 }
 
 model Dock {
@@ -543,6 +546,8 @@ model InventorySnapshot {
 
   sku             String
   locationCode    String
+  locationType    String?        // FWRD, RESERVE, MPP, etc.
+  licensePlate    String?        // LP/Pallet ID for tracking fragmentation
   quantityOnHand  Float
   quantityAllocated Float @default(0)
   quantityAvailable Float @default(0)
@@ -553,6 +558,7 @@ model InventorySnapshot {
 
   @@index([sku, locationCode])
   @@index([snapshotDate])
+  @@index([locationCode, licensePlate])
   @@map("inventory_snapshots")
 }
 

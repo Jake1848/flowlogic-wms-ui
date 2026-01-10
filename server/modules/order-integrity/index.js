@@ -58,7 +58,13 @@ export const ORDER_DISCREPANCY_TYPES = {
   // Transaction Integrity
   DUPLICATE_TRANSACTION: 'duplicate_transaction',
   TRANSACTION_SEQUENCE_ERROR: 'transaction_sequence_error',
-  ORPHAN_TRANSACTION: 'orphan_transaction'
+  ORPHAN_TRANSACTION: 'orphan_transaction',
+
+  // FWRD/Reserve Location Issues
+  FWRD_LP_FRAGMENTATION: 'fwrd_lp_fragmentation',       // Multiple LPs same SKU in FWRD
+  RESERVE_LP_FRAGMENTATION: 'reserve_lp_fragmentation', // Multiple LPs same SKU in reserve
+  LP_MERGE_REQUIRED: 'lp_merge_required',               // LPs should be merged
+  BOH_REDUCTION_RISK: 'boh_reduction_risk'              // At risk for incorrect BOH reduction
 };
 
 const SEVERITY = {
@@ -171,6 +177,72 @@ export function createOrderIntegrityRoutes(prisma) {
       res.json(results);
     } catch (error) {
       res.status(500).json({ error: 'Detection failed' });
+    }
+  });
+
+  // ==========================================
+  // FWRD LICENSE PLATE FRAGMENTATION DETECTION
+  // ==========================================
+
+  /**
+   * @route GET /api/intelligence/orders/fwrd/fragmentation
+   * @desc Detect FWRD locations with multiple LPs for same SKU
+   *
+   * This detects the specific issue where:
+   * - FWRD reserve locations have multiple license plates
+   * - All plates contain the SAME item/SKU
+   * - System treats each LP independently for BOH reduction
+   * - Results in inventory discrepancies (typically overages)
+   *
+   * NOTE: MPP locations with different items are NOT flagged
+   */
+  router.get('/fwrd/fragmentation', async (req, res) => {
+    try {
+      const {
+        locationTypes = 'FWRD,RESERVE',  // Types to check
+        minPlates = 2,                    // Minimum plates to flag
+        includeFinancialImpact = true
+      } = req.query;
+
+      const results = await detectFWRDFragmentation(
+        prisma,
+        locationTypes.split(','),
+        parseInt(minPlates),
+        includeFinancialImpact === 'true' || includeFinancialImpact === true
+      );
+      res.json(results);
+    } catch (error) {
+      console.error('FWRD fragmentation detection error:', error);
+      res.status(500).json({ error: 'Detection failed', details: error.message });
+    }
+  });
+
+  /**
+   * @route GET /api/intelligence/orders/fwrd/summary
+   * @desc Get summary of FWRD fragmentation issues by location
+   */
+  router.get('/fwrd/summary', async (req, res) => {
+    try {
+      const results = await getFWRDFragmentationSummary(prisma);
+      res.json(results);
+    } catch (error) {
+      console.error('FWRD summary error:', error);
+      res.status(500).json({ error: 'Summary failed', details: error.message });
+    }
+  });
+
+  /**
+   * @route POST /api/intelligence/orders/fwrd/merge-recommendations
+   * @desc Get LP merge recommendations for specific locations
+   */
+  router.post('/fwrd/merge-recommendations', async (req, res) => {
+    try {
+      const { locationCodes } = req.body;
+      const results = await getLPMergeRecommendations(prisma, locationCodes);
+      res.json(results);
+    } catch (error) {
+      console.error('Merge recommendations error:', error);
+      res.status(500).json({ error: 'Recommendations failed', details: error.message });
     }
   });
 
@@ -770,11 +842,287 @@ async function detectDuplicateTransactions(prisma, days) {
   return { findings, count: findings.length };
 }
 
+// ==========================================
+// FWRD LICENSE PLATE FRAGMENTATION DETECTION
+// ==========================================
+
+/**
+ * Detect FWRD/Reserve locations with multiple license plates for the SAME SKU
+ *
+ * This is the core detection for the fragmentation issue:
+ * - FWRD locations are reserve-type, so LPs don't merge
+ * - When same SKU has multiple LPs in one location, BOH reduction
+ *   runs against each LP independently
+ * - This causes inventory discrepancies (usually overages)
+ *
+ * MPP locations with DIFFERENT items are NOT flagged - that's expected behavior
+ *
+ * @param {PrismaClient} prisma
+ * @param {string[]} locationTypes - Location types to check (FWRD, RESERVE)
+ * @param {number} minPlates - Minimum number of plates to flag (default 2)
+ * @param {boolean} includeFinancialImpact - Calculate estimated $ impact
+ */
+async function detectFWRDFragmentation(prisma, locationTypes = ['FWRD', 'RESERVE'], minPlates = 2, includeFinancialImpact = true) {
+  const findings = [];
+
+  // Find locations with multiple LPs for SAME SKU
+  // This is the key query - we're looking for:
+  // - Same location code
+  // - Same SKU
+  // - Multiple different license plates
+  const fragmentedLocations = await prisma.$queryRawUnsafe(`
+    SELECT
+      "locationCode",
+      "locationType",
+      sku,
+      COUNT(DISTINCT "licensePlate") as plate_count,
+      ARRAY_AGG(DISTINCT "licensePlate") as license_plates,
+      SUM("quantityOnHand") as total_qty,
+      ARRAY_AGG("quantityOnHand") as qty_per_plate,
+      MAX("snapshotDate") as last_snapshot
+    FROM inventory_snapshots
+    WHERE
+      "licensePlate" IS NOT NULL
+      AND (
+        "locationType" = ANY($1)
+        OR "locationCode" LIKE 'FWRD%'
+        OR "locationCode" LIKE 'FWD%'
+      )
+    GROUP BY "locationCode", "locationType", sku
+    HAVING COUNT(DISTINCT "licensePlate") >= $2
+    ORDER BY COUNT(DISTINCT "licensePlate") DESC, SUM("quantityOnHand") DESC
+  `, locationTypes, minPlates);
+
+  // If no LP data in inventory_snapshots, try to detect from rawData
+  let results = fragmentedLocations;
+
+  if (results.length === 0) {
+    // Fallback: Check rawData JSON field for LP information
+    results = await prisma.$queryRawUnsafe(`
+      SELECT
+        "locationCode",
+        "locationType",
+        sku,
+        COUNT(*) as record_count,
+        SUM("quantityOnHand") as total_qty,
+        MAX("snapshotDate") as last_snapshot,
+        jsonb_agg(DISTINCT "rawData"->>'licensePlate') FILTER (WHERE "rawData"->>'licensePlate' IS NOT NULL) as license_plates
+      FROM inventory_snapshots
+      WHERE
+        "rawData"->>'licensePlate' IS NOT NULL
+        AND (
+          "locationType" = ANY($1)
+          OR "locationCode" LIKE 'FWRD%'
+          OR "locationCode" LIKE 'FWD%'
+        )
+      GROUP BY "locationCode", "locationType", sku
+      HAVING COUNT(DISTINCT "rawData"->>'licensePlate') >= $2
+      ORDER BY COUNT(*) DESC
+    `, locationTypes, minPlates);
+  }
+
+  // Average cost per unit for financial impact (configurable)
+  const AVG_UNIT_COST = 25.00;
+  // Estimated error rate when BOH reduction hits fragmented LPs
+  const FRAGMENTATION_ERROR_RATE = 0.15; // 15% of transactions cause issues
+
+  for (const loc of results) {
+    const plateCount = Number(loc.plate_count || loc.record_count || 0);
+    const totalQty = Number(loc.total_qty || 0);
+    const plates = loc.license_plates || [];
+
+    // Calculate risk level based on plate count
+    let severity = SEVERITY.MEDIUM;
+    if (plateCount >= 4) {
+      severity = SEVERITY.CRITICAL;
+    } else if (plateCount >= 3) {
+      severity = SEVERITY.HIGH;
+    }
+
+    // Estimate financial impact
+    let financialImpact = null;
+    if (includeFinancialImpact) {
+      // Each fragmented LP increases risk of incorrect BOH reduction
+      // More plates = more chances for system to reduce from wrong LP
+      const estimatedErrorsPerMonth = totalQty * FRAGMENTATION_ERROR_RATE * (plateCount - 1);
+      const monthlyImpact = estimatedErrorsPerMonth * AVG_UNIT_COST;
+      const yearlyImpact = monthlyImpact * 12;
+
+      financialImpact = {
+        estimatedErrorsPerMonth: Math.round(estimatedErrorsPerMonth),
+        monthlyImpact: Math.round(monthlyImpact * 100) / 100,
+        yearlyImpact: Math.round(yearlyImpact * 100) / 100,
+        assumptions: {
+          avgUnitCost: AVG_UNIT_COST,
+          errorRate: FRAGMENTATION_ERROR_RATE,
+          calculation: 'totalQty * errorRate * (plateCount - 1) * avgCost'
+        }
+      };
+    }
+
+    findings.push({
+      type: ORDER_DISCREPANCY_TYPES.FWRD_LP_FRAGMENTATION,
+      severity,
+      locationCode: loc.locationCode,
+      locationType: loc.locationType || 'FWRD',
+      sku: loc.sku,
+      plateCount,
+      licensePlates: plates,
+      totalQuantity: totalQty,
+      quantityPerPlate: loc.qty_per_plate || [],
+      lastSnapshot: loc.last_snapshot,
+      description: `FWRD location ${loc.locationCode} has ${plateCount} license plates for SKU ${loc.sku}. ` +
+        `Total qty: ${totalQty}. Each LP treated independently for BOH reduction - HIGH RISK for inventory discrepancies.`,
+      rootCauseCategory: 'LP_FRAGMENTATION',
+      recommendation: `Merge ${plateCount} license plates into single LP to prevent BOH reduction errors. ` +
+        `Plates to merge: ${plates.slice(0, 5).join(', ')}${plates.length > 5 ? '...' : ''}`,
+      financialImpact,
+      evidence: {
+        locationCode: loc.locationCode,
+        sku: loc.sku,
+        plateCount,
+        plates,
+        totalQty,
+        issueType: 'SAME_SKU_MULTIPLE_PLATES',
+        systemBehavior: 'BOH reduction runs against each LP independently',
+        expectedResult: 'Inventory discrepancies, typically overages on physical count'
+      }
+    });
+  }
+
+  // Calculate summary statistics
+  const summary = {
+    totalLocationsAffected: findings.length,
+    totalPlatesFragmented: findings.reduce((sum, f) => sum + f.plateCount, 0),
+    criticalLocations: findings.filter(f => f.severity === SEVERITY.CRITICAL).length,
+    highRiskLocations: findings.filter(f => f.severity === SEVERITY.HIGH).length,
+    estimatedYearlyImpact: includeFinancialImpact
+      ? findings.reduce((sum, f) => sum + (f.financialImpact?.yearlyImpact || 0), 0)
+      : null
+  };
+
+  return {
+    findings,
+    count: findings.length,
+    summary,
+    analysisNote: 'Only flagging locations where SAME SKU has multiple LPs. MPP with different items is expected behavior.'
+  };
+}
+
+/**
+ * Get summary of FWRD fragmentation issues grouped by location
+ */
+async function getFWRDFragmentationSummary(prisma) {
+  // Get high-level stats
+  const stats = await prisma.$queryRawUnsafe(`
+    SELECT
+      "locationType",
+      COUNT(DISTINCT "locationCode") as location_count,
+      COUNT(DISTINCT sku) as sku_count,
+      SUM("quantityOnHand") as total_inventory
+    FROM inventory_snapshots
+    WHERE
+      "locationType" = ANY($1)
+      OR "locationCode" LIKE 'FWRD%'
+      OR "locationCode" LIKE 'FWD%'
+    GROUP BY "locationType"
+  `, ['FWRD', 'RESERVE']);
+
+  // Get fragmentation stats
+  const fragmentation = await detectFWRDFragmentation(prisma, ['FWRD', 'RESERVE'], 2, true);
+
+  return {
+    locationStats: stats,
+    fragmentation: fragmentation.summary,
+    topIssues: fragmentation.findings.slice(0, 10),
+    recommendations: [
+      'Implement LP merge process for FWRD locations',
+      'Consider system configuration change to auto-merge LPs in FWRD',
+      'Validate Manhattan system handles this differently before migration',
+      'Track BOH adjustments by location to quantify actual impact'
+    ]
+  };
+}
+
+/**
+ * Get specific merge recommendations for given locations
+ */
+async function getLPMergeRecommendations(prisma, locationCodes = []) {
+  const recommendations = [];
+
+  for (const locationCode of locationCodes) {
+    // Get all inventory records for this location
+    const inventory = await prisma.inventorySnapshot.findMany({
+      where: {
+        locationCode,
+        licensePlate: { not: null }
+      },
+      orderBy: [
+        { sku: 'asc' },
+        { quantityOnHand: 'desc' }
+      ]
+    });
+
+    // Group by SKU
+    const skuGroups = {};
+    for (const inv of inventory) {
+      if (!skuGroups[inv.sku]) {
+        skuGroups[inv.sku] = [];
+      }
+      skuGroups[inv.sku].push(inv);
+    }
+
+    // Generate merge recommendations for SKUs with multiple LPs
+    for (const [sku, records] of Object.entries(skuGroups)) {
+      if (records.length >= 2) {
+        const totalQty = records.reduce((sum, r) => sum + r.quantityOnHand, 0);
+        const plates = records.map(r => r.licensePlate);
+
+        // Recommend merging into the LP with highest quantity
+        const targetLP = records[0].licensePlate;
+        const sourceLPs = plates.slice(1);
+
+        recommendations.push({
+          locationCode,
+          sku,
+          action: 'MERGE_LICENSE_PLATES',
+          targetLP,
+          sourceLPs,
+          totalQuantity: totalQty,
+          plateCount: records.length,
+          priority: records.length >= 4 ? 'CRITICAL' : records.length >= 3 ? 'HIGH' : 'MEDIUM',
+          steps: [
+            `Navigate to location ${locationCode}`,
+            `Identify LP ${targetLP} (primary - ${records[0].quantityOnHand} units)`,
+            `Merge inventory from LPs: ${sourceLPs.join(', ')}`,
+            `Verify total quantity: ${totalQty} units`,
+            `Update system to reflect single LP`
+          ],
+          estimatedTime: `${5 + (records.length * 2)} minutes`,
+          note: 'Merging will prevent BOH reduction errors from LP fragmentation'
+        });
+      }
+    }
+  }
+
+  return {
+    recommendations,
+    totalMergesNeeded: recommendations.length,
+    estimatedTotalTime: recommendations.reduce((sum, r) => {
+      const mins = parseInt(r.estimatedTime);
+      return sum + (isNaN(mins) ? 10 : mins);
+    }, 0) + ' minutes'
+  };
+}
+
 export {
   detectDoubleBOMConsumption,
   auditOrders,
   detectUnpostedReceipts,
   detectPODiscrepancies,
   detectSystematicOverages,
-  detectDuplicateTransactions
+  detectDuplicateTransactions,
+  detectFWRDFragmentation,
+  getFWRDFragmentationSummary,
+  getLPMergeRecommendations
 };
