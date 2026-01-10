@@ -22,13 +22,13 @@ interface NavItem {
 }
 
 const navigation: NavItem[] = [
-  { name: 'Intelligence Hub', path: '/intelligence', icon: Brain },
+  { name: 'Intelligence Hub', path: '/', icon: Brain },
   { name: 'AI Alerts', path: '/alerts', icon: AlertTriangle, badge: 3 },
-  { name: 'Demand Forecasting', path: '/forecasting', icon: TrendingUp },
-  { name: 'Analytics', path: '/analytics', icon: BarChart3 },
+  { name: 'Demand Forecasting', path: '/forecast', icon: TrendingUp },
+  { name: 'Cost Analytics', path: '/costanalytics', icon: BarChart3 },
   { name: 'Reports', path: '/reports', icon: FileText },
   { name: 'Integrations', path: '/integrations', icon: Database },
-  { name: 'System Health', path: '/system-health', icon: Activity },
+  { name: 'System Health', path: '/systemhealth', icon: Activity },
   { name: 'Settings', path: '/settings', icon: Settings },
 ]
 
