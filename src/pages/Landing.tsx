@@ -155,7 +155,7 @@ const Landing = () => {
               <img
                 src="/assets/flowlogic_refined_logo_v2.png"
                 alt="FlowLogic"
-                className="w-8 h-8 rounded-lg object-contain"
+                className="w-10 h-10 object-contain"
               />
               <span className="text-xl font-bold">FlowLogic</span>
             </div>
@@ -217,11 +217,11 @@ const Landing = () => {
             className="text-center"
           >
             {/* Hero Logo */}
-            <div className="mb-6">
+            <div className="mb-8">
               <img
                 src="/assets/flowlogic_refined_logo_v2.png"
                 alt="FlowLogic"
-                className="w-24 h-24 mx-auto object-contain"
+                className="w-40 h-40 sm:w-48 sm:h-48 mx-auto object-contain"
               />
             </div>
 
