@@ -219,7 +219,7 @@ const Landing = () => {
             {/* Hero Logo */}
             <div className="mb-8">
               <img
-                src="/assets/flowlogic_refined_logo_v2.png"
+                src="/assets/FlowLogicLogoNoText.png"
                 alt="FlowLogic"
                 className="w-40 h-40 sm:w-48 sm:h-48 mx-auto object-contain"
               />
