@@ -13,7 +13,11 @@
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:debug": "playwright test --debug"
+    "test:e2e:debug": "playwright test --debug",
+    "db:seed": "node server/prisma/seed.js",
+    "db:generate": "node server/prisma/generate-realistic-data.js",
+    "db:generate:large": "node server/prisma/generate-realistic-data.js --large",
+    "db:seed-trial": "node server/prisma/seed-trial.js"
   },
   "dependencies": {
     "@tailwindcss/forms": "^0.5.10",

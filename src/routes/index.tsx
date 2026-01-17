@@ -17,6 +17,9 @@ const Landing = lazy(() => import('../pages/Landing'))
 const Register = lazy(() => import('../pages/Register'))
 const Terms = lazy(() => import('../pages/Terms'))
 const Privacy = lazy(() => import('../pages/Privacy'))
+const ForgotPassword = lazy(() => import('../pages/ForgotPassword'))
+const ResetPassword = lazy(() => import('../pages/ResetPassword'))
+const NotFound = lazy(() => import('../pages/NotFound'))
 
 // AI Intelligence Platform pages - Using Modern UI
 const IntelligenceDashboard = lazy(() => import('../pages/ModernIntelligenceDashboard'))
@@ -47,6 +50,8 @@ export const publicRoutes: RouteObject[] = [
   { path: '/setup', element: withSuspense(Setup) },
   { path: '/terms', element: withSuspense(Terms) },
   { path: '/privacy', element: withSuspense(Privacy) },
+  { path: '/forgot-password', element: withSuspense(ForgotPassword) },
+  { path: '/reset-password', element: withSuspense(ResetPassword) },
 ]
 
 // Protected routes (authentication required) - AI Intelligence Platform
@@ -79,8 +84,8 @@ export const protectedRoutes: RouteObject[] = [
 export const routes: RouteObject[] = [
   ...publicRoutes,
   ...protectedRoutes,
-  // Catch-all route redirects to intelligence dashboard
-  { path: '*', element: withSuspense(IntelligenceDashboard) },
+  // Catch-all route shows 404 page
+  { path: '*', element: withSuspense(NotFound) },
 ]
 
 // Page ID to path mapping for navigation

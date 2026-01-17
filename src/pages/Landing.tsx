@@ -18,11 +18,9 @@ import {
   ArrowRight,
   Play,
   Star,
-  Building2,
   Package,
   DollarSign,
   Clock,
-  ChevronRight,
   Menu,
   X
 } from 'lucide-react';
@@ -68,15 +66,6 @@ const Landing = () => {
       description: 'Auto-generated reports with financial impact analysis for leadership and stakeholders.',
       color: 'from-violet-500 to-purple-500'
     }
-  ];
-
-  const integrations = [
-    { name: 'SAP EWM', logo: '/integrations/sap.svg' },
-    { name: 'Manhattan', logo: '/integrations/manhattan.svg' },
-    { name: 'Blue Yonder', logo: '/integrations/blueyonder.svg' },
-    { name: 'Oracle WMS', logo: '/integrations/oracle.svg' },
-    { name: 'Infor WMS', logo: '/integrations/infor.svg' },
-    { name: 'Custom API', logo: '/integrations/api.svg' }
   ];
 
   const stats = [

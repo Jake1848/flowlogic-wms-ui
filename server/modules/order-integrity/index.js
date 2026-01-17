@@ -64,7 +64,12 @@ export const ORDER_DISCREPANCY_TYPES = {
   FWRD_LP_FRAGMENTATION: 'fwrd_lp_fragmentation',       // Multiple LPs same SKU in FWRD
   RESERVE_LP_FRAGMENTATION: 'reserve_lp_fragmentation', // Multiple LPs same SKU in reserve
   LP_MERGE_REQUIRED: 'lp_merge_required',               // LPs should be merged
-  BOH_REDUCTION_RISK: 'boh_reduction_risk'              // At risk for incorrect BOH reduction
+  BOH_REDUCTION_RISK: 'boh_reduction_risk',             // At risk for incorrect BOH reduction
+
+  // Parameter Mismatch Issues (systematic overages)
+  PARAMETER_MISMATCH_OVERAGE: 'parameter_mismatch_overage',  // Target Order Min not divisible by Shelf Pack
+  SHELF_PACK_ROUNDING: 'shelf_pack_rounding',                // Rounding creates systematic overage
+  REPLENISHMENT_OVERAGE: 'replenishment_overage'             // Replenishment logic causing overage
 };
 
 const SEVERITY = {
@@ -243,6 +248,59 @@ export function createOrderIntegrityRoutes(prisma) {
     } catch (error) {
       console.error('Merge recommendations error:', error);
       res.status(500).json({ error: 'Recommendations failed', details: error.message });
+    }
+  });
+
+  // ==========================================
+  // PARAMETER MISMATCH / SYSTEMATIC OVERAGE DETECTION
+  // ==========================================
+
+  /**
+   * @route GET /api/intelligence/orders/parameter-mismatch
+   * @desc Detect items where Target Order Min is not divisible by Shelf Pack
+   *
+   * This detects the specific systematic overage issue where:
+   * - Target Order Minimum (e.g., 8) is not divisible by Shelf Pack (e.g., 3)
+   * - Forces rounding up: 8 ÷ 3 = 2.67 → 3 shelf packs = 9 units
+   * - Creates systematic 1-unit overage per replenishment cycle
+   * - Accumulates over time into significant inventory discrepancies
+   *
+   * Example: Item 451915 (CE MAX RED RELIEF SIZE .5Z)
+   * - Target Order Min: 8, Shelf Pack: 3
+   * - 8 ÷ 3 = 2.67 (not whole number) → rounds to 3 packs = 9 units
+   * - Overage per cycle: 1 unit
+   */
+  router.get('/parameter-mismatch', async (req, res) => {
+    try {
+      const {
+        includeFinancialImpact = true,
+        includeRecommendations = true
+      } = req.query;
+
+      const results = await detectParameterMismatch(
+        prisma,
+        includeFinancialImpact === 'true' || includeFinancialImpact === true,
+        includeRecommendations === 'true' || includeRecommendations === true
+      );
+      res.json(results);
+    } catch (error) {
+      console.error('Parameter mismatch detection error:', error);
+      res.status(500).json({ error: 'Detection failed', details: error.message });
+    }
+  });
+
+  /**
+   * @route GET /api/intelligence/orders/parameter-mismatch/:sku
+   * @desc Analyze a specific SKU for parameter mismatch issues
+   */
+  router.get('/parameter-mismatch/:sku', async (req, res) => {
+    try {
+      const { sku } = req.params;
+      const results = await analyzeSkuParameters(prisma, sku);
+      res.json(results);
+    } catch (error) {
+      console.error('SKU parameter analysis error:', error);
+      res.status(500).json({ error: 'Analysis failed', details: error.message });
     }
   });
 
@@ -1115,6 +1173,282 @@ async function getLPMergeRecommendations(prisma, locationCodes = []) {
   };
 }
 
+// ==========================================
+// PARAMETER MISMATCH DETECTION
+// Detects when Target Order Min is not divisible by Shelf Pack
+// ==========================================
+
+/**
+ * Detect items where Target Order Minimum is not divisible by Shelf Pack
+ *
+ * This creates systematic overages because:
+ * - Target Order Min (e.g., 8) forces minimum replenishment quantity
+ * - Shelf Pack (e.g., 3) is the physical picking unit
+ * - If 8 ÷ 3 = 2.67 (not whole), system rounds UP to 3 packs = 9 units
+ * - Creates 1-unit overage per replenishment cycle
+ * - Accumulates into significant inventory discrepancies over time
+ *
+ * @param {PrismaClient} prisma
+ * @param {boolean} includeFinancialImpact - Calculate estimated $ impact
+ * @param {boolean} includeRecommendations - Include fix recommendations
+ */
+async function detectParameterMismatch(prisma, includeFinancialImpact = true, includeRecommendations = true) {
+  const findings = [];
+
+  // Get all items with parameter data
+  const items = await prisma.itemParameter.findMany({
+    where: {
+      isActive: true,
+      shelfPack: { gt: 0 },
+      targetOrderMin: { not: null }
+    }
+  });
+
+  for (const item of items) {
+    const { sku, description, category, shelfPack, casePack, targetOrderMin, unitCost, demandData } = item;
+
+    // Skip if targetOrderMin is null or 0
+    if (!targetOrderMin || targetOrderMin === 0) continue;
+
+    // Check divisibility: Target Order Min ÷ Shelf Pack
+    const ratio = targetOrderMin / shelfPack;
+    const isAligned = Number.isInteger(ratio);
+
+    if (!isAligned) {
+      // Calculate the rounding overage
+      const roundedPacks = Math.ceil(ratio);
+      const roundedUnits = roundedPacks * shelfPack;
+      const overagePerCycle = roundedUnits - targetOrderMin;
+      const roundingPercentage = ((roundedUnits - targetOrderMin) / targetOrderMin) * 100;
+
+      // Determine severity based on overage amount and frequency potential
+      let severity = SEVERITY.MEDIUM;
+      if (roundingPercentage >= 20) {
+        severity = SEVERITY.CRITICAL;
+      } else if (roundingPercentage >= 10) {
+        severity = SEVERITY.HIGH;
+      }
+
+      // Calculate financial impact
+      let financialImpact = null;
+      if (includeFinancialImpact) {
+        const avgCost = unitCost || 25.00; // Default cost if not specified
+        // Estimate replenishments per month based on demand data or default
+        const replenishmentsPerMonth = demandData?.avgReplenishmentsPerMonth || 12;
+
+        const monthlyOverageUnits = overagePerCycle * replenishmentsPerMonth;
+        const monthlyImpact = monthlyOverageUnits * avgCost;
+        const yearlyImpact = monthlyImpact * 12;
+
+        financialImpact = {
+          overagePerCycle,
+          replenishmentsPerMonth,
+          monthlyOverageUnits,
+          monthlyImpact: Math.round(monthlyImpact * 100) / 100,
+          yearlyImpact: Math.round(yearlyImpact * 100) / 100,
+          assumptions: {
+            unitCost: avgCost,
+            replenishmentsPerMonth,
+            calculation: 'overagePerCycle * replenishmentsPerMonth * 12 * unitCost'
+          }
+        };
+      }
+
+      // Generate recommendations
+      let recommendations = null;
+      if (includeRecommendations) {
+        // Find the nearest shelf pack multiples
+        const lowerMultiple = Math.floor(ratio) * shelfPack;
+        const upperMultiple = roundedPacks * shelfPack;
+
+        recommendations = {
+          primary: {
+            action: `Change Target Order Min from ${targetOrderMin} to ${upperMultiple}`,
+            rationale: `${upperMultiple} ÷ ${shelfPack} = ${roundedPacks} shelf packs exactly`,
+            impact: 'Eliminates rounding overage, minimal operational change (+${overagePerCycle} units)',
+            risk: 'Low'
+          },
+          alternative: lowerMultiple > 0 ? {
+            action: `Change Target Order Min from ${targetOrderMin} to ${lowerMultiple}`,
+            rationale: `${lowerMultiple} ÷ ${shelfPack} = ${Math.floor(ratio)} shelf packs exactly`,
+            impact: 'Reduces minimum quantity, may increase replenishment frequency',
+            risk: 'Low-Medium'
+          } : null,
+          otherOptions: [
+            {
+              action: `Change Shelf Pack from ${shelfPack} to a factor of ${targetOrderMin}`,
+              rationale: `Requires vendor repackaging - complex and costly`,
+              risk: 'High - not recommended'
+            }
+          ]
+        };
+      }
+
+      findings.push({
+        type: ORDER_DISCREPANCY_TYPES.PARAMETER_MISMATCH_OVERAGE,
+        severity,
+        sku,
+        description: description || 'Unknown Item',
+        category: category || 'Unknown',
+        parameters: {
+          targetOrderMin,
+          shelfPack,
+          casePack: casePack || null,
+          ratio: Math.round(ratio * 100) / 100,
+          isAligned: false
+        },
+        issue: {
+          calculation: `${targetOrderMin} ÷ ${shelfPack} = ${ratio.toFixed(2)} (not a whole number)`,
+          roundedTo: `${roundedPacks} shelf packs = ${roundedUnits} units`,
+          overagePerCycle,
+          roundingPercentage: Math.round(roundingPercentage * 10) / 10
+        },
+        rootCause: 'Target Order Minimum is not divisible by Shelf Pack, forcing systematic rounding overage',
+        mechanism: 'When replenishment triggers at minimum quantity, system rounds up to next whole shelf pack, creating overage each cycle',
+        financialImpact,
+        recommendations,
+        evidence: {
+          targetOrderMin,
+          shelfPack,
+          divisionResult: ratio,
+          roundedPacks,
+          roundedUnits,
+          overagePerCycle,
+          isSystematic: true,
+          accumulates: true
+        }
+      });
+    }
+  }
+
+  // Sort by severity and financial impact
+  findings.sort((a, b) => {
+    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    const aSev = severityOrder[a.severity] || 3;
+    const bSev = severityOrder[b.severity] || 3;
+    if (aSev !== bSev) return aSev - bSev;
+    return (b.financialImpact?.yearlyImpact || 0) - (a.financialImpact?.yearlyImpact || 0);
+  });
+
+  // Calculate summary
+  const summary = {
+    totalItemsAffected: findings.length,
+    criticalItems: findings.filter(f => f.severity === SEVERITY.CRITICAL).length,
+    highRiskItems: findings.filter(f => f.severity === SEVERITY.HIGH).length,
+    totalYearlyOverageUnits: includeFinancialImpact
+      ? findings.reduce((sum, f) => sum + (f.financialImpact?.monthlyOverageUnits || 0) * 12, 0)
+      : null,
+    estimatedYearlyImpact: includeFinancialImpact
+      ? findings.reduce((sum, f) => sum + (f.financialImpact?.yearlyImpact || 0), 0)
+      : null
+  };
+
+  return {
+    findings,
+    count: findings.length,
+    summary,
+    analysisNote: 'Detecting items where Target Order Min is not divisible by Shelf Pack. This causes systematic rounding overages during replenishment.'
+  };
+}
+
+/**
+ * Analyze a specific SKU for parameter mismatch issues
+ * Provides detailed analysis similar to the report format
+ */
+async function analyzeSkuParameters(prisma, sku) {
+  // Get item parameters
+  const item = await prisma.itemParameter.findUnique({
+    where: { sku }
+  });
+
+  if (!item) {
+    return {
+      sku,
+      found: false,
+      message: 'Item not found in parameter database'
+    };
+  }
+
+  const { description, category, shelfPack, casePack, innerPack, palletQty, targetOrderMin, maxStoreOrder, unitCost, demandData } = item;
+
+  // Parameter alignment check
+  const parameterCheck = {
+    targetOrderMin: targetOrderMin ? {
+      value: targetOrderMin,
+      divisibleByShelfPack: shelfPack ? Number.isInteger(targetOrderMin / shelfPack) : null,
+      shelfPacksNeeded: shelfPack ? (targetOrderMin / shelfPack).toFixed(2) : null
+    } : null,
+    shelfPack: { value: shelfPack, baseUnit: true },
+    casePack: casePack ? {
+      value: casePack,
+      divisibleByShelfPack: shelfPack ? Number.isInteger(casePack / shelfPack) : null,
+      shelfPacksPerCase: shelfPack ? (casePack / shelfPack).toFixed(2) : null
+    } : null,
+    maxStoreOrder: maxStoreOrder ? {
+      value: maxStoreOrder,
+      divisibleByCasePack: casePack ? Number.isInteger(maxStoreOrder / casePack) : null,
+      casesNeeded: casePack ? (maxStoreOrder / casePack).toFixed(2) : null
+    } : null
+  };
+
+  // Identify the issue
+  let hasIssue = false;
+  let issueDetails = null;
+
+  if (targetOrderMin && shelfPack && !Number.isInteger(targetOrderMin / shelfPack)) {
+    hasIssue = true;
+    const ratio = targetOrderMin / shelfPack;
+    const roundedPacks = Math.ceil(ratio);
+    const roundedUnits = roundedPacks * shelfPack;
+    const overage = roundedUnits - targetOrderMin;
+
+    issueDetails = {
+      problem: 'Target Order Minimum not divisible by Shelf Pack',
+      calculation: `${targetOrderMin} ÷ ${shelfPack} = ${ratio.toFixed(2)}`,
+      systemBehavior: `System rounds up to ${roundedPacks} shelf packs = ${roundedUnits} units`,
+      overagePerCycle: overage,
+      mechanism: 'Each replenishment cycle creates a systematic overage that accumulates over time',
+      solutions: [
+        {
+          option: 1,
+          change: `Target Order Min: ${targetOrderMin} → ${roundedUnits}`,
+          result: `${roundedUnits} ÷ ${shelfPack} = ${roundedPacks} shelf packs exactly`,
+          risk: 'Low - increases minimum by only ${overage} unit(s)'
+        },
+        {
+          option: 2,
+          change: `Target Order Min: ${targetOrderMin} → ${Math.floor(ratio) * shelfPack}`,
+          result: `${Math.floor(ratio) * shelfPack} ÷ ${shelfPack} = ${Math.floor(ratio)} shelf packs exactly`,
+          risk: 'Low-Medium - reduces minimum, may increase replenishment frequency'
+        }
+      ]
+    };
+  }
+
+  return {
+    sku,
+    found: true,
+    description,
+    category,
+    parameters: {
+      shelfPack,
+      casePack,
+      innerPack,
+      palletQty,
+      targetOrderMin,
+      maxStoreOrder,
+      unitCost
+    },
+    parameterCheck,
+    hasIssue,
+    issueDetails,
+    demandData: demandData || null,
+    recommendation: hasIssue
+      ? `Change Target Order Min from ${targetOrderMin} to ${Math.ceil(targetOrderMin / shelfPack) * shelfPack} to eliminate systematic overage`
+      : 'No parameter mismatch detected'
+  };
+}
+
 export {
   detectDoubleBOMConsumption,
   auditOrders,
@@ -1124,5 +1458,7 @@ export {
   detectDuplicateTransactions,
   detectFWRDFragmentation,
   getFWRDFragmentationSummary,
-  getLPMergeRecommendations
+  getLPMergeRecommendations,
+  detectParameterMismatch,
+  analyzeSkuParameters
 };

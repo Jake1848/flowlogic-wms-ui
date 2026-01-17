@@ -8,7 +8,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Brain,
   Mail,
   Lock,
   User,
@@ -168,9 +167,11 @@ const Register = () => {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 p-12 flex-col justify-between">
         <div>
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-              <Brain className="w-6 h-6 text-white" />
-            </div>
+            <img
+              src="/assets/flowlogic_refined_logo_v2.png"
+              alt="FlowLogic"
+              className="w-10 h-10 rounded-xl object-cover"
+            />
             <span className="text-2xl font-bold text-white">FlowLogic</span>
           </Link>
         </div>
@@ -211,9 +212,11 @@ const Register = () => {
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <Brain className="w-6 h-6 text-white" />
-            </div>
+            <img
+              src="/assets/flowlogic_refined_logo_v2.png"
+              alt="FlowLogic"
+              className="w-10 h-10 rounded-xl object-cover"
+            />
             <span className="text-2xl font-bold text-white">FlowLogic</span>
           </div>
 

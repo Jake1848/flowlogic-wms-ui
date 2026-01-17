@@ -731,3 +731,43 @@ model ScheduledReport {
 
   @@map("scheduled_reports")
 }
+
+// ============================================
+// ITEM PARAMETERS (For systematic issue detection)
+// ============================================
+
+model ItemParameter {
+  id              String   @id @default(uuid())
+  sku             String   @unique
+  description     String?
+  category        String?
+
+  // Pack configuration
+  shelfPack       Int      @default(1)      // Units per shelf pack
+  casePack        Int      @default(1)      // Units per case
+  innerPack       Int?                       // Units per inner pack
+  palletQty       Int?                       // Units per pallet
+
+  // Order parameters
+  targetOrderMin  Int?                       // Minimum order quantity
+  maxStoreOrder   Int?                       // Maximum store order
+  reorderPoint    Int?                       // Reorder trigger point
+  safetyStock     Int?                       // Safety stock level
+
+  // Costs
+  unitCost        Float?                     // Unit cost for impact calculation
+  vendorCost      Float?                     // Cost from vendor
+
+  // Status
+  isActive        Boolean  @default(true)
+  lastUpdated     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Store demand analysis data
+  demandData      Json?                      // Store order patterns, daily demand stats
+
+  @@index([category])
+  @@index([isActive])
+  @@map("item_parameters")
+}

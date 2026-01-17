@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Brain, Lock, Mail, Sparkles, ArrowRight } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Lock, Mail, ArrowRight } from 'lucide-react'
 import { GlassCard } from '../components/ui/glass-card'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -43,13 +43,12 @@ export default function ModernLogin() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-4">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-accent-purple to-accent-pink rounded-2xl blur-2xl opacity-75 animate-pulse" />
-              <div className="relative p-4 bg-gradient-to-br from-accent-purple to-accent-pink rounded-2xl shadow-neon">
-                <Brain className="w-12 h-12 text-white animate-float" />
-              </div>
-              <div className="absolute -top-2 -right-2 p-1.5 bg-emerald-500 rounded-full border-2 border-dark-50 animate-pulse">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
+              <div className="absolute inset-0 bg-gradient-to-br from-accent-purple to-accent-pink rounded-2xl blur-2xl opacity-50 animate-pulse" />
+              <img
+                src="/assets/flowlogic_refined_logo_v2.png"
+                alt="FlowLogic"
+                className="relative w-20 h-20 rounded-2xl object-cover shadow-neon animate-float"
+              />
             </div>
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent mb-2">
@@ -114,9 +113,9 @@ export default function ModernLogin() {
                   <input type="checkbox" className="w-4 h-4 rounded border-white/20 bg-white/5 text-accent-purple focus:ring-accent-purple focus:ring-offset-0" />
                   <span>Remember me</span>
                 </label>
-                <a href="#" className="text-accent-purple hover:text-accent-pink transition-colors">
+                <Link to="/forgot-password" className="text-accent-purple hover:text-accent-pink transition-colors">
                   Forgot password?
-                </a>
+                </Link>
               </div>
 
               {/* Submit Button */}
@@ -138,7 +137,10 @@ export default function ModernLogin() {
           {/* Footer */}
           <div className="px-8 py-6 bg-white/5 border-t border-white/10">
             <p className="text-center text-sm text-white/60">
-              Demo credentials: admin / admin123
+              Don't have an account?{' '}
+              <Link to="/register" className="text-accent-purple hover:text-accent-pink transition-colors font-medium">
+                Start free trial
+              </Link>
             </p>
           </div>
         </GlassCard>

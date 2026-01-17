@@ -1,4 +1,4 @@
-import { Bell, User, Menu, Brain, LogOut, Settings } from 'lucide-react'
+import { Bell, User, Menu, LogOut, Settings } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWMSStore } from '../store/useWMSStore'
@@ -47,9 +47,11 @@ export default function Header() {
 
           {/* Logo and title */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-accent-purple to-accent-pink flex items-center justify-center shadow-neon">
-              <Brain className="w-5 h-5 text-white" />
-            </div>
+            <img
+              src="/assets/flowlogic_refined_logo_v2.png"
+              alt="FlowLogic"
+              className="w-9 h-9 rounded-lg object-cover shadow-neon"
+            />
             <div className="hidden sm:block">
               <h1 className="text-lg font-bold text-white">
                 FlowLogic AI

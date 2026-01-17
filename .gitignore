@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# Environment files - NEVER commit these
+.env
+.env.local
+.env.production
+.env.*.local
+server/.env
+server/.env.local
+server/.env.production
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,4 +31,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Ignore screenshots but allow logo assets
 *.jpg
+!public/assets/*.png
+!public/assets/*.ico

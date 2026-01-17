@@ -601,7 +601,7 @@ app.post('/api/chat', authMiddleware, aiLimiter, async (req, res) => {
 });
 
 // Execute a specific action
-app.post('/api/actions/execute', async (req, res) => {
+app.post('/api/actions/execute', authMiddleware, async (req, res) => {
   const { action, params } = req.body;
 
   if (!action) {
@@ -621,7 +621,7 @@ app.post('/api/actions/execute', async (req, res) => {
 });
 
 // Clear conversation history
-app.delete('/api/chat/:sessionId', (req, res) => {
+app.delete('/api/chat/:sessionId', authMiddleware, (req, res) => {
   const { sessionId } = req.params;
   conversations.delete(sessionId);
   res.json({ success: true, message: 'Conversation cleared' });

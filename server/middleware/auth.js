@@ -49,6 +49,11 @@ export function authMiddleware(req, res, next) {
   const publicPaths = [
     '/api/auth/login',
     '/api/auth/register',
+    '/api/auth/signup',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password',
+    '/api/billing/webhook',
+    '/api/billing/plans',
     '/api/health',
   ];
 

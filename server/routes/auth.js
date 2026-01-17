@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { generateToken } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import emailService from '../services/email.js';
+import { seedTrialData } from '../prisma/seed-trial.js';
 
 export default function authRoutes(prisma) {
   const router = Router();
@@ -498,13 +499,21 @@ export default function authRoutes(prisma) {
       data: {
         code: companyCode,
         name: companyName,
-        settings: {
-          companySize,
-          plan: 'trial',
-          trialStartedAt: new Date().toISOString(),
-          trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        },
       },
+    });
+
+    // Store trial settings in SystemSetting
+    const trialStartedAt = new Date().toISOString();
+    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+    await prisma.systemSetting.createMany({
+      data: [
+        { key: `company.${company.id}.plan`, value: 'trial', category: 'billing' },
+        { key: `company.${company.id}.companySize`, value: companySize || 'unknown', category: 'billing' },
+        { key: `company.${company.id}.trialStartedAt`, value: trialStartedAt, category: 'billing' },
+        { key: `company.${company.id}.trialEndsAt`, value: trialEndsAt, category: 'billing' },
+      ],
+      skipDuplicates: true,
     });
 
     // Create default warehouse
@@ -567,6 +576,11 @@ export default function authRoutes(prisma) {
     } catch (error) {
       console.error('Failed to send welcome email:', error);
     }
+
+    // Seed demo data for trial account (async, don't block response)
+    seedTrialData(company.id).catch((error) => {
+      console.error('Failed to seed trial data:', error);
+    });
 
     // Generate token
     const token = generateToken(user);

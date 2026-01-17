@@ -7,7 +7,6 @@ import {
   FileText,
   Database,
   Settings,
-  Sparkles,
   Zap,
   Activity,
   X
@@ -62,16 +61,14 @@ export default function ModernSidebar({ isOpen, onClose }: ModernSidebarProps) {
         <div className="relative px-6 py-6 border-b border-white/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {/* Animated logo */}
+              {/* Logo */}
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-accent-purple to-accent-pink rounded-xl blur-lg opacity-75 animate-pulse-slow" />
-                <div className="relative p-2.5 bg-gradient-to-br from-accent-purple to-accent-pink rounded-xl shadow-neon">
-                  <Brain className="w-7 h-7 text-white" />
-                </div>
-                {/* AI indicator */}
-                <div className="absolute -top-1 -right-1 p-1 bg-emerald-500 rounded-full border-2 border-dark-50 animate-pulse">
-                  <Sparkles className="w-3 h-3 text-white" />
-                </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-accent-purple to-accent-pink rounded-xl blur-lg opacity-50 animate-pulse-slow" />
+                <img
+                  src="/assets/flowlogic_refined_logo_v2.png"
+                  alt="FlowLogic"
+                  className="relative w-11 h-11 rounded-xl object-cover shadow-neon"
+                />
               </div>
 
               <div>
