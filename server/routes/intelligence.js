@@ -783,6 +783,200 @@ export default function createIntelligenceRoutes(prisma) {
   });
 
   // ==========================================
+  // EXPORT ENDPOINTS
+  // ==========================================
+
+  /**
+   * Export discrepancies as CSV
+   */
+  router.get('/export/discrepancies', async (req, res) => {
+    try {
+      const { status, severity, type, startDate, endDate } = req.query;
+
+      const where = {};
+      if (status) where.status = status;
+      if (severity) where.severity = severity;
+      if (type) where.type = type;
+      if (startDate || endDate) {
+        where.createdAt = {};
+        if (startDate) where.createdAt.gte = new Date(startDate);
+        if (endDate) where.createdAt.lte = new Date(endDate);
+      }
+
+      const discrepancies = await prisma.discrepancy.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: 10000 // Limit for performance
+      });
+
+      // Generate CSV
+      const headers = ['ID', 'Type', 'Severity', 'Status', 'SKU', 'Location', 'Expected Qty', 'Actual Qty', 'Variance', 'Variance %', 'Description', 'Root Cause', 'Created At', 'Resolved At'];
+      const rows = discrepancies.map(d => [
+        d.id,
+        d.type,
+        d.severity,
+        d.status,
+        d.sku || '',
+        d.locationCode || '',
+        d.expectedQty || '',
+        d.actualQty || '',
+        d.variance || '',
+        d.variancePercent ? d.variancePercent.toFixed(2) : '',
+        (d.description || '').replace(/,/g, ';').replace(/\n/g, ' '),
+        (d.rootCause || '').replace(/,/g, ';').replace(/\n/g, ' '),
+        d.createdAt ? d.createdAt.toISOString() : '',
+        d.resolvedAt ? d.resolvedAt.toISOString() : ''
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="discrepancies_${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error('Export discrepancies error:', error);
+      res.status(500).json({ error: 'Failed to export discrepancies' });
+    }
+  });
+
+  /**
+   * Export FWRD fragmentation report as CSV
+   */
+  router.get('/export/fwrd-fragmentation', async (req, res) => {
+    try {
+      // Get fragmented FWRD locations
+      const fragments = await prisma.$queryRaw`
+        SELECT
+          "locationCode",
+          "sku",
+          COUNT(DISTINCT "licensePlate") as plate_count,
+          SUM("onHandQty") as total_qty,
+          STRING_AGG("licensePlate", ', ') as license_plates
+        FROM inventory_snapshots
+        WHERE "locationType" = 'FWRD'
+        GROUP BY "locationCode", "sku"
+        HAVING COUNT(DISTINCT "licensePlate") > 1
+        ORDER BY COUNT(DISTINCT "licensePlate") DESC
+      `;
+
+      const headers = ['Location', 'SKU', 'License Plates', 'Total Qty', 'Recommendation'];
+      const rows = fragments.map(f => [
+        f.locationCode,
+        f.sku,
+        f.plate_count,
+        f.total_qty,
+        f.license_plates,
+        f.plate_count > 3 ? 'URGENT: Merge to single LP' : 'Merge recommended'
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="fwrd_fragmentation_${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error('Export FWRD fragmentation error:', error);
+      res.status(500).json({ error: 'Failed to export FWRD fragmentation report' });
+    }
+  });
+
+  /**
+   * Export parameter mismatch report as CSV
+   */
+  router.get('/export/parameter-mismatch', async (req, res) => {
+    try {
+      const items = await prisma.itemParameter.findMany({
+        where: {
+          isActive: true,
+          targetOrderMin: { not: null },
+          shelfPack: { gt: 1 }
+        }
+      });
+
+      // Find items where TOM is not divisible by shelf pack
+      const mismatches = items.filter(item => {
+        if (!item.targetOrderMin || !item.shelfPack) return false;
+        return item.targetOrderMin % item.shelfPack !== 0;
+      }).map(item => {
+        const packsNeeded = Math.ceil(item.targetOrderMin / item.shelfPack);
+        const unitsOrdered = packsNeeded * item.shelfPack;
+        const overage = unitsOrdered - item.targetOrderMin;
+        const overagePercent = (overage / item.targetOrderMin * 100).toFixed(1);
+
+        return {
+          ...item,
+          packsNeeded,
+          unitsOrdered,
+          overage,
+          overagePercent
+        };
+      });
+
+      const headers = ['SKU', 'Description', 'Category', 'Target Order Min', 'Shelf Pack', 'Packs Needed', 'Units Ordered', 'Overage', 'Overage %', 'Recommendation'];
+      const rows = mismatches.map(m => [
+        m.sku,
+        (m.description || '').replace(/,/g, ';'),
+        m.category || '',
+        m.targetOrderMin,
+        m.shelfPack,
+        m.packsNeeded,
+        m.unitsOrdered,
+        m.overage,
+        m.overagePercent,
+        `Adjust TOM to ${m.packsNeeded * m.shelfPack} or change Shelf Pack`
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="parameter_mismatch_${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error('Export parameter mismatch error:', error);
+      res.status(500).json({ error: 'Failed to export parameter mismatch report' });
+    }
+  });
+
+  /**
+   * Export action recommendations as CSV
+   */
+  router.get('/export/actions', async (req, res) => {
+    try {
+      const { status = 'PENDING' } = req.query;
+
+      const actions = await prisma.actionRecommendation.findMany({
+        where: { status },
+        orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+        take: 5000
+      });
+
+      const headers = ['ID', 'Type', 'Priority', 'SKU', 'Location', 'Description', 'Instructions', 'Est. Impact', 'Status', 'Assigned To', 'Created At'];
+      const rows = actions.map(a => [
+        a.id,
+        a.type,
+        a.priority,
+        a.sku || '',
+        a.locationCode || '',
+        (a.description || '').replace(/,/g, ';').replace(/\n/g, ' '),
+        (a.instructions || '').replace(/,/g, ';').replace(/\n/g, ' '),
+        a.estimatedImpact || '',
+        a.status,
+        a.assignedTo || '',
+        a.createdAt ? a.createdAt.toISOString() : ''
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="action_recommendations_${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error('Export actions error:', error);
+      res.status(500).json({ error: 'Failed to export action recommendations' });
+    }
+  });
+
+  // ==========================================
   // ORDER INTEGRITY & OVERAGE DETECTION
   // ==========================================
 

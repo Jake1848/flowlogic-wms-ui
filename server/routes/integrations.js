@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { createAdapter, DataTypes } from '../adapters/index.js';
+import notificationService from '../services/notification.js';
 
 /**
  * Integration & WMS Connector Routes
@@ -6,6 +8,8 @@ import { Router } from 'express';
  * Updated for AI Intelligence Platform
  */
 export default function integrationRoutes(prisma) {
+  // Initialize notification service
+  notificationService.setPrisma(prisma);
   const router = Router();
 
   // Async handler wrapper
@@ -276,6 +280,8 @@ export default function integrationRoutes(prisma) {
 
   // Sync integration now
   router.post('/:id/sync', asyncHandler(async (req, res) => {
+    const { dataType = 'INVENTORY_SNAPSHOT' } = req.body;
+
     const integration = await prisma.integration.findUnique({
       where: { id: req.params.id }
     });
@@ -290,38 +296,111 @@ export default function integrationRoutes(prisma) {
       data: { status: 'SYNCING' }
     });
 
-    // Simulate sync process
     const syncStartTime = Date.now();
+    let recordsProcessed = 0;
+    let syncError = null;
+
+    try {
+      // Create adapter and attempt real sync
+      const adapter = createAdapter(integration);
+
+      // Test connection first
+      const connected = await adapter.connect();
+      if (!connected) {
+        throw new Error('Failed to connect to WMS');
+      }
+
+      // Fetch data
+      const data = await adapter.fetchData(dataType);
+
+      if (data && data.length > 0) {
+        // Store the data based on type
+        if (dataType === 'INVENTORY_SNAPSHOT') {
+          await prisma.inventorySnapshot.createMany({
+            data: data.map(item => ({
+              sku: item.sku,
+              locationCode: item.locationCode,
+              locationType: item.locationType || 'STORAGE',
+              licensePlate: item.licensePlate,
+              onHandQty: item.onHandQty || item.quantity || 0,
+              allocatedQty: item.allocatedQty || 0,
+              availableQty: item.availableQty || item.onHandQty || 0,
+              lotNumber: item.lotNumber,
+              expirationDate: item.expirationDate ? new Date(item.expirationDate) : null,
+              rawData: item
+            })),
+            skipDuplicates: true
+          });
+        } else if (dataType === 'TRANSACTION_HISTORY') {
+          await prisma.transactionSnapshot.createMany({
+            data: data.map(item => ({
+              externalTransactionId: item.transactionId || item.id,
+              type: item.type || 'UNKNOWN',
+              sku: item.sku,
+              fromLocation: item.fromLocation,
+              toLocation: item.toLocation,
+              quantity: item.quantity || 0,
+              transactionDate: item.transactionDate ? new Date(item.transactionDate) : new Date(),
+              rawData: item
+            })),
+            skipDuplicates: true
+          });
+        }
+
+        recordsProcessed = data.length;
+      }
+
+      await adapter.disconnect();
+    } catch (error) {
+      syncError = error.message;
+      console.error(`Sync error for integration ${integration.id}:`, error);
+
+      // Notify about sync failure
+      notificationService.notifySyncFailed(integration, error.message).catch(console.error);
+    }
 
     // Log the sync attempt
     const syncLog = await prisma.integrationLog.create({
       data: {
         integrationId: integration.id,
         direction: 'INBOUND',
-        messageType: 'SYNC',
-        status: 'SUCCESS',
+        messageType: `SYNC_${dataType}`,
+        status: syncError ? 'ERROR' : 'SUCCESS',
         responseData: {
-          message: 'Sync completed successfully',
-          recordsProcessed: Math.floor(Math.random() * 100) + 10,
-          duration: Date.now() - syncStartTime
+          message: syncError || 'Sync completed successfully',
+          recordsProcessed,
+          duration: Date.now() - syncStartTime,
+          dataType
         },
+        errorMessage: syncError,
         processedAt: new Date()
       }
     });
 
-    // Update status back to active
+    // Update integration status
     await prisma.integration.update({
       where: { id: req.params.id },
       data: {
-        status: 'ACTIVE',
-        lastSyncAt: new Date()
+        status: syncError ? 'ERROR' : 'ACTIVE',
+        lastSyncAt: new Date(),
+        lastError: syncError,
+        lastErrorAt: syncError ? new Date() : undefined
       }
     });
+
+    if (syncError) {
+      return res.status(500).json({
+        success: false,
+        syncId: syncLog.id,
+        error: syncError
+      });
+    }
 
     res.json({
       success: true,
       syncId: syncLog.id,
-      message: 'Sync completed successfully'
+      recordsProcessed,
+      message: `Sync completed successfully. ${recordsProcessed} records processed.`
     });
   }));
 

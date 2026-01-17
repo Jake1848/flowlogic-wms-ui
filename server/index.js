@@ -35,6 +35,9 @@ import { tools, createToolExecutor } from './tools.js';
 // Import middleware
 import { errorHandler, notFoundHandler, asyncHandler } from './middleware/errorHandler.js';
 
+// Import services
+import schedulerService from './services/scheduler.js';
+
 dotenv.config();
 
 const app = express();
@@ -690,6 +693,13 @@ async function startServer() {
     // Test database connection
     await prisma.$connect();
     console.log('Database connected successfully');
+
+    // Initialize scheduler service
+    schedulerService.initialize(prisma);
+    if (process.env.NODE_ENV === 'production') {
+      schedulerService.start();
+      console.log('Scheduler service started');
+    }
   } catch (error) {
     console.warn('Database connection pending:', error.message);
     console.warn('Run "npx prisma db push" and "npm run db:seed" to initialize the database');
@@ -751,11 +761,13 @@ async function startServer() {
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\nShutting down gracefully...');
+  schedulerService.stop();
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
+  schedulerService.stop();
   await prisma.$disconnect();
   process.exit(0);
 });

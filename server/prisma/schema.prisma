@@ -229,6 +229,7 @@ model User {
 
   warehouses      UserWarehouse[]
   auditLogs       AuditLog[]
+  notificationSettings NotificationSetting[]
 
   @@map("users")
 }
@@ -770,4 +771,87 @@ model ItemParameter {
   @@index([category])
   @@index([isActive])
   @@map("item_parameters")
+}
+
+// ============================================
+// NOTIFICATION SETTINGS
+// ============================================
+
+model NotificationSetting {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+
+  // Event type this setting applies to
+  eventType       NotificationEventType
+
+  // Channel preferences
+  emailEnabled    Boolean  @default(true)
+  smsEnabled      Boolean  @default(false)
+  pushEnabled     Boolean  @default(false)
+  inAppEnabled    Boolean  @default(true)
+
+  // Additional recipients (comma-separated emails)
+  recipients      String?
+
+  // Frequency settings
+  frequency       NotificationFrequency @default(IMMEDIATE)
+  digestTime      String?               // Time for digest (e.g., "09:00")
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, eventType])
+  @@map("notification_settings")
+}
+
+enum NotificationEventType {
+  ALERT_CRITICAL
+  ALERT_HIGH
+  ALERT_MEDIUM
+  ALERT_LOW
+  DISCREPANCY_DETECTED
+  ANALYSIS_COMPLETE
+  SYNC_FAILED
+  SYNC_COMPLETE
+  TRIAL_ENDING
+  WEEKLY_DIGEST
+  SYSTEM_UPDATE
+}
+
+enum NotificationFrequency {
+  IMMEDIATE
+  HOURLY
+  DAILY
+  WEEKLY
+}
+
+// Email log for tracking sent notifications
+model EmailLog {
+  id              String   @id @default(uuid())
+  userId          String?
+  recipientEmail  String
+
+  eventType       String
+  subject         String
+  templateName    String?
+
+  status          EmailStatus @default(PENDING)
+  sentAt          DateTime?
+  errorMessage    String?
+
+  metadata        Json?
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("email_logs")
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  BOUNCED
 }

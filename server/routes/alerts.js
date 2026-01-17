@@ -8,10 +8,13 @@ import {
   validateArray,
   wmsValidators,
 } from '../middleware/validation.js';
+import notificationService from '../services/notification.js';
 
 const router = express.Router();
 
 export default function alertRoutes(prisma) {
+  // Initialize notification service with prisma
+  notificationService.setPrisma(prisma);
   // Get all alerts with filters
   router.get('/', validatePagination, async (req, res) => {
     try {
@@ -262,6 +265,13 @@ export default function alertRoutes(prisma) {
       const alert = await prisma.alert.create({
         data: alertData,
       });
+
+      // Send email notifications asynchronously (don't block response)
+      if (alertData.warehouseId && ['CRITICAL', 'HIGH', 'EMERGENCY'].includes(alertData.severity)) {
+        notificationService.notifyAlert(alert, alertData.warehouseId).catch(err => {
+          console.error('Failed to send alert notification:', err);
+        });
+      }
 
       res.status(201).json(alert);
     } catch (error) {
