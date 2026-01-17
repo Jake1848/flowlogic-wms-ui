@@ -152,9 +152,11 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <Brain className="w-5 h-5 text-white" />
-              </div>
+              <img
+                src="/assets/flowlogic_refined_logo_v2.png"
+                alt="FlowLogic"
+                className="w-8 h-8 rounded-lg object-contain"
+              />
               <span className="text-xl font-bold">FlowLogic</span>
             </div>
 
@@ -214,6 +216,15 @@ const Landing = () => {
             transition={{ duration: 0.6 }}
             className="text-center"
           >
+            {/* Hero Logo */}
+            <div className="mb-6">
+              <img
+                src="/assets/flowlogic_refined_logo_v2.png"
+                alt="FlowLogic"
+                className="w-24 h-24 mx-auto object-contain"
+              />
+            </div>
+
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm mb-8">
               <Zap className="w-4 h-4" />
               <span>AI-Powered Warehouse Intelligence</span>
@@ -522,9 +533,11 @@ const Landing = () => {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                  <Brain className="w-5 h-5 text-white" />
-                </div>
+                <img
+                  src="/assets/flowlogic_refined_logo_v2.png"
+                  alt="FlowLogic"
+                  className="w-8 h-8 rounded-lg object-contain"
+                />
                 <span className="text-xl font-bold">FlowLogic</span>
               </div>
               <p className="text-sm text-slate-400">
