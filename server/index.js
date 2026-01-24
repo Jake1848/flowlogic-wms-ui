@@ -40,6 +40,13 @@ import schedulerService from './services/scheduler.js';
 
 dotenv.config();
 
+// Debug: Log environment variable status at startup
+console.log('=== Environment Variables Check ===');
+console.log('SENDGRID_API_KEY:', process.env.SENDGRID_API_KEY ? `Set (${process.env.SENDGRID_API_KEY.substring(0, 10)}...)` : 'NOT SET');
+console.log('FROM_EMAIL:', process.env.FROM_EMAIL || 'NOT SET');
+console.log('NODE_ENV:', process.env.NODE_ENV || 'NOT SET');
+console.log('===================================');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
