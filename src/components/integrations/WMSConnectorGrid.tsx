@@ -1,16 +1,39 @@
-import { Upload, Download } from 'lucide-react'
+import { useState } from 'react'
+import { Upload, Download, X } from 'lucide-react'
 import { WMS_CONNECTORS } from '../../constants/wmsConnectors'
 import type { WMSConnector } from '../../types/integrations'
+import { DataImport } from './DataImport'
 
 interface WMSConnectorGridProps {
   onSelectConnector: (connector: WMSConnector) => void
 }
 
 export function WMSConnectorGrid({ onSelectConnector }: WMSConnectorGridProps) {
+  const [showImportModal, setShowImportModal] = useState(false)
   const popularConnectors = WMS_CONNECTORS.filter(c => c.popular)
   const otherConnectors = WMS_CONNECTORS.filter(c => !c.popular)
 
   return (
+    <>
+    {/* Import Modal */}
+    {showImportModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Import Data</h2>
+            <button
+              onClick={() => setShowImportModal(false)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+          <div className="p-6">
+            <DataImport />
+          </div>
+        </div>
+      </div>
+    )}
     <div className="space-y-6">
       {/* Popular Connectors */}
       <div>
@@ -75,16 +98,16 @@ export function WMSConnectorGrid({ onSelectConnector }: WMSConnectorGridProps) {
           Import inventory snapshots, cycle counts, and adjustments from CSV or Excel files
         </p>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+          >
             <Upload className="w-4 h-4" />
             Upload File
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors">
-            <Download className="w-4 h-4" />
-            Download Template
           </button>
         </div>
       </div>
     </div>
+    </>
   )
 }
