@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Upload, Download, X } from 'lucide-react'
+import { Upload, X } from 'lucide-react'
 import { WMS_CONNECTORS } from '../../constants/wmsConnectors'
 import type { WMSConnector } from '../../types/integrations'
 import { DataImport } from './DataImport'
