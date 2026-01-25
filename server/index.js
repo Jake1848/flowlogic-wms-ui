@@ -40,13 +40,6 @@ import schedulerService from './services/scheduler.js';
 
 dotenv.config();
 
-// Debug: Log environment variable status at startup
-console.log('=== Environment Variables Check ===');
-console.log('SENDGRID_API_KEY:', process.env.SENDGRID_API_KEY ? `Set (${process.env.SENDGRID_API_KEY.substring(0, 10)}...)` : 'NOT SET');
-console.log('FROM_EMAIL:', process.env.FROM_EMAIL || 'NOT SET');
-console.log('NODE_ENV:', process.env.NODE_ENV || 'NOT SET');
-console.log('===================================');
-
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -345,35 +338,6 @@ app.get('/api/health', async (req, res) => {
     sendgridConfigured: !!process.env.SENDGRID_API_KEY,
     database: dbStatus,
   });
-});
-
-// Test email endpoint (for verifying SendGrid setup)
-import emailService from './services/email.js';
-
-app.post('/api/test-email', async (req, res) => {
-  const { to } = req.body;
-
-  if (!to) {
-    return res.status(400).json({ error: 'Email address required. Send { "to": "your@email.com" }' });
-  }
-
-  if (!process.env.SENDGRID_API_KEY) {
-    return res.status(500).json({ error: 'SENDGRID_API_KEY not configured' });
-  }
-
-  try {
-    await emailService.send(to, 'welcome', {
-      firstName: 'Test User',
-      companyName: 'FlowLogic',
-      dashboardUrl: process.env.APP_URL || 'https://flowlogic-wms-production.up.railway.app',
-      supportUrl: process.env.APP_URL || 'https://flowlogic-wms-production.up.railway.app'
-    });
-
-    res.json({ success: true, message: `Test email sent to ${to}` });
-  } catch (error) {
-    console.error('Test email error:', error);
-    res.status(500).json({ error: 'Failed to send email', details: error.message });
-  }
 });
 
 // Mount API routes - AI Intelligence Platform
