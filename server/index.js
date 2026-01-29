@@ -37,6 +37,7 @@ import { errorHandler, notFoundHandler, asyncHandler } from './middleware/errorH
 
 // Import services
 import schedulerService from './services/scheduler.js';
+import ofbizSync from './services/ofbizSync.js';
 
 dotenv.config();
 
@@ -396,6 +397,31 @@ app.post('/api/test-ofbiz', async (req, res) => {
       message: `OFBiz connection failed: ${error.message}`
     });
   }
+});
+
+// OFBiz Auto-Sync endpoints
+app.get('/api/ofbiz/sync/status', authMiddleware, (req, res) => {
+  res.json(ofbizSync.getSyncStatus());
+});
+
+app.post('/api/ofbiz/sync', authMiddleware, async (req, res) => {
+  try {
+    const result = await ofbizSync.syncOFBizData(prisma);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/ofbiz/sync/start-auto', authMiddleware, (req, res) => {
+  const { intervalMinutes = 5 } = req.body;
+  ofbizSync.startAutoSync(prisma, intervalMinutes);
+  res.json({ success: true, message: `Auto-sync started (every ${intervalMinutes} minutes)` });
+});
+
+app.post('/api/ofbiz/sync/stop-auto', authMiddleware, (req, res) => {
+  ofbizSync.stopAutoSync();
+  res.json({ success: true, message: 'Auto-sync stopped' });
 });
 
 // Mount API routes - AI Intelligence Platform
@@ -811,9 +837,16 @@ async function startServer() {
 ║   • AI: ${process.env.ANTHROPIC_API_KEY ? 'Configured' : 'Not configured'}                                      ║
 ║   • DB: PostgreSQL (Prisma)                                   ║
 ║   • WS: Socket.io enabled                                     ║
+║   • OFBiz: Auto-sync enabled                                  ║
 ║                                                               ║
 ╚═══════════════════════════════════════════════════════════════╝
     `);
+
+    // Start OFBiz auto-sync (every 5 minutes)
+    if (process.env.OFBIZ_AUTO_SYNC !== 'false') {
+      const syncInterval = parseInt(process.env.OFBIZ_SYNC_INTERVAL) || 5;
+      ofbizSync.startAutoSync(prisma, syncInterval);
+    }
   });
 }
 
@@ -821,6 +854,7 @@ async function startServer() {
 process.on('SIGINT', async () => {
   console.log('\nShutting down gracefully...');
   schedulerService.stop();
+  ofbizSync.stopAutoSync();
   await prisma.$disconnect();
   process.exit(0);
 });
