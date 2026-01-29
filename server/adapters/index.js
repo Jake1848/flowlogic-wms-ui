@@ -10,6 +10,7 @@ import { SAPEWMAdapter } from './sap/index.js';
 import { ManhattanAdapter } from './manhattan/index.js';
 import { BlueYonderAdapter } from './blue-yonder/index.js';
 import { OracleWMSAdapter } from './oracle/index.js';
+import { OFBizAdapter } from './ofbiz.js';
 import { GenericAdapter } from './csv/index.js';
 
 /**
@@ -24,6 +25,8 @@ export const AdapterTypes = {
   JDA: 'blue-yonder',
   ORACLE: 'oracle-wms',
   ORACLE_WMS: 'oracle-wms',
+  OFBIZ: 'ofbiz',
+  APACHE_OFBIZ: 'ofbiz',
   INFOR: 'infor',
   KORBER: 'korber',
   HIGHJUMP: 'highjump',
@@ -42,6 +45,7 @@ const INTEGRATION_TYPE_MAP = {
   'MANHATTAN': AdapterTypes.MANHATTAN,
   'BLUE_YONDER': AdapterTypes.BLUE_YONDER,
   'ORACLE': AdapterTypes.ORACLE,
+  'OFBIZ': AdapterTypes.OFBIZ,
   'INFOR': AdapterTypes.INFOR,
   'KORBER': AdapterTypes.KORBER,
   'HIGHJUMP': AdapterTypes.HIGHJUMP,
@@ -57,6 +61,8 @@ const INTEGRATION_TYPE_MAP = {
   'jda': AdapterTypes.BLUE_YONDER,
   'oracle-wms': AdapterTypes.ORACLE,
   'oracle': AdapterTypes.ORACLE,
+  'ofbiz': AdapterTypes.OFBIZ,
+  'apache-ofbiz': AdapterTypes.OFBIZ,
   'custom': AdapterTypes.CUSTOM,
   'generic': AdapterTypes.CUSTOM
 };
@@ -83,6 +89,9 @@ export function createAdapter(integration) {
 
     case AdapterTypes.ORACLE:
       return new OracleWMSAdapter(config);
+
+    case AdapterTypes.OFBIZ:
+      return new OFBizAdapter(config);
 
     case AdapterTypes.INFOR:
     case AdapterTypes.KORBER:
@@ -196,6 +205,14 @@ export function getAdapterMetadata(type) {
       optionalFields: ['organizationId', 'organizationCode'],
       features: ['Inventory visibility', 'Wave planning', 'Shipping integration']
     },
+    [AdapterTypes.OFBIZ]: {
+      name: 'Apache OFBiz',
+      description: 'Connect to Apache OFBiz ERP/WMS via REST API',
+      supportedMethods: ['REST API'],
+      requiredFields: ['endpoint', 'username', 'password'],
+      optionalFields: ['facilityId'],
+      features: ['Inventory management', 'Order processing', 'Physical inventory', 'Open source']
+    },
     [AdapterTypes.CUSTOM]: {
       name: 'Custom WMS / Generic Connector',
       description: 'Flexible connector for any WMS system',
@@ -218,6 +235,7 @@ export function getAllAdapterTypes() {
     { type: AdapterTypes.MANHATTAN, ...getAdapterMetadata(AdapterTypes.MANHATTAN) },
     { type: AdapterTypes.BLUE_YONDER, ...getAdapterMetadata(AdapterTypes.BLUE_YONDER) },
     { type: AdapterTypes.ORACLE, ...getAdapterMetadata(AdapterTypes.ORACLE) },
+    { type: AdapterTypes.OFBIZ, ...getAdapterMetadata(AdapterTypes.OFBIZ) },
     { type: AdapterTypes.CUSTOM, ...getAdapterMetadata(AdapterTypes.CUSTOM) }
   ];
 }
@@ -231,6 +249,7 @@ export {
   ManhattanAdapter,
   BlueYonderAdapter,
   OracleWMSAdapter,
+  OFBizAdapter,
   GenericAdapter
 };
 

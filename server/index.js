@@ -340,6 +340,64 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
+// OFBiz test endpoint - for testing local OFBiz installations
+app.post('/api/test-ofbiz', async (req, res) => {
+  const { baseUrl, username, password, facilityId } = req.body;
+
+  if (!baseUrl || !username || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Missing required fields: baseUrl, username, password'
+    });
+  }
+
+  try {
+    // Import the OFBiz adapter dynamically
+    const { OFBizAdapter } = await import('./adapters/ofbiz.js');
+
+    const adapter = new OFBizAdapter({
+      baseUrl,
+      username,
+      password,
+      facilityId: facilityId || 'WebStoreWarehouse'
+    });
+
+    const result = await adapter.testConnection();
+
+    if (result.success) {
+      // Also try to fetch some sample data
+      try {
+        const inventory = await adapter.fetchInventory();
+        const facilities = await adapter.fetchFacilities();
+
+        res.json({
+          success: true,
+          message: 'Connected to OFBiz successfully!',
+          data: {
+            inventoryItems: inventory.length,
+            facilities: facilities.length,
+            sampleInventory: inventory.slice(0, 5),
+            sampleFacilities: facilities
+          }
+        });
+      } catch (dataError) {
+        res.json({
+          success: true,
+          message: 'Connected to OFBiz but could not fetch data',
+          warning: dataError.message
+        });
+      }
+    } else {
+      res.status(401).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: `OFBiz connection failed: ${error.message}`
+    });
+  }
+});
+
 // Mount API routes - AI Intelligence Platform
 // Public routes (no authentication required)
 app.use('/api/auth', authLimiter, authRoutes(prisma));

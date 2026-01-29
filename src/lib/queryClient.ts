@@ -18,16 +18,18 @@ export const queryClient = new QueryClient({
 // Use relative URLs in production (same origin), localhost in dev
 export const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3001')
 
-// Generic fetch wrapper with error handling
+// Generic fetch wrapper with error handling and authentication
 export async function apiFetch<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
+  const token = localStorage.getItem('flowlogic_token')
 
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...options?.headers,
     },
     ...options,

@@ -313,6 +313,7 @@ enum IntegrationType {
   MAGENTO
   MANHATTAN
   BLUE_YONDER
+  OFBIZ
   INFOR
   KORBER
   HIGHJUMP

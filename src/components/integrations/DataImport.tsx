@@ -68,7 +68,7 @@ export function DataImport() {
     formData.append('mappingType', 'generic')
 
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('flowlogic_token')
       const response = await fetch('/api/intelligence/ingest/upload', {
         method: 'POST',
         headers: {

@@ -101,7 +101,7 @@ export default function ModernIntelligenceDashboard() {
   const [analysisComplete, setAnalysisComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const getAuthToken = () => localStorage.getItem('token')
+  const getAuthToken = () => localStorage.getItem('flowlogic_token')
 
   // Fetch dashboard data on mount
   useEffect(() => {

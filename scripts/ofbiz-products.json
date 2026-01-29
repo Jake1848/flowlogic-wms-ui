@@ -1,0 +1,702 @@
+[
+  {
+    "productId": "WG-9943",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget with variant explosion",
+    "description": "Giant Widget with Wheels",
+    "internalName": "Giant Widget variant explosion"
+  },
+  {
+    "productId": "WG-9943-B3",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget B3",
+    "description": "Black Giant Widget with 3 Wheels",
+    "internalName": "Giant Widget B3"
+  },
+  {
+    "productId": "GZ-2644",
+    "productType": "FINISHED_GOOD",
+    "name": "",
+    "description": "",
+    "internalName": "Round Gizmo"
+  },
+  {
+    "productId": "FORKLIFT_PROPANE",
+    "productType": "ASSET_USAGE",
+    "name": "Forklift - Propane",
+    "description": "Forklift - Propane Powered.",
+    "internalName": "Forklift - Propane"
+  },
+  {
+    "productId": "FORKLIFT_BATTERY",
+    "productType": "ASSET_USAGE",
+    "name": "Forklift - Battery",
+    "description": "Forklift - Battery Powered.",
+    "internalName": "Forklift - Battery"
+  },
+  {
+    "productId": "COMPANY_VEHICLE",
+    "productType": "ASSET_USAGE",
+    "name": "Company Vehicle",
+    "description": "Company Vehicle.",
+    "internalName": "Company Vehicle"
+  },
+  {
+    "productId": "HVAC_UNIT",
+    "productType": "ASSET_USAGE",
+    "name": "Heating/Cooling Unit",
+    "description": "Heating/Cooling Unit.",
+    "internalName": "Heating/Cooling Unit"
+  },
+  {
+    "productId": "PROD_MANUF",
+    "productType": "FINISHED_GOOD",
+    "name": "Demo Product for Costing",
+    "description": "Demo Product for Standard Costing",
+    "internalName": "Demo Product for Costing"
+  },
+  {
+    "productId": "MAT_A_COST",
+    "productType": "RAW_MATERIAL",
+    "name": "",
+    "description": "Demo Material A for Standard Costing",
+    "internalName": "Demo Material A for Costing"
+  },
+  {
+    "productId": "MAT_B_COST",
+    "productType": "RAW_MATERIAL",
+    "name": "",
+    "description": "Demo Material B for Standard Costing",
+    "internalName": "Demo Material B for Costing"
+  },
+  {
+    "productId": "GZ-1000",
+    "productType": "FINISHED_GOOD",
+    "name": "Tiny Gizmo",
+    "description": "The smallest gizmo in town.",
+    "internalName": "Tiny Gizmo"
+  },
+  {
+    "productId": "GZ-1001",
+    "productType": "FINISHED_GOOD",
+    "name": "Nan Gizmo",
+    "description": "Indian style Nan gizmo",
+    "internalName": "Nan Gizmo"
+  },
+  {
+    "productId": "GZ-1004",
+    "productType": "FINISHED_GOOD",
+    "name": "Rainbow Gizmo",
+    "description": "The only multi-colored gizmo",
+    "internalName": "Rainbow Gizmo"
+  },
+  {
+    "productId": "GZ-1005",
+    "productType": "FINISHED_GOOD",
+    "name": ".NIT Gizmo",
+    "description": "M$ .NIT gizmo",
+    "internalName": ".NIT Gizmo"
+  },
+  {
+    "productId": "GZ-1006",
+    "productType": "FINISHED_GOOD",
+    "name": "Open Gizmo",
+    "description": "Gizmo based on open standards",
+    "internalName": "Open Gizmo"
+  },
+  {
+    "productId": "GZ-1006-1",
+    "productType": "FINISHED_GOOD",
+    "name": "Open Gizmo (LGPL)",
+    "description": "Gizmo based on open standards",
+    "internalName": "Open Gizmo (LGPL)"
+  },
+  {
+    "productId": "GZ-1006-2",
+    "productType": "FINISHED_GOOD",
+    "name": "Open Gizmo (GPL)",
+    "description": "Gizmo based on open standards",
+    "internalName": "Open Gizmo (GPL)"
+  },
+  {
+    "productId": "GZ-1006-3",
+    "productType": "FINISHED_GOOD",
+    "name": "Open Gizmo (BSD)",
+    "description": "Gizmo based on open standards",
+    "internalName": "Open Gizmo (BSD)"
+  },
+  {
+    "productId": "GZ-1006-4",
+    "productType": "FINISHED_GOOD",
+    "name": "Open Gizmo (MIT)",
+    "description": "Gizmo based on open standards",
+    "internalName": "Open Gizmo (MIT)"
+  },
+  {
+    "productId": "GZ-1006-5",
+    "productType": "FINISHED_GOOD",
+    "name": "Open Gizmo (ASL2)",
+    "description": "Gizmo based on open standards",
+    "internalName": "Open Gizmo (ASL)"
+  },
+  {
+    "productId": "GZ-2002",
+    "productType": "FINISHED_GOOD",
+    "name": "Square Gizmo",
+    "description": "A square gizmo",
+    "internalName": "Square Gizmo"
+  },
+  {
+    "productId": "GZ-5005",
+    "productType": "FINISHED_GOOD",
+    "name": "Purple Gizmo",
+    "description": "The stylish gizmo",
+    "internalName": "Purple Gizmo"
+  },
+  {
+    "productId": "GZ-7000",
+    "productType": "FINISHED_GOOD",
+    "name": "Massive Gizmo",
+    "description": "The biggest gizmo ever",
+    "internalName": "Massive Gizmo"
+  },
+  {
+    "productId": "GZ-8544",
+    "productType": "FINISHED_GOOD",
+    "name": "Big Gizmo",
+    "description": "Big Gizmo w/ Legs",
+    "internalName": "Big Gizmo"
+  },
+  {
+    "productId": "GZ-9290",
+    "productType": "FINISHED_GOOD",
+    "name": "His/Her Gizmo",
+    "description": "A set of his/her gizmos",
+    "internalName": "His/Her Gizmo"
+  },
+  {
+    "productId": "WG-1111",
+    "productType": "FINISHED_GOOD",
+    "name": "Micro Chrome Widget",
+    "description": "Micro Widget - Chrome Colored",
+    "internalName": "Micro Chrome Widget"
+  },
+  {
+    "productId": "WG-5569",
+    "productType": "FINISHED_GOOD",
+    "name": "Tiny Chrome Widget",
+    "description": "Tiny Chrome Widget",
+    "internalName": "Tiny Chrome Widget"
+  },
+  {
+    "productId": "WG-9943-B4",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget B4",
+    "description": "Black Giant Widget with 4 Wheels",
+    "internalName": "Giant Widget B4"
+  },
+  {
+    "productId": "WG-9943-S3",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget S3",
+    "description": "Silver Giant Widget with 3 Wheels",
+    "internalName": "Giant Widget S3"
+  },
+  {
+    "productId": "WG-9943-S4",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget S4",
+    "description": "Silver Giant Widget with 4 Wheels",
+    "internalName": "Giant Widget S4"
+  },
+  {
+    "productId": "WG-9944",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget with feature explosion",
+    "description": "Giant Widget with Wheels",
+    "internalName": "Giant Widget feature Explosion"
+  },
+  {
+    "productId": "GZ-NEWS-1MO",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gizmo Newsletter 1 Month",
+    "description": "A 1 month subscription to the Gizmo Newsletter: can be used immediately after purchase.",
+    "internalName": "Gizmo Newsletter 1 Month Subscription"
+  },
+  {
+    "productId": "GZ-DIG",
+    "productType": "DIGITAL_GOOD",
+    "name": "Digital Gizmo",
+    "description": "A digital gizmo: can be downloaded immediately after purchase.",
+    "internalName": "Digital Gizmo"
+  },
+  {
+    "productId": "GZ-BASKET",
+    "productType": "MARKETING_PKG_AUTO",
+    "name": "Gizmo Basket",
+    "description": "Auto-Assembled Gizmo Basket.  Automatically assembled each time it's ordered.",
+    "internalName": "Auto-Assembled Gizmo Basket"
+  },
+  {
+    "productId": "GZ-BASKET-PICK",
+    "productType": "MARKETING_PKG_PICK",
+    "name": "Gizmo Basket Assembly Pick",
+    "description": "Assembled Pick Gizmo Basket.  Assembled during picking.",
+    "internalName": "Assembled Pick Gizmo Basket"
+  },
+  {
+    "productId": "SV-1000",
+    "productType": "SERVICE",
+    "name": "Service product",
+    "description": "Service type product for demonstration use",
+    "internalName": "Service type product"
+  },
+  {
+    "productId": "SV-1001",
+    "productType": "SERVICE_PRODUCT",
+    "name": "Laundry service",
+    "description": "Service type product which is received to- and shipped from inventory for demonstration use",
+    "internalName": "Service type product which is received to- and shipped from inventory"
+  },
+  {
+    "productId": "DS-1000",
+    "productType": "FINISHED_GOOD",
+    "name": "Drop ship product",
+    "description": "product shipped from drop shipment and with agreement to resolve the purchase price",
+    "internalName": "drop ship"
+  },
+  {
+    "productId": "CFSV1001",
+    "productType": "AGGREGATED_SERVICE",
+    "name": "Scanning book service",
+    "description": "The configurable product type which is received to- and shipped from inventory for demonstration use",
+    "internalName": "The configurable product type which is received to- and shipped from inventory"
+  },
+  {
+    "productId": "SCAN_TYPE",
+    "productType": "SERVICE_PRODUCT",
+    "name": "Scanning Type",
+    "description": "Scanning Type",
+    "internalName": "Scanning Type"
+  },
+  {
+    "productId": "SCAN-EC",
+    "productType": "SERVICE_PRODUCT",
+    "name": "Economy Scanning type",
+    "description": "Economy Scanning type",
+    "internalName": "Economy Scanning type"
+  },
+  {
+    "productId": "SCAN-ST",
+    "productType": "SERVICE_PRODUCT",
+    "name": "Standard Scanning type",
+    "description": "Standard Scanning type",
+    "internalName": "Standard Scanning type"
+  },
+  {
+    "productId": "SCAN-SU",
+    "productType": "SERVICE_PRODUCT",
+    "name": "Superfine Scanning type",
+    "description": "Superfine Scanning type",
+    "internalName": "Superfine Scanning type"
+  },
+  {
+    "productId": "EXPRESS",
+    "productType": "SERVICE_PRODUCT",
+    "name": "Express",
+    "description": "Express",
+    "internalName": "Express"
+  },
+  {
+    "productId": "SUPER_EXPRESS",
+    "productType": "SERVICE_PRODUCT",
+    "name": "Super Express",
+    "description": "Super Express",
+    "internalName": "Super Express"
+  },
+  {
+    "productId": "SCAN_COVER",
+    "productType": "SERVICE_PRODUCT",
+    "name": "Scan Cover",
+    "description": "Scan Cover",
+    "internalName": "Scan Cover"
+  },
+  {
+    "productId": "OCR",
+    "productType": "SERVICE_PRODUCT",
+    "name": "OCR",
+    "description": "OCR",
+    "internalName": "OCR"
+  },
+  {
+    "productId": "METADATA",
+    "productType": "SERVICE_PRODUCT",
+    "name": "Metadata",
+    "description": "Metadata",
+    "internalName": "Metadata"
+  },
+  {
+    "productId": "DVD",
+    "productType": "SERVICE_PRODUCT",
+    "name": "DVD",
+    "description": "DVD",
+    "internalName": "DVD"
+  },
+  {
+    "productId": "GC-002",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Reload",
+    "description": "Add more money to your card!",
+    "internalName": "Gift Card Reload"
+  },
+  {
+    "productId": "GC-001",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "GC-001-C10",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "GC-001-C100",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "GC-001-C25",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "GC-001-C50",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "GC-001-CO",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "GC-001-H10",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "GC-001-H100",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "GC-001-H25",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "GC-001-H50",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "GC-001-HO",
+    "productType": "DIGITAL_GOOD",
+    "name": "Gift Card Activation",
+    "description": "Give the perfect gift!",
+    "internalName": "Gift Card Activation"
+  },
+  {
+    "productId": "WG-9943-B3-BX2",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget B3",
+    "description": "Black Giant Widget with 3 Wheels",
+    "internalName": "Giant Widget B3"
+  },
+  {
+    "productId": "WG-9943-B3-BX5",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget B3",
+    "description": "Black Giant Widget with 3 Wheels",
+    "internalName": "Giant Widget B3"
+  },
+  {
+    "productId": "WG-9943-B4-BX2",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget B4",
+    "description": "Black Giant Widget with 4 Wheels",
+    "internalName": "Giant Widget B4"
+  },
+  {
+    "productId": "WG-9943-B4-BX5",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget B4",
+    "description": "Black Giant Widget with 4 Wheels",
+    "internalName": "Giant Widget B4"
+  },
+  {
+    "productId": "WG-9943-S3-BX2",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget S3",
+    "description": "Silver Giant Widget with 3 Wheels",
+    "internalName": "Giant Widget S3"
+  },
+  {
+    "productId": "WG-9943-S3-BX5",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget S3",
+    "description": "Silver Giant Widget with 3 Wheels",
+    "internalName": "Giant Widget S3"
+  },
+  {
+    "productId": "WG-9943-S4-BX2",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget S4",
+    "description": "Silver Giant Widget with 4 Wheels",
+    "internalName": "Giant Widget S4"
+  },
+  {
+    "productId": "WG-9943-S4-BX5",
+    "productType": "FINISHED_GOOD",
+    "name": "Giant Widget S4",
+    "description": "Silver Giant Widget with 4 Wheels",
+    "internalName": "Giant Widget S4"
+  },
+  {
+    "productId": "WG-1111-BX2",
+    "productType": "FINISHED_GOOD",
+    "name": "Micro Chrome Widget",
+    "description": "Micro Widget - Chrome Colored",
+    "internalName": "Micro Chrome Widget"
+  },
+  {
+    "productId": "WG-1111-BX4",
+    "productType": "FINISHED_GOOD",
+    "name": "Micro Chrome Widget",
+    "description": "Micro Widget - Chrome Colored",
+    "internalName": "Micro Chrome Widget"
+  },
+  {
+    "productId": "RentalShip",
+    "productType": "ASSET_USAGE_OUT_IN",
+    "name": "Rental Shipping",
+    "description": "The Product For Test Rental of an asset which is shipped from and returned to inventory",
+    "internalName": "Rental Shipping"
+  },
+  {
+    "productId": "PC001",
+    "productType": "AGGREGATED",
+    "name": "Configurable PC",
+    "description": "Configurable PC",
+    "internalName": "Configurable PC"
+  },
+  {
+    "productId": "RAM1GB_BRAND",
+    "productType": "FINISHED_GOOD",
+    "name": "RAM1GB",
+    "description": "1 GB Dual Channel DDR2 SDRAM",
+    "internalName": "RAM 1 GB DDR2"
+  },
+  {
+    "productId": "HD250GB_BRAND",
+    "productType": "FINISHED_GOOD",
+    "name": "HD250GB",
+    "description": "250 GB Hard Drive",
+    "internalName": "HD 250 GB"
+  },
+  {
+    "productId": "HD500GB_BRAND",
+    "productType": "FINISHED_GOOD",
+    "name": "HD500GB",
+    "description": "500 GB Hard Drive",
+    "internalName": "HD 450 GB"
+  },
+  {
+    "productId": "ETH_BRAND",
+    "productType": "FINISHED_GOOD",
+    "name": "Ethernet100",
+    "description": "Ethernet Card 10/100",
+    "internalName": "Ethernet Card 10/100"
+  },
+  {
+    "productId": "MOD_BRAND",
+    "productType": "FINISHED_GOOD",
+    "name": "Modem56k",
+    "description": "Modem Card 56k",
+    "internalName": "Modem Card 56k"
+  },
+  {
+    "productId": "MOTHER_BOARD_ASS",
+    "productType": "MARKETING_PKG_AUTO",
+    "name": "MotherBoard Assembly",
+    "description": "Motherboard Assembly",
+    "internalName": "Motherboard assembly"
+  },
+  {
+    "productId": "MOTHER_BOARD",
+    "productType": "FINISHED_GOOD",
+    "name": "MotherBoard",
+    "description": "Motherboard",
+    "internalName": "Motherboard"
+  },
+  {
+    "productId": "CPU-586",
+    "productType": "FINISHED_GOOD",
+    "name": "CPU 586",
+    "description": "CPU intel 586",
+    "internalName": "CPU intel 586"
+  },
+  {
+    "productId": "RoomStd",
+    "productType": "ASSET_USAGE",
+    "name": "Standard Room",
+    "description": "The standard business room",
+    "internalName": "StdRoom"
+  },
+  {
+    "productId": "RoomLux",
+    "productType": "ASSET_USAGE",
+    "name": "Luxury Room",
+    "description": "The luxery business room",
+    "internalName": "LuxRoom"
+  },
+  {
+    "productId": "RoomLarge",
+    "productType": "ASSET_USAGE",
+    "name": "Large Room",
+    "description": "The large room for families",
+    "internalName": "LargeRoom"
+  },
+  {
+    "productId": "BoatRowSimple",
+    "productType": "ASSET_USAGE",
+    "name": "Simple row boat",
+    "description": "A simple row boat to rent short time",
+    "internalName": "SmpRwBoat"
+  },
+  {
+    "productId": "Cap",
+    "productType": "FINISHED_GOOD",
+    "name": "Cap with hotel Logo",
+    "description": "A cap with the hotel logo",
+    "internalName": "Cap"
+  },
+  {
+    "productId": "dropShip1",
+    "productType": "FINISHED_GOOD",
+    "name": "DropShip from DemoSupplier",
+    "description": "",
+    "internalName": "DropShip from DemoSupplier"
+  },
+  {
+    "productId": "dropShip2",
+    "productType": "FINISHED_GOOD",
+    "name": "DropShip from BigSupplier",
+    "description": "",
+    "internalName": "DropShip from BigSupplier"
+  },
+  {
+    "productId": "dropShip3",
+    "productType": "FINISHED_GOOD",
+    "name": "DropShip from EuroSupplier",
+    "description": "",
+    "internalName": "DropShip from EuroSupplier"
+  },
+  {
+    "productId": "orderWhenSold",
+    "productType": "FINISHED_GOOD",
+    "name": "Order product from DemoSupplier when sold",
+    "description": "",
+    "internalName": "Order product from DemoSupplier when sold"
+  },
+  {
+    "productId": "FA-001",
+    "productType": "DIGITAL_GOOD",
+    "name": "Financial Account Activation",
+    "description": "Balance Account Activation",
+    "internalName": "Financial Account Activation"
+  },
+  {
+    "productId": "FA-001-30",
+    "productType": "DIGITAL_GOOD",
+    "name": "Financial Account Activation",
+    "description": "Financial Account Activation",
+    "internalName": "Financial Account Activation"
+  },
+  {
+    "productId": "FA-001-50",
+    "productType": "DIGITAL_GOOD",
+    "name": "Financial Account Activation",
+    "description": "Financial Account Activation",
+    "internalName": "Financial Account Activation"
+  },
+  {
+    "productId": "FA-001-O",
+    "productType": "DIGITAL_GOOD",
+    "name": "Financial Account Activation",
+    "description": "Financial Account Activation",
+    "internalName": "Financial Account Activation"
+  },
+  {
+    "productId": "DEMO-PRODUCT-1",
+    "productType": "SCRUM_ITEM",
+    "name": "",
+    "description": "",
+    "internalName": "Demo Product 1"
+  },
+  {
+    "productId": "ENCHILADAS",
+    "productType": "AGGREGATED",
+    "name": "Enchiladas",
+    "description": "Cheese enchiladas",
+    "internalName": "Enchiladas"
+  },
+  {
+    "productId": "FAJITA_BEEF",
+    "productType": "FINISHED_GOOD",
+    "name": "Fajita beef",
+    "description": "Fajita beef",
+    "internalName": "Fajita beef"
+  },
+  {
+    "productId": "JALAPENOS",
+    "productType": "FINISHED_GOOD",
+    "name": "Jalapenos",
+    "description": "Jalapenos",
+    "internalName": "Jalapenos"
+  },
+  {
+    "productId": "PIZZA",
+    "productType": "AGGREGATED",
+    "name": "Gold Pizza",
+    "description": "Create your own pizza",
+    "internalName": "Pizza"
+  },
+  {
+    "productId": "DOUGH",
+    "productType": "FINISHED_GOOD",
+    "name": "Dough",
+    "description": "Dough",
+    "internalName": "Dough"
+  }
+]

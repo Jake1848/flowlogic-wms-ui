@@ -38,6 +38,15 @@ export const WMS_CONNECTORS: WMSConnector[] = [
     popular: true
   },
   {
+    id: 'ofbiz',
+    name: 'Apache OFBiz',
+    logo: 'OFB',
+    description: 'Open source ERP and WMS system',
+    features: ['Inventory Sync', 'Order Management', 'Physical Inventory', 'Open Source'],
+    methods: ['REST API'],
+    popular: false
+  },
+  {
     id: 'infor-wms',
     name: 'Infor WMS',
     logo: 'I',
