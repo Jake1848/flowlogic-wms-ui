@@ -137,13 +137,25 @@ export async function syncOFBizData(prisma) {
     });
 
     if (!integration) {
+      // Get or create a default company for the integration
+      let company = await prisma.company.findFirst();
+      if (!company) {
+        company = await prisma.company.create({
+          data: {
+            name: 'FlowLogic Demo',
+            domain: 'flowlogic.local'
+          }
+        });
+      }
+
       integration = await prisma.integration.create({
         data: {
           name: 'Apache OFBiz WMS (Auto-Sync)',
           type: 'CUSTOM_WMS',
           status: 'ACTIVE',
           isActive: true,
-          config: { source: 'Derby Database', autoSync: true }
+          settings: { source: 'Derby Database', autoSync: true },
+          companyId: company.id
         }
       });
     }
