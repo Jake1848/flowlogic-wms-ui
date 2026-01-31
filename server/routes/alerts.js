@@ -12,6 +12,21 @@ import notificationService from '../services/notification.js';
 
 const router = express.Router();
 
+// Helper to compute status from isRead/isResolved
+function computeAlertStatus(alert) {
+  if (alert.isResolved) return 'RESOLVED';
+  if (alert.isRead) return 'ACKNOWLEDGED';
+  return 'NEW';
+}
+
+// Transform alert to include status field for frontend compatibility
+function transformAlert(alert) {
+  return {
+    ...alert,
+    status: computeAlertStatus(alert)
+  };
+}
+
 export default function alertRoutes(prisma) {
   // Initialize notification service with prisma
   notificationService.setPrisma(prisma);
@@ -53,7 +68,7 @@ export default function alertRoutes(prisma) {
       ]);
 
       res.json({
-        data: alerts,
+        data: alerts.map(transformAlert),
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -180,7 +195,7 @@ export default function alertRoutes(prisma) {
         take: parseInt(limit),
       });
 
-      res.json(alerts);
+      res.json(alerts.map(transformAlert));
     } catch (error) {
       console.error('Get active alerts error:', error);
       res.status(500).json({ error: 'Failed to fetch active alerts' });
@@ -204,7 +219,7 @@ export default function alertRoutes(prisma) {
         take: parseInt(limit),
       });
 
-      res.json(alerts);
+      res.json(alerts.map(transformAlert));
     } catch (error) {
       console.error('Get unread alerts error:', error);
       res.status(500).json({ error: 'Failed to fetch unread alerts' });
@@ -226,7 +241,7 @@ export default function alertRoutes(prisma) {
         take: 20,
       });
 
-      res.json(alerts);
+      res.json(alerts.map(transformAlert));
     } catch (error) {
       console.error('Get critical alerts error:', error);
       res.status(500).json({ error: 'Failed to fetch critical alerts' });
@@ -247,7 +262,7 @@ export default function alertRoutes(prisma) {
         return res.status(404).json({ error: 'Alert not found' });
       }
 
-      res.json(alert);
+      res.json(transformAlert(alert));
     } catch (error) {
       console.error('Get alert error:', error);
       res.status(500).json({ error: 'Failed to fetch alert' });
@@ -345,7 +360,7 @@ export default function alertRoutes(prisma) {
         },
       });
 
-      res.json(alert);
+      res.json(transformAlert(alert));
     } catch (error) {
       console.error('Acknowledge alert error:', error);
       res.status(500).json({ error: 'Failed to acknowledge alert' });
@@ -366,7 +381,7 @@ export default function alertRoutes(prisma) {
         },
       });
 
-      res.json(alert);
+      res.json(transformAlert(alert));
     } catch (error) {
       console.error('Resolve alert error:', error);
       res.status(500).json({ error: 'Failed to resolve alert' });
@@ -388,7 +403,7 @@ export default function alertRoutes(prisma) {
         },
       });
 
-      res.json(alert);
+      res.json(transformAlert(alert));
     } catch (error) {
       console.error('Resolve alert error:', error);
       res.status(500).json({ error: 'Failed to resolve alert' });
@@ -407,7 +422,7 @@ export default function alertRoutes(prisma) {
         },
       });
 
-      res.json(alert);
+      res.json(transformAlert(alert));
     } catch (error) {
       console.error('Dismiss alert error:', error);
       res.status(500).json({ error: 'Failed to dismiss alert' });
