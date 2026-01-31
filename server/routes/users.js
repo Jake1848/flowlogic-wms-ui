@@ -130,7 +130,7 @@ export default function createUserRoutes(prisma) {
           lastName: true,
           fullName: true,
           role: true,
-          department: true,
+          departmentId: true,
           employeeId: true,
           phone: true,
           isActive: true,

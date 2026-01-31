@@ -48,7 +48,7 @@ export default function auditLogRoutes(prisma) {
     if (entityType) where.entityType = entityType;
     if (entityId) where.entityId = entityId;
     if (userId) where.userId = userId;
-    if (warehouseId) where.warehouseId = warehouseId;
+    // Note: warehouseId not in AuditLog model - filter by entityType/entityId instead
 
     if (dateFrom || dateTo) {
       where.createdAt = {};
@@ -70,9 +70,6 @@ export default function auditLogRoutes(prisma) {
         include: {
           user: {
             select: { id: true, username: true, fullName: true }
-          },
-          warehouse: {
-            select: { id: true, code: true, name: true }
           }
         },
         orderBy: { createdAt: 'desc' },
