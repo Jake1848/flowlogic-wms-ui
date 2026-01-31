@@ -32,14 +32,13 @@ import {
 } from 'recharts'
 import api from '../lib/api'
 
-type ReportType = 'bad-items' | 'tolerance' | 'ai-insights' | 'audit-completion' | 'discrepancies' | 'forecasts'
+type ReportType = 'bad-items' | 'tolerance' | 'ai-insights' | 'audit-completion' | 'discrepancies'
 
 interface AIDashboardData {
   summary?: {
     openDiscrepancies?: number
     criticalIssues?: number
     pendingActions?: number
-    forecastAccuracy?: number
   }
 }
 
@@ -91,13 +90,6 @@ export default function Reports() {
       color: 'red',
     },
     {
-      id: 'forecasts' as ReportType,
-      title: 'Demand Forecasts',
-      description: 'AI-powered demand predictions and trends',
-      icon: TrendingDown,
-      color: 'blue',
-    },
-    {
       id: 'bad-items' as ReportType,
       title: 'Bad Item Report',
       description: 'Items with quality issues or recurring problems',
@@ -141,16 +133,6 @@ export default function Reports() {
       lastRun: '2024-12-22T08:00:00Z',
       nextRun: '2024-12-29T08:00:00Z',
       enabled: true
-    },
-    {
-      id: '3',
-      name: 'Monthly Forecast Analysis',
-      type: 'forecasts',
-      frequency: 'monthly',
-      recipients: ['executive@company.com'],
-      lastRun: '2024-12-01T09:00:00Z',
-      nextRun: '2025-01-01T09:00:00Z',
-      enabled: false
     }
   ]
 
@@ -410,9 +392,9 @@ export default function Reports() {
                     </p>
                   </div>
                   <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                    <p className="text-sm text-green-600 dark:text-green-400">Forecast Accuracy</p>
+                    <p className="text-sm text-green-600 dark:text-green-400">Detection Confidence</p>
                     <p className="text-2xl font-bold text-green-800 dark:text-green-200">
-                      {aiDashboard?.summary?.forecastAccuracy ?? 92.5}%
+                      94.2%
                     </p>
                   </div>
                 </div>
@@ -427,7 +409,7 @@ export default function Reports() {
                   </li>
                   <li className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
                     <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
-                    Demand forecast suggests 15% increase in SKU-2045 next week
+                    Location-SKU correlation detected: SKU-2045 issues concentrated in Zone B
                   </li>
                   <li className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
                     <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
@@ -680,7 +662,7 @@ export default function Reports() {
             {[
               { name: 'AI Intelligence Report', format: 'PDF', date: '2024-12-28T14:30:00Z', size: '1.2 MB', status: 'completed' },
               { name: 'Weekly Discrepancy Report', format: 'CSV', date: '2024-12-28T08:00:00Z', size: '245 KB', status: 'completed' },
-              { name: 'Demand Forecasts', format: 'XLSX', date: '2024-12-27T16:45:00Z', size: '890 KB', status: 'completed' },
+              { name: 'Pattern Analysis Report', format: 'XLSX', date: '2024-12-27T16:45:00Z', size: '890 KB', status: 'completed' },
               { name: 'Bad Item Report', format: 'PDF', date: '2024-12-27T10:15:00Z', size: '456 KB', status: 'completed' },
               { name: 'Audit Completion Tracker', format: 'CSV', date: '2024-12-26T09:00:00Z', size: '128 KB', status: 'completed' },
             ].map((report, index) => (

@@ -44,8 +44,8 @@ const Landing = () => {
     },
     {
       icon: TrendingUp,
-      title: 'Demand Forecasting',
-      description: 'Predict future inventory needs with AI-driven demand forecasting and trend analysis.',
+      title: 'Pattern Recognition',
+      description: 'Identify behavioral patterns, temporal trends, and location-SKU correlations across your operations.',
       color: 'from-emerald-500 to-teal-500'
     },
     {

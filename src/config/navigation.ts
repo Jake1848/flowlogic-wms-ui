@@ -14,7 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-export type PageType = 'intelligence' | 'alerts' | 'notifications' | 'reports' | 'forecast' | 'costanalytics' | 'productivity' | 'systemhealth' | 'integrations' | 'audit' | 'users' | 'settings'
+export type PageType = 'intelligence' | 'alerts' | 'notifications' | 'reports' | 'costanalytics' | 'productivity' | 'systemhealth' | 'integrations' | 'audit' | 'users' | 'settings'
 
 export interface MenuItem {
   id: PageType
@@ -40,7 +40,6 @@ export const transactionCodes: Record<string, PageType> = {
   'ALC': 'alerts', 'ALERTS': 'alerts',
   'NTF': 'notifications', 'NOTIFY': 'notifications',
   'RPT': 'reports', 'REPORTS': 'reports',
-  'FCT': 'forecast', 'FORECAST': 'forecast',
   'CST': 'costanalytics', 'COST': 'costanalytics',
   'PRD': 'productivity', 'PROD': 'productivity',
   'SYS': 'systemhealth', 'HEALTH': 'systemhealth',
@@ -72,7 +71,6 @@ export const menuGroups: MenuGroup[] = [
     icon: TrendingUp,
     color: 'from-cyan-500 to-blue-600',
     items: [
-      { id: 'forecast', label: 'Demand Forecasting', icon: TrendingUp, code: 'FCT' },
       { id: 'costanalytics', label: 'Cost Analytics', icon: Calculator, code: 'CST' },
       { id: 'productivity', label: 'Productivity Metrics', icon: Zap, code: 'PRD' },
       { id: 'reports', label: 'Reports', icon: FileText, code: 'RPT' },

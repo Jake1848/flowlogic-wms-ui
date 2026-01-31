@@ -25,7 +25,6 @@ const NotFound = lazy(() => import('../pages/NotFound'))
 const IntelligenceDashboard = lazy(() => import('../pages/ModernIntelligenceDashboard'))
 const Alerts = lazy(() => import('../pages/Alerts'))
 const Reports = lazy(() => import('../pages/Reports'))
-const DemandForecasting = lazy(() => import('../pages/DemandForecasting'))
 const CostAnalytics = lazy(() => import('../pages/CostAnalytics'))
 const ProductivityMetrics = lazy(() => import('../pages/ProductivityMetrics'))
 const SystemHealth = lazy(() => import('../pages/SystemHealth'))
@@ -66,7 +65,6 @@ export const protectedRoutes: RouteObject[] = [
 
   // Analytics & Reports
   { path: '/reports', element: withSuspense(Reports) },
-  { path: '/forecast', element: withSuspense(DemandForecasting) },
   { path: '/costanalytics', element: withSuspense(CostAnalytics) },
   { path: '/productivity', element: withSuspense(ProductivityMetrics) },
 
@@ -95,7 +93,6 @@ export const pageIdToPath: Record<string, string> = {
   alerts: '/alerts',
   notifications: '/notifications',
   reports: '/reports',
-  forecast: '/forecast',
   costanalytics: '/costanalytics',
   productivity: '/productivity',
   systemhealth: '/systemhealth',
@@ -112,7 +109,6 @@ export const pathToPageId: Record<string, string> = {
   '/alerts': 'alerts',
   '/notifications': 'notifications',
   '/reports': 'reports',
-  '/forecast': 'forecast',
   '/costanalytics': 'costanalytics',
   '/productivity': 'productivity',
   '/systemhealth': 'systemhealth',

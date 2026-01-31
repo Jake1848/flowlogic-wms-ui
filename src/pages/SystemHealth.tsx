@@ -36,7 +36,6 @@ interface AIHealthResponse {
   status: string
   timestamp: string
   engines: {
-    forecasting: string
     anomalyDetection: string
     patternRecognition: string
     recommendations: string
@@ -78,12 +77,12 @@ const uptimeData = [
 ]
 
 const aiAnalyticsData = [
-  { time: '06:00', forecasts: 12, anomalies: 3, patterns: 8 },
-  { time: '09:00', forecasts: 45, anomalies: 8, patterns: 15 },
-  { time: '12:00', forecasts: 78, anomalies: 12, patterns: 24 },
-  { time: '15:00', forecasts: 65, anomalies: 5, patterns: 18 },
-  { time: '18:00', forecasts: 34, anomalies: 2, patterns: 10 },
-  { time: '21:00', forecasts: 18, anomalies: 1, patterns: 6 },
+  { time: '06:00', recommendations: 8, anomalies: 3, patterns: 8 },
+  { time: '09:00', recommendations: 22, anomalies: 8, patterns: 15 },
+  { time: '12:00', recommendations: 35, anomalies: 12, patterns: 24 },
+  { time: '15:00', recommendations: 28, anomalies: 5, patterns: 18 },
+  { time: '18:00', recommendations: 15, anomalies: 2, patterns: 10 },
+  { time: '21:00', recommendations: 10, anomalies: 1, patterns: 6 },
 ]
 
 export default function SystemHealth() {
@@ -329,9 +328,8 @@ export default function SystemHealth() {
           ) : (
             <>
               {/* AI Engine Status */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
-                  { name: 'Forecasting Engine', key: 'forecasting', icon: TrendingUp, description: 'Demand prediction and time-series analysis' },
                   { name: 'Anomaly Detection', key: 'anomalyDetection', icon: AlertTriangle, description: 'Statistical outlier detection (Z-score, IQR, MAD)' },
                   { name: 'Pattern Recognition', key: 'patternRecognition', icon: BarChart3, description: 'Temporal and behavioral pattern analysis' },
                   { name: 'Recommendations', key: 'recommendations', icon: Zap, description: 'AI-powered action recommendations' },
@@ -412,7 +410,7 @@ export default function SystemHealth() {
                       <Tooltip
                         contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px' }}
                       />
-                      <Area type="monotone" dataKey="forecasts" stroke="#8B5CF6" fill="#C4B5FD" name="Forecasts" />
+                      <Area type="monotone" dataKey="recommendations" stroke="#8B5CF6" fill="#C4B5FD" name="Recommendations" />
                       <Area type="monotone" dataKey="anomalies" stroke="#EF4444" fill="#FCA5A5" name="Anomalies" />
                       <Area type="monotone" dataKey="patterns" stroke="#3B82F6" fill="#93C5FD" name="Patterns" />
                     </AreaChart>
@@ -504,7 +502,7 @@ export default function SystemHealth() {
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {[
-              { time: '14:32:15', level: 'info', message: 'AI Forecasting Engine completed analysis cycle', source: 'AI Engine' },
+              { time: '14:32:15', level: 'info', message: 'AI Recommendation Engine completed analysis cycle', source: 'AI Engine' },
               { time: '14:30:00', level: 'info', message: 'Anomaly detection scan completed - 3 anomalies found', source: 'AI Engine' },
               { time: '14:28:45', level: 'info', message: 'WMS data sync completed from Manhattan', source: 'Integration' },
               { time: '14:15:22', level: 'info', message: 'Pattern recognition analysis completed', source: 'AI Engine' },

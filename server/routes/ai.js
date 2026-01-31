@@ -6,7 +6,6 @@
 import express from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import {
-  forecastingEngine,
   anomalyDetectionEngine,
   patternRecognitionEngine,
   recommendationEngine
@@ -27,59 +26,6 @@ const validateString = (value, maxLength = 100) => {
   if (typeof value !== 'string') return null;
   return value.trim().slice(0, maxLength) || null;
 };
-
-/**
- * @route POST /api/ai/forecast
- * @desc Generate demand forecast for a SKU using transaction snapshots
- */
-router.post('/forecast', asyncHandler(async (req, res) => {
-  try {
-    const sku = validateString(req.body.sku);
-    const horizonDays = validatePositiveInt(req.body.horizonDays, 30, 365);
-    const prisma = req.app.locals.prisma;
-
-    // Get historical transaction data from snapshots
-    const transactions = await prisma.transactionSnapshot.findMany({
-      where: {
-        sku: sku || undefined,
-        transactionDate: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }
-      },
-      orderBy: { transactionDate: 'asc' },
-      select: {
-        quantity: true,
-        transactionDate: true
-      }
-    });
-
-    // Aggregate by day
-    const dailyData = new Map();
-    transactions.forEach(t => {
-      const date = t.transactionDate.toISOString().split('T')[0];
-      dailyData.set(date, (dailyData.get(date) || 0) + Math.abs(t.quantity));
-    });
-
-    const historicalData = Array.from(dailyData.entries()).map(([date, quantity]) => ({
-      date,
-      quantity
-    }));
-
-    // Generate forecast
-    const forecast = forecastingEngine.forecast(historicalData, horizonDays);
-
-    res.json({
-      success: true,
-      sku,
-      ...forecast
-    });
-  } catch (error) {
-    console.error('Forecast error:', error.message);
-    res.status(500).json({
-      success: false,
-      error: 'Forecast generation failed',
-      message: error.message || 'Insufficient data or internal error'
-    });
-  }
-}));
 
 /**
  * @route POST /api/ai/anomaly-detection
@@ -271,7 +217,7 @@ router.post('/recommendations', asyncHandler(async (req, res) => {
       value: a.adjustmentQty
     }));
 
-    // Get transaction data for forecasting
+    // Get transaction data for pattern analysis
     const transactions = await prisma.transactionSnapshot.findMany({
       where: {
         sku: sku || undefined,
@@ -280,20 +226,8 @@ router.post('/recommendations', asyncHandler(async (req, res) => {
       orderBy: { transactionDate: 'asc' }
     });
 
-    const dailyData = new Map();
-    transactions.forEach(t => {
-      const date = t.transactionDate.toISOString().split('T')[0];
-      dailyData.set(date, (dailyData.get(date) || 0) + Math.abs(t.quantity));
-    });
-
-    const historicalData = Array.from(dailyData.entries()).map(([date, quantity]) => ({
-      date,
-      quantity
-    }));
-
     // Run analyses
     const anomalies = anomalyDetectionEngine.detect(adjustmentData, 'value');
-    const forecasts = forecastingEngine.forecast(historicalData, 30);
 
     // Pattern analysis
     const combinedTransactions = [
@@ -322,7 +256,6 @@ router.post('/recommendations', asyncHandler(async (req, res) => {
     // Generate recommendations
     const recommendations = recommendationEngine.generateRecommendations({
       anomalies,
-      forecasts,
       patterns
     });
 
@@ -331,7 +264,6 @@ router.post('/recommendations', asyncHandler(async (req, res) => {
       parameters: { sku },
       analysis: {
         anomalies: anomalies.success ? anomalies.summary : null,
-        forecasts: forecasts.success ? forecasts.summary : null,
         patterns: patterns.success ? patterns.summary : null
       },
       ...recommendations
@@ -357,7 +289,6 @@ router.get('/health', asyncHandler(async (req, res) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     engines: {
-      forecasting: 'active',
       anomalyDetection: 'active',
       patternRecognition: 'active',
       recommendations: 'active'
@@ -408,9 +339,6 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
     const highIssues = discrepancies.filter(d => d.severity === 'high').length;
     const pendingActions = actions.length;
 
-    // Get accuracy from recent forecasts (mock for now)
-    const forecastAccuracy = 92.5;
-
     res.json({
       success: true,
       summary: {
@@ -418,14 +346,13 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
         criticalIssues,
         highIssues,
         pendingActions,
-        analysesLast24h: analysisCount,
-        forecastAccuracy
+        analysesLast24h: analysisCount
       },
       recentDiscrepancies: discrepancies,
       topActions: actions,
       aiStatus: {
         lastAnalysis: new Date().toISOString(),
-        modelsActive: 4,
+        modelsActive: 3,
         dataQuality: 'good'
       }
     });

@@ -23,7 +23,6 @@ interface NavItem {
 const navigation: NavItem[] = [
   { name: 'Intelligence Hub', path: '/', icon: Brain },
   { name: 'AI Alerts', path: '/alerts', icon: AlertTriangle, badge: 3 },
-  { name: 'Demand Forecasting', path: '/forecast', icon: TrendingUp },
   { name: 'Cost Analytics', path: '/costanalytics', icon: BarChart3 },
   { name: 'Reports', path: '/reports', icon: FileText },
   { name: 'Integrations', path: '/integrations', icon: Database },
