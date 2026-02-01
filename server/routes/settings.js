@@ -50,7 +50,7 @@ export default function settingsRoutes(prisma) {
 
     const settings = await prisma.systemSetting.findMany({
       where,
-      orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { key: 'asc' }]
+      orderBy: [{ category: 'asc' }, { key: 'asc' }]
     });
 
     // Group by category
@@ -82,7 +82,7 @@ export default function settingsRoutes(prisma) {
   router.get('/category/:category', asyncHandler(async (req, res) => {
     const settings = await prisma.systemSetting.findMany({
       where: { category: req.params.category.toUpperCase() },
-      orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }]
+      orderBy: [{ key: 'asc' }]
     });
 
     res.json(settings);
@@ -615,42 +615,42 @@ function validateSettingValue(dataType, value) {
 function getDefaultSettings() {
   return [
     // General settings
-    { key: 'company.name', label: 'Company Name', category: 'GENERAL', dataType: 'STRING', value: 'FlowLogic WMS', defaultValue: 'FlowLogic WMS', sortOrder: 1 },
-    { key: 'company.timezone', label: 'Timezone', category: 'GENERAL', dataType: 'STRING', value: 'America/New_York', defaultValue: 'America/New_York', sortOrder: 2 },
-    { key: 'company.dateFormat', label: 'Date Format', category: 'GENERAL', dataType: 'STRING', value: 'MM/DD/YYYY', defaultValue: 'MM/DD/YYYY', sortOrder: 3 },
-    { key: 'company.currency', label: 'Currency', category: 'GENERAL', dataType: 'STRING', value: 'USD', defaultValue: 'USD', sortOrder: 4 },
+    { key: 'company.name', description: 'Company Name', category: 'GENERAL', dataType: 'STRING', value: 'FlowLogic WMS' },
+    { key: 'company.timezone', description: 'Timezone', category: 'GENERAL', dataType: 'STRING', value: 'America/New_York' },
+    { key: 'company.dateFormat', description: 'Date Format', category: 'GENERAL', dataType: 'STRING', value: 'MM/DD/YYYY' },
+    { key: 'company.currency', description: 'Currency', category: 'GENERAL', dataType: 'STRING', value: 'USD' },
 
     // Inventory settings
-    { key: 'inventory.allowNegative', label: 'Allow Negative Inventory', category: 'INVENTORY', dataType: 'BOOLEAN', value: 'false', defaultValue: 'false', sortOrder: 1 },
-    { key: 'inventory.defaultUOM', label: 'Default UOM', category: 'INVENTORY', dataType: 'STRING', value: 'EA', defaultValue: 'EA', sortOrder: 2 },
-    { key: 'inventory.lotTracking', label: 'Enable Lot Tracking', category: 'INVENTORY', dataType: 'BOOLEAN', value: 'true', defaultValue: 'true', sortOrder: 3 },
-    { key: 'inventory.serialTracking', label: 'Enable Serial Tracking', category: 'INVENTORY', dataType: 'BOOLEAN', value: 'false', defaultValue: 'false', sortOrder: 4 },
-    { key: 'inventory.expirationTracking', label: 'Enable Expiration Tracking', category: 'INVENTORY', dataType: 'BOOLEAN', value: 'true', defaultValue: 'true', sortOrder: 5 },
+    { key: 'inventory.allowNegative', description: 'Allow Negative Inventory', category: 'INVENTORY', dataType: 'BOOLEAN', value: 'false' },
+    { key: 'inventory.defaultUOM', description: 'Default UOM', category: 'INVENTORY', dataType: 'STRING', value: 'EA' },
+    { key: 'inventory.lotTracking', description: 'Enable Lot Tracking', category: 'INVENTORY', dataType: 'BOOLEAN', value: 'true' },
+    { key: 'inventory.serialTracking', description: 'Enable Serial Tracking', category: 'INVENTORY', dataType: 'BOOLEAN', value: 'false' },
+    { key: 'inventory.expirationTracking', description: 'Enable Expiration Tracking', category: 'INVENTORY', dataType: 'BOOLEAN', value: 'true' },
 
     // Receiving settings
-    { key: 'receiving.requirePO', label: 'Require PO for Receiving', category: 'RECEIVING', dataType: 'BOOLEAN', value: 'false', defaultValue: 'false', sortOrder: 1 },
-    { key: 'receiving.overReceivePercent', label: 'Over-Receive Tolerance %', category: 'RECEIVING', dataType: 'NUMBER', value: '10', defaultValue: '10', sortOrder: 2 },
-    { key: 'receiving.autoQC', label: 'Auto Quality Check', category: 'RECEIVING', dataType: 'BOOLEAN', value: 'false', defaultValue: 'false', sortOrder: 3 },
+    { key: 'receiving.requirePO', description: 'Require PO for Receiving', category: 'RECEIVING', dataType: 'BOOLEAN', value: 'false' },
+    { key: 'receiving.overReceivePercent', description: 'Over-Receive Tolerance %', category: 'RECEIVING', dataType: 'NUMBER', value: '10' },
+    { key: 'receiving.autoQC', description: 'Auto Quality Check', category: 'RECEIVING', dataType: 'BOOLEAN', value: 'false' },
 
     // Shipping settings
-    { key: 'shipping.autoAllocate', label: 'Auto Allocate Inventory', category: 'SHIPPING', dataType: 'BOOLEAN', value: 'true', defaultValue: 'true', sortOrder: 1 },
-    { key: 'shipping.requireWeight', label: 'Require Package Weight', category: 'SHIPPING', dataType: 'BOOLEAN', value: 'true', defaultValue: 'true', sortOrder: 2 },
-    { key: 'shipping.defaultCarrier', label: 'Default Carrier', category: 'SHIPPING', dataType: 'STRING', value: '', defaultValue: '', sortOrder: 3 },
+    { key: 'shipping.autoAllocate', description: 'Auto Allocate Inventory', category: 'SHIPPING', dataType: 'BOOLEAN', value: 'true' },
+    { key: 'shipping.requireWeight', description: 'Require Package Weight', category: 'SHIPPING', dataType: 'BOOLEAN', value: 'true' },
+    { key: 'shipping.defaultCarrier', description: 'Default Carrier', category: 'SHIPPING', dataType: 'STRING', value: '' },
 
     // Order settings
-    { key: 'orders.autoConfirm', label: 'Auto Confirm Orders', category: 'ORDERS', dataType: 'BOOLEAN', value: 'false', defaultValue: 'false', sortOrder: 1 },
-    { key: 'orders.pickMethod', label: 'Default Pick Method', category: 'ORDERS', dataType: 'STRING', value: 'WAVE', defaultValue: 'WAVE', sortOrder: 2 },
-    { key: 'orders.batchSize', label: 'Default Batch Size', category: 'ORDERS', dataType: 'NUMBER', value: '50', defaultValue: '50', sortOrder: 3 },
+    { key: 'orders.autoConfirm', description: 'Auto Confirm Orders', category: 'ORDERS', dataType: 'BOOLEAN', value: 'false' },
+    { key: 'orders.pickMethod', description: 'Default Pick Method', category: 'ORDERS', dataType: 'STRING', value: 'WAVE' },
+    { key: 'orders.batchSize', description: 'Default Batch Size', category: 'ORDERS', dataType: 'NUMBER', value: '50' },
 
     // Labor settings
-    { key: 'labor.trackTime', label: 'Track Labor Time', category: 'LABOR', dataType: 'BOOLEAN', value: 'true', defaultValue: 'true', sortOrder: 1 },
-    { key: 'labor.requireLogin', label: 'Require User Login', category: 'LABOR', dataType: 'BOOLEAN', value: 'true', defaultValue: 'true', sortOrder: 2 },
-    { key: 'labor.overtimeThreshold', label: 'Overtime Threshold (hours)', category: 'LABOR', dataType: 'NUMBER', value: '8', defaultValue: '8', sortOrder: 3 },
+    { key: 'labor.trackTime', description: 'Track Labor Time', category: 'LABOR', dataType: 'BOOLEAN', value: 'true' },
+    { key: 'labor.requireLogin', description: 'Require User Login', category: 'LABOR', dataType: 'BOOLEAN', value: 'true' },
+    { key: 'labor.overtimeThreshold', description: 'Overtime Threshold (hours)', category: 'LABOR', dataType: 'NUMBER', value: '8' },
 
     // Security settings
-    { key: 'security.passwordMinLength', label: 'Min Password Length', category: 'SECURITY', dataType: 'NUMBER', value: '8', defaultValue: '8', sortOrder: 1 },
-    { key: 'security.sessionTimeout', label: 'Session Timeout (minutes)', category: 'SECURITY', dataType: 'NUMBER', value: '480', defaultValue: '480', sortOrder: 2 },
-    { key: 'security.maxLoginAttempts', label: 'Max Login Attempts', category: 'SECURITY', dataType: 'NUMBER', value: '5', defaultValue: '5', sortOrder: 3 },
-    { key: 'security.requireMFA', label: 'Require MFA', category: 'SECURITY', dataType: 'BOOLEAN', value: 'false', defaultValue: 'false', sortOrder: 4 }
+    { key: 'security.passwordMinLength', description: 'Min Password Length', category: 'SECURITY', dataType: 'NUMBER', value: '8' },
+    { key: 'security.sessionTimeout', description: 'Session Timeout (minutes)', category: 'SECURITY', dataType: 'NUMBER', value: '480' },
+    { key: 'security.maxLoginAttempts', description: 'Max Login Attempts', category: 'SECURITY', dataType: 'NUMBER', value: '5' },
+    { key: 'security.requireMFA', description: 'Require MFA', category: 'SECURITY', dataType: 'BOOLEAN', value: 'false' }
   ];
 }

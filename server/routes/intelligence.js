@@ -977,6 +977,177 @@ export default function createIntelligenceRoutes(prisma) {
   });
 
   // ==========================================
+  // BAD ITEMS REPORT (from OFBiz WMS)
+  // ==========================================
+
+  /**
+   * Get all bad items synced from WMS
+   */
+  router.get('/bad-items', async (req, res) => {
+    try {
+      const { status, issueType, severity, limit = 100 } = req.query;
+
+      const where = {};
+      if (status) where.status = status;
+      if (issueType) where.issueType = issueType;
+      if (severity) where.severity = severity;
+
+      const badItems = await prisma.badItem.findMany({
+        where,
+        orderBy: [{ severity: 'desc' }, { reportedAt: 'desc' }],
+        take: parseInt(limit)
+      });
+
+      // Get summary stats
+      const stats = await prisma.badItem.groupBy({
+        by: ['issueType', 'status'],
+        _count: true,
+        _sum: { occurrences: true }
+      });
+
+      const openCount = badItems.filter(i => i.status === 'OPEN').length;
+      const criticalCount = badItems.filter(i => i.severity === 'CRITICAL').length;
+
+      res.json({
+        items: badItems,
+        summary: {
+          total: badItems.length,
+          open: openCount,
+          critical: criticalCount,
+          byType: stats.reduce((acc, s) => {
+            if (!acc[s.issueType]) acc[s.issueType] = { count: 0, occurrences: 0 };
+            acc[s.issueType].count += s._count;
+            acc[s.issueType].occurrences += s._sum.occurrences || 0;
+            return acc;
+          }, {})
+        }
+      });
+    } catch (error) {
+      console.error('Bad items fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch bad items' });
+    }
+  });
+
+  /**
+   * Get bad item report summary for dashboard
+   */
+  router.get('/bad-items/summary', async (req, res) => {
+    try {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+      const [total, byType, bySeverity, recent] = await Promise.all([
+        prisma.badItem.count(),
+        prisma.badItem.groupBy({
+          by: ['issueType'],
+          _count: true,
+          _sum: { occurrences: true }
+        }),
+        prisma.badItem.groupBy({
+          by: ['severity'],
+          _count: true
+        }),
+        prisma.badItem.findMany({
+          where: { reportedAt: { gte: thirtyDaysAgo } },
+          orderBy: { reportedAt: 'desc' },
+          take: 10
+        })
+      ]);
+
+      res.json({
+        total,
+        byIssueType: byType.map(t => ({
+          type: t.issueType,
+          count: t._count,
+          totalOccurrences: t._sum.occurrences || 0
+        })),
+        bySeverity: bySeverity.map(s => ({
+          severity: s.severity,
+          count: s._count
+        })),
+        recentItems: recent
+      });
+    } catch (error) {
+      console.error('Bad items summary error:', error);
+      res.status(500).json({ error: 'Failed to fetch bad items summary' });
+    }
+  });
+
+  /**
+   * Update bad item status
+   */
+  router.put('/bad-items/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      const updateData = {};
+      if (status) {
+        updateData.status = status;
+        if (status === 'RESOLVED') {
+          updateData.resolvedAt = new Date();
+        }
+      }
+      if (notes !== undefined) updateData.notes = notes;
+
+      const badItem = await prisma.badItem.update({
+        where: { id },
+        data: updateData
+      });
+
+      res.json(badItem);
+    } catch (error) {
+      console.error('Bad item update error:', error);
+      res.status(500).json({ error: 'Failed to update bad item' });
+    }
+  });
+
+  /**
+   * Export bad items as CSV
+   */
+  router.get('/export/bad-items', async (req, res) => {
+    try {
+      const { status, issueType, severity } = req.query;
+
+      const where = {};
+      if (status) where.status = status;
+      if (issueType) where.issueType = issueType;
+      if (severity) where.severity = severity;
+
+      const badItems = await prisma.badItem.findMany({
+        where,
+        orderBy: [{ severity: 'desc' }, { reportedAt: 'desc' }],
+        take: 10000
+      });
+
+      const headers = ['ID', 'SKU', 'Description', 'Issue Type', 'Severity', 'Occurrences', 'Location', 'Warehouse', 'Status', 'Reported At', 'Resolved At', 'Notes', 'Source'];
+      const rows = badItems.map(item => [
+        item.id,
+        item.sku,
+        (item.description || '').replace(/,/g, ';').replace(/\n/g, ' '),
+        item.issueType,
+        item.severity,
+        item.occurrences,
+        item.locationCode || '',
+        item.warehouseId || '',
+        item.status,
+        item.reportedAt ? item.reportedAt.toISOString() : '',
+        item.resolvedAt ? item.resolvedAt.toISOString() : '',
+        (item.notes || '').replace(/,/g, ';').replace(/\n/g, ' '),
+        item.sourceFile || ''
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="bad_items_${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error('Export bad items error:', error);
+      res.status(500).json({ error: 'Failed to export bad items' });
+    }
+  });
+
+  // ==========================================
   // ORDER INTEGRITY & OVERAGE DETECTION
   // ==========================================
 

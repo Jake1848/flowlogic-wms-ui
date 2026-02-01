@@ -431,6 +431,38 @@ model AuditLog {
 }
 
 // ============================================
+// BAD ITEMS / ITEM ISSUES
+// ============================================
+
+model BadItem {
+  id              String   @id @default(uuid())
+  sku             String
+  description     String?
+  issueType       String
+  severity        String   @default("MEDIUM")  // LOW, MEDIUM, HIGH, CRITICAL
+  occurrences     Int      @default(1)
+
+  locationCode    String?
+  warehouseId     String?
+
+  status          String   @default("OPEN")    // OPEN, INVESTIGATING, RESOLVED
+  reportedAt      DateTime @default(now())
+  resolvedAt      DateTime?
+
+  notes           String?
+  sourceFile      String?                      // Original import filename
+  rawData         Json?                        // Original row data
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([sku])
+  @@index([issueType, severity])
+  @@index([status])
+  @@map("bad_items")
+}
+
+// ============================================
 // SYSTEM SETTINGS
 // ============================================
 

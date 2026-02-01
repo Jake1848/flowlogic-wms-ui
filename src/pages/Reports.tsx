@@ -42,6 +42,32 @@ interface AIDashboardData {
   }
 }
 
+interface BadItem {
+  id: string
+  sku: string
+  description: string | null
+  issueType: string
+  severity: string
+  occurrences: number
+  locationCode: string | null
+  warehouseId: string | null
+  status: string
+  reportedAt: string
+  resolvedAt: string | null
+  notes: string | null
+  sourceFile: string | null
+}
+
+interface BadItemsResponse {
+  items: BadItem[]
+  summary: {
+    total: number
+    open: number
+    critical: number
+    byType: Record<string, { count: number; occurrences: number }>
+  }
+}
+
 interface ScheduledReport {
   id: string
   name: string
@@ -60,6 +86,13 @@ export default function Reports() {
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [exporting, setExporting] = useState(false)
 
+  // Bad Item Report filters
+  const [badItemFilters, setBadItemFilters] = useState({
+    status: '',
+    severity: '',
+    issueType: ''
+  })
+
   // Fetch AI dashboard data for insights
   const { data: aiDashboard, isLoading: aiLoading } = useQuery<AIDashboardData | null>({
     queryKey: ['ai-dashboard'],
@@ -73,6 +106,34 @@ export default function Reports() {
     },
     enabled: selectedReport === 'ai-insights'
   })
+
+  // Fetch bad items from WMS
+  const { data: badItemsData, isLoading: badItemsLoading, refetch: refetchBadItems } = useQuery<BadItemsResponse | null>({
+    queryKey: ['bad-items', badItemFilters],
+    queryFn: async (): Promise<BadItemsResponse | null> => {
+      try {
+        const params = new URLSearchParams()
+        if (badItemFilters.status) params.append('status', badItemFilters.status)
+        if (badItemFilters.severity) params.append('severity', badItemFilters.severity)
+        if (badItemFilters.issueType) params.append('issueType', badItemFilters.issueType)
+        const response = await api.get<BadItemsResponse>(`/intelligence/bad-items?${params.toString()}`)
+        return response.data
+      } catch {
+        return null
+      }
+    },
+    enabled: selectedReport === 'bad-items'
+  })
+
+  // Resolve bad item
+  const resolveBadItem = async (id: string) => {
+    try {
+      await api.put(`/intelligence/bad-items/${id}`, { status: 'RESOLVED' })
+      refetchBadItems()
+    } catch (error) {
+      console.error('Failed to resolve bad item:', error)
+    }
+  }
 
   const reports = [
     {
@@ -549,36 +610,146 @@ export default function Reports() {
           {/* Bad Items Report */}
           {selectedReport === 'bad-items' && (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Bad Item Report
-              </h3>
-              <div className="space-y-3">
-                {[
-                  { sku: 'SKU-1023', issue: 'Damaged packaging', severity: 'High', occurrences: 8 },
-                  { sku: 'SKU-2045', issue: 'Incorrect labeling', severity: 'Medium', occurrences: 5 },
-                  { sku: 'SKU-3012', issue: 'Missing components', severity: 'High', occurrences: 6 },
-                  { sku: 'SKU-1234', issue: 'Quality defect', severity: 'Critical', occurrences: 12 },
-                  { sku: 'SKU-5678', issue: 'Wrong color variant', severity: 'Low', occurrences: 3 },
-                ].map((item) => (
-                  <div key={item.sku} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900 dark:text-white">{item.sku}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">{item.issue}</div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                        item.severity === 'Critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
-                        item.severity === 'High' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' :
-                        item.severity === 'Medium' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
-                        'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                      }`}>
-                        {item.severity}
-                      </span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{item.occurrences} occurrences</span>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Bad Item Report
+                </h3>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Source: OFBiz WMS
+                </span>
               </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                  <select
+                    value={badItemFilters.status}
+                    onChange={(e) => setBadItemFilters({ ...badItemFilters, status: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="OPEN">Open</option>
+                    <option value="RESOLVED">Resolved</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Severity</label>
+                  <select
+                    value={badItemFilters.severity}
+                    onChange={(e) => setBadItemFilters({ ...badItemFilters, severity: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">All Severities</option>
+                    <option value="CRITICAL">Critical</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Issue Type</label>
+                  <select
+                    value={badItemFilters.issueType}
+                    onChange={(e) => setBadItemFilters({ ...badItemFilters, issueType: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">All Types</option>
+                    <option value="DAMAGED">Damaged</option>
+                    <option value="LOST">Lost</option>
+                    <option value="THEFT">Theft</option>
+                    <option value="MIS_SHIPPED">Mis-Shipped</option>
+                    <option value="REJECTED">Rejected</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={() => setBadItemFilters({ status: '', severity: '', issueType: '' })}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+
+              {/* Summary Stats */}
+              {badItemsData?.summary && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Items</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{badItemsData.summary.total}</p>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+                    <p className="text-sm text-red-600 dark:text-red-400">Open Issues</p>
+                    <p className="text-2xl font-bold text-red-800 dark:text-red-200">{badItemsData.summary.open}</p>
+                  </div>
+                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
+                    <p className="text-sm text-orange-600 dark:text-orange-400">Critical</p>
+                    <p className="text-2xl font-bold text-orange-800 dark:text-orange-200">{badItemsData.summary.critical}</p>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                    <p className="text-sm text-blue-600 dark:text-blue-400">Issue Types</p>
+                    <p className="text-2xl font-bold text-blue-800 dark:text-blue-200">
+                      {Object.keys(badItemsData.summary.byType).length}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {badItemsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-yellow-600" />
+                </div>
+              ) : badItemsData?.items && badItemsData.items.length > 0 ? (
+                <div className="space-y-3">
+                  {badItemsData.items.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900 dark:text-white">{item.sku}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          {item.issueType.replace(/_/g, ' ')} {item.description ? `- ${item.description}` : ''}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          Location: {item.locationCode || 'N/A'} • Reported: {new Date(item.reportedAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                          item.severity === 'CRITICAL' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
+                          item.severity === 'HIGH' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' :
+                          item.severity === 'MEDIUM' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
+                          'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                        }`}>
+                          {item.severity}
+                        </span>
+                        <span className={`px-2 py-0.5 text-xs rounded ${
+                          item.status === 'OPEN' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                          item.status === 'RESOLVED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                          'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                        }`}>
+                          {item.status}
+                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">{item.occurrences} occurrence{item.occurrences !== 1 ? 's' : ''}</span>
+                        {item.status === 'OPEN' && (
+                          <button
+                            onClick={() => resolveBadItem(item.id)}
+                            className="ml-2 px-3 py-1 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                          >
+                            Resolve
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <TrendingDown className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">No bad items found</p>
+                  <p className="text-sm">{badItemFilters.status || badItemFilters.severity || badItemFilters.issueType ? 'Try adjusting filters' : 'Bad items from OFBiz WMS will appear here after sync'}</p>
+                </div>
+              )}
             </div>
           )}
         </>

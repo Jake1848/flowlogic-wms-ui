@@ -108,6 +108,78 @@ public class OFBizExport {
   });
 }
 
+// Export variance/bad item data from OFBiz
+function exportVariancesFromOFBiz() {
+  return new Promise((resolve, reject) => {
+    const dbPath = join(OFBIZ_DIR, 'runtime/data/derby/ofbiz');
+
+    const javaCode = `
+import java.sql.*;
+public class OFBizVarianceExport {
+  public static void main(String[] args) throws Exception {
+    Connection conn = DriverManager.getConnection("jdbc:derby:" + args[0]);
+    Statement stmt = conn.createStatement();
+
+    StringBuilder json = new StringBuilder();
+    json.append("[\\n");
+
+    // Get variances with reasons
+    ResultSet rs = stmt.executeQuery(
+      "SELECT v.INVENTORY_ITEM_ID, v.VARIANCE_REASON_ID, v.QUANTITY_ON_HAND_VAR, " +
+      "v.AVAILABLE_TO_PROMISE_VAR, v.COMMENTS, v.CREATED_STAMP, " +
+      "r.DESCRIPTION as REASON_DESC, i.PRODUCT_ID, i.FACILITY_ID, i.LOCATION_SEQ_ID " +
+      "FROM OFBIZ.INVENTORY_ITEM_VARIANCE v " +
+      "LEFT JOIN OFBIZ.VARIANCE_REASON r ON v.VARIANCE_REASON_ID = r.VARIANCE_REASON_ID " +
+      "LEFT JOIN OFBIZ.INVENTORY_ITEM i ON v.INVENTORY_ITEM_ID = i.INVENTORY_ITEM_ID"
+    );
+
+    boolean first = true;
+    while (rs.next()) {
+      if (!first) json.append(",\\n");
+      first = false;
+      json.append("  {\\"inventoryItemId\\": \\"" + nullSafe(rs.getString("INVENTORY_ITEM_ID")) + "\\",");
+      json.append("\\"productId\\": \\"" + nullSafe(rs.getString("PRODUCT_ID")) + "\\",");
+      json.append("\\"facilityId\\": \\"" + nullSafe(rs.getString("FACILITY_ID")) + "\\",");
+      json.append("\\"locationSeqId\\": \\"" + nullSafe(rs.getString("LOCATION_SEQ_ID")) + "\\",");
+      json.append("\\"varianceReasonId\\": \\"" + nullSafe(rs.getString("VARIANCE_REASON_ID")) + "\\",");
+      json.append("\\"reasonDescription\\": \\"" + nullSafe(rs.getString("REASON_DESC")) + "\\",");
+      json.append("\\"quantityVariance\\": " + rs.getBigDecimal("QUANTITY_ON_HAND_VAR") + ",");
+      json.append("\\"comments\\": \\"" + nullSafe(rs.getString("COMMENTS")) + "\\",");
+      json.append("\\"createdAt\\": \\"" + nullSafe(rs.getString("CREATED_STAMP")) + "\\"}");
+    }
+    json.append("\\n]");
+    System.out.println(json.toString());
+    conn.close();
+  }
+  static String nullSafe(String s) { return s != null ? s.replace("\\\\", "\\\\\\\\").replace("\\"", "\\\\\\"") : ""; }
+}`;
+
+    const javaFile = '/tmp/OFBizVarianceExport.java';
+    writeFileSync(javaFile, javaCode);
+
+    const javac = spawn(join(JAVA_HOME, 'bin/javac'), ['-cp', DERBY_JAR, javaFile], { cwd: '/tmp' });
+
+    javac.on('close', (code) => {
+      if (code !== 0) {
+        resolve([]); // Return empty if compile fails
+        return;
+      }
+
+      const java = spawn(join(JAVA_HOME, 'bin/java'), ['-cp', `.:${DERBY_JAR}`, 'OFBizVarianceExport', dbPath], { cwd: '/tmp' });
+      let output = '';
+
+      java.stdout.on('data', (data) => { output += data; });
+      java.on('close', (code) => {
+        try {
+          resolve(JSON.parse(output));
+        } catch {
+          resolve([]);
+        }
+      });
+    });
+  });
+}
+
 // Load products from cached file
 function loadProducts() {
   try {
@@ -239,10 +311,19 @@ export async function syncOFBizData(prisma) {
     // Generate alerts from inventory data
     await generateAlerts(prisma, inventoryData, productMap);
 
+    // Sync bad items (variances) from OFBiz
+    console.log('[OFBiz Sync] Exporting variances/bad items...');
+    const varianceData = await exportVariancesFromOFBiz();
+    console.log(`[OFBiz Sync] Exported ${varianceData.length} variance records`);
+
+    // Sync bad items to database
+    const badItemsImported = await syncBadItems(prisma, varianceData, productMap);
+    console.log(`[OFBiz Sync] Synced ${badItemsImported} bad items`);
+
     lastSyncTime = new Date();
     lastSyncStatus = 'success';
 
-    console.log(`[OFBiz Sync] Complete! Imported ${imported} items`);
+    console.log(`[OFBiz Sync] Complete! Imported ${imported} items, ${badItemsImported} bad items`);
 
     return {
       success: true,
@@ -311,6 +392,86 @@ async function generateAlerts(prisma, inventoryData, productMap) {
   }
 
   console.log(`[OFBiz Sync] Generated ${alertCount} alerts`);
+}
+
+// Sync bad items from variance data
+async function syncBadItems(prisma, varianceData, productMap) {
+  if (!varianceData || varianceData.length === 0) {
+    return 0;
+  }
+
+  // Map variance reasons to issue types
+  const issueTypeMap = {
+    'VAR_LOST': 'LOST',
+    'VAR_STOLEN': 'THEFT',
+    'VAR_FOUND': 'FOUND',
+    'VAR_DAMAGED': 'DAMAGED',
+    'VAR_INTEGR': 'INTEGRATION_ERROR',
+    'VAR_SAMPLE': 'SAMPLE',
+    'VAR_TRANSIT': 'IN_TRANSIT',
+    'VAR_REJECTED': 'REJECTED',
+    'VAR_MISSHIP_ORDERED': 'MIS_SHIPPED',
+    'VAR_MISSHIP_SHIPPED': 'MIS_SHIPPED'
+  };
+
+  const severityMap = {
+    'VAR_LOST': 'HIGH',
+    'VAR_STOLEN': 'CRITICAL',
+    'VAR_DAMAGED': 'MEDIUM',
+    'VAR_REJECTED': 'MEDIUM',
+    'VAR_MISSHIP_ORDERED': 'HIGH',
+    'VAR_MISSHIP_SHIPPED': 'HIGH'
+  };
+
+  let imported = 0;
+
+  for (const variance of varianceData) {
+    const product = productMap[variance.productId] || {};
+    const issueType = issueTypeMap[variance.varianceReasonId] || 'OTHER';
+    const severity = severityMap[variance.varianceReasonId] || 'LOW';
+
+    // Check if this variance already exists
+    const existing = await prisma.badItem.findFirst({
+      where: {
+        sku: variance.productId || 'UNKNOWN',
+        locationCode: variance.locationSeqId || 'DEFAULT',
+        issueType: issueType,
+        rawData: {
+          path: ['inventoryItemId'],
+          equals: variance.inventoryItemId
+        }
+      }
+    });
+
+    if (!existing) {
+      await prisma.badItem.create({
+        data: {
+          sku: variance.productId || 'UNKNOWN',
+          description: product.name || product.internalName || variance.reasonDescription || `${issueType} item`,
+          issueType: issueType,
+          severity: severity,
+          occurrences: Math.abs(variance.quantityVariance || 1),
+          locationCode: variance.locationSeqId || 'DEFAULT',
+          warehouseId: variance.facilityId || null,
+          status: 'OPEN',
+          reportedAt: variance.createdAt ? new Date(variance.createdAt) : new Date(),
+          notes: variance.comments || null,
+          sourceFile: 'OFBiz-WMS',
+          rawData: {
+            inventoryItemId: variance.inventoryItemId,
+            varianceReasonId: variance.varianceReasonId,
+            reasonDescription: variance.reasonDescription,
+            quantityVariance: variance.quantityVariance,
+            facilityId: variance.facilityId,
+            productName: product.name || product.internalName
+          }
+        }
+      });
+      imported++;
+    }
+  }
+
+  return imported;
 }
 
 // Schedule automatic sync
