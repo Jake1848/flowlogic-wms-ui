@@ -11,10 +11,11 @@ import {
   History,
   UserCog,
   Settings,
+  CreditCard,
   type LucideIcon,
 } from 'lucide-react'
 
-export type PageType = 'intelligence' | 'alerts' | 'notifications' | 'reports' | 'costanalytics' | 'productivity' | 'systemhealth' | 'integrations' | 'audit' | 'users' | 'settings'
+export type PageType = 'intelligence' | 'alerts' | 'notifications' | 'reports' | 'costanalytics' | 'productivity' | 'systemhealth' | 'integrations' | 'audit' | 'users' | 'settings' | 'billing'
 
 export interface MenuItem {
   id: PageType
@@ -47,6 +48,7 @@ export const transactionCodes: Record<string, PageType> = {
   'AUD': 'audit', 'AUDIT': 'audit',
   'USR': 'users', 'USERS': 'users',
   'SET': 'settings', 'CONFIG': 'settings',
+  'BIL': 'billing', 'BILLING': 'billing', 'PAY': 'billing',
 }
 
 /**
@@ -94,6 +96,7 @@ export const menuGroups: MenuGroup[] = [
     color: 'from-gray-500 to-slate-600',
     items: [
       { id: 'users', label: 'User Management', icon: UserCog, code: 'USR' },
+      { id: 'billing', label: 'Billing & Plans', icon: CreditCard, code: 'BIL' },
       { id: 'settings', label: 'Settings', icon: Settings, code: 'SET' },
     ],
   },

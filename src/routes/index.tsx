@@ -30,6 +30,7 @@ const ProductivityMetrics = lazy(() => import('../pages/ProductivityMetrics'))
 const SystemHealth = lazy(() => import('../pages/SystemHealth'))
 const Integrations = lazy(() => import('../pages/Integrations'))
 const Settings = lazy(() => import('../pages/Settings'))
+const Billing = lazy(() => import('../pages/Billing'))
 const UserManagement = lazy(() => import('../pages/UserManagement'))
 const AuditTrail = lazy(() => import('../pages/AuditTrail'))
 const NotificationCenter = lazy(() => import('../pages/NotificationCenter'))
@@ -75,6 +76,7 @@ export const protectedRoutes: RouteObject[] = [
 
   // Admin
   { path: '/users', element: withSuspense(UserManagement) },
+  { path: '/billing', element: withSuspense(Billing) },
   { path: '/settings', element: withSuspense(Settings) },
 ]
 
@@ -99,6 +101,7 @@ export const pageIdToPath: Record<string, string> = {
   integrations: '/integrations',
   audit: '/audit',
   users: '/users',
+  billing: '/billing',
   settings: '/settings',
 }
 
@@ -115,5 +118,6 @@ export const pathToPageId: Record<string, string> = {
   '/integrations': 'integrations',
   '/audit': 'audit',
   '/users': 'users',
+  '/billing': 'billing',
   '/settings': 'settings',
 }

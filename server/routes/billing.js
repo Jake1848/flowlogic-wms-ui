@@ -108,6 +108,7 @@ export default function billingRoutes(prisma) {
   /**
    * Stripe webhook handler
    * This endpoint should NOT use authentication middleware
+   * Uses express.raw() middleware configured in index.js for signature verification
    */
   router.post('/webhook', async (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -117,10 +118,13 @@ export default function billingRoutes(prisma) {
 
     try {
       if (webhookSecret && sig) {
-        event = stripe.webhooks.constructEvent(req.rawBody || req.body, sig, webhookSecret);
+        // req.body is a Buffer when using express.raw() middleware
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
       } else {
         // For development without webhook signature verification
-        event = req.body;
+        // Parse the raw body as JSON
+        const payload = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
+        event = payload;
       }
     } catch (err) {
       console.error('Webhook signature verification failed:', err.message);

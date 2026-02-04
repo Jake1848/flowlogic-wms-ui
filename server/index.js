@@ -167,6 +167,9 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Stripe webhook needs raw body for signature verification - must be before json parser
+app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '10mb' }));
 
 // Make prisma and anthropic available to routes
