@@ -252,7 +252,7 @@ export default function createUserRoutes(prisma) {
       data: {
         username: username.toLowerCase(),
         email: email.toLowerCase(),
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         firstName,
         lastName,
         fullName: `${firstName || ''} ${lastName || ''}`.trim() || username,
@@ -427,7 +427,7 @@ export default function createUserRoutes(prisma) {
 
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { password: true },
+      select: { passwordHash: true },
     });
 
     if (!user) {
@@ -435,7 +435,7 @@ export default function createUserRoutes(prisma) {
     }
 
     // Verify current password
-    const validPassword = await bcrypt.compare(currentPassword, user.password);
+    const validPassword = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!validPassword) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
@@ -445,7 +445,7 @@ export default function createUserRoutes(prisma) {
 
     await prisma.user.update({
       where: { id },
-      data: { password: hashedPassword },
+      data: { passwordHash: hashedPassword },
     });
 
     res.json({ success: true, message: 'Password updated successfully' });
@@ -468,7 +468,7 @@ export default function createUserRoutes(prisma) {
 
     await prisma.user.update({
       where: { id },
-      data: { password: hashedPassword },
+      data: { passwordHash: hashedPassword },
     });
 
     res.json({ success: true, message: 'Password reset successfully' });
