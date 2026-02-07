@@ -75,6 +75,10 @@ public class OFBizExport {
       cwd: '/tmp'
     });
 
+    javac.on('error', (err) => {
+      reject(new Error(`Java compiler not found: ${err.message}`));
+    });
+
     javac.on('close', (code) => {
       if (code !== 0) {
         reject(new Error('Failed to compile Java export'));
@@ -88,6 +92,10 @@ public class OFBizExport {
 
       let output = '';
       let error = '';
+
+      java.on('error', (err) => {
+        reject(new Error(`Java runtime not found: ${err.message}`));
+      });
 
       java.stdout.on('data', (data) => { output += data; });
       java.stderr.on('data', (data) => { error += data; });
@@ -159,6 +167,10 @@ public class OFBizVarianceExport {
 
     const javac = spawn(join(JAVA_HOME, 'bin/javac'), ['-cp', DERBY_JAR, javaFile], { cwd: '/tmp' });
 
+    javac.on('error', () => {
+      resolve([]); // Java not available, return empty
+    });
+
     javac.on('close', (code) => {
       if (code !== 0) {
         resolve([]); // Return empty if compile fails
@@ -167,6 +179,10 @@ public class OFBizVarianceExport {
 
       const java = spawn(join(JAVA_HOME, 'bin/java'), ['-cp', `.:${DERBY_JAR}`, 'OFBizVarianceExport', dbPath], { cwd: '/tmp' });
       let output = '';
+
+      java.on('error', () => {
+        resolve([]); // Java not available, return empty
+      });
 
       java.stdout.on('data', (data) => { output += data; });
       java.on('close', (code) => {

@@ -845,8 +845,8 @@ async function startServer() {
 ╚═══════════════════════════════════════════════════════════════╝
     `);
 
-    // Start OFBiz auto-sync (every 5 minutes)
-    if (process.env.OFBIZ_AUTO_SYNC !== 'false') {
+    // Start OFBiz auto-sync (requires Java/Derby - disabled in production unless explicitly enabled)
+    if (process.env.OFBIZ_AUTO_SYNC === 'true' || (process.env.NODE_ENV !== 'production' && process.env.OFBIZ_AUTO_SYNC !== 'false')) {
       const syncInterval = parseInt(process.env.OFBIZ_SYNC_INTERVAL) || 5;
       ofbizSync.startAutoSync(prisma, syncInterval);
     }
