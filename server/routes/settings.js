@@ -43,7 +43,6 @@ export default function settingsRoutes(prisma) {
     if (search) {
       where.OR = [
         { key: { contains: search, mode: 'insensitive' } },
-        { label: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } }
       ];
     }
