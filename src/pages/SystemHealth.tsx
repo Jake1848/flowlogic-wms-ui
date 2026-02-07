@@ -15,8 +15,7 @@ import {
   Brain,
   Loader2,
   Zap,
-  BarChart3,
-  TrendingUp
+  BarChart3
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import api from '../lib/api'

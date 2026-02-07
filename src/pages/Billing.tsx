@@ -10,8 +10,7 @@ import {
   Users,
   Package,
   Brain,
-  Shield,
-  Clock
+  Shield
 } from 'lucide-react'
 import api from '../lib/api'
 
@@ -58,7 +57,7 @@ interface UsageData {
 }
 
 export default function Billing() {
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
+  const [selectedPlan] = useState<string | null>(null)
 
   // Fetch available plans
   const { data: plansData } = useQuery({

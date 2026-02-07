@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom'
 import {
   Brain,
   AlertTriangle,
-  TrendingUp,
   BarChart3,
   FileText,
   Database,
