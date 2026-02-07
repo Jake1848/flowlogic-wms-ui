@@ -99,7 +99,7 @@ const Landing = () => {
   const pricingPlans = [
     {
       name: 'Starter',
-      price: 499,
+      price: 4.99,
       description: 'For small warehouses getting started with AI',
       features: [
         'Up to 10,000 SKUs',
@@ -113,7 +113,7 @@ const Landing = () => {
     },
     {
       name: 'Professional',
-      price: 1499,
+      price: 14.99,
       description: 'For growing operations needing advanced insights',
       features: [
         'Up to 100,000 SKUs',

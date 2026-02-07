@@ -105,40 +105,7 @@ export default function billingRoutes(prisma) {
     }
   });
 
-  /**
-   * Stripe webhook handler
-   * This endpoint should NOT use authentication middleware
-   * Uses express.raw() middleware configured in index.js for signature verification
-   */
-  router.post('/webhook', async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-    let event;
-
-    try {
-      if (webhookSecret && sig) {
-        // req.body is a Buffer when using express.raw() middleware
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-      } else {
-        // For development without webhook signature verification
-        // Parse the raw body as JSON
-        const payload = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
-        event = payload;
-      }
-    } catch (err) {
-      console.error('Webhook signature verification failed:', err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    try {
-      await billingService.handleWebhook(event);
-      res.json({ received: true });
-    } catch (error) {
-      console.error('Error handling webhook:', error);
-      res.status(500).json({ error: 'Webhook handling failed' });
-    }
-  });
+  // Webhook is mounted separately in index.js (no auth required)
 
   /**
    * Get usage stats for current billing period
@@ -180,4 +147,38 @@ export default function billingRoutes(prisma) {
   });
 
   return router;
+}
+
+/**
+ * Stripe webhook handler - mounted separately without auth middleware
+ */
+export function billingWebhookHandler(prisma) {
+  const billingService = new BillingService(prisma);
+
+  return async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    let event;
+
+    try {
+      if (webhookSecret && sig) {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } else {
+        const payload = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
+        event = payload;
+      }
+    } catch (err) {
+      console.error('Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+      await billingService.handleWebhook(event);
+      res.json({ received: true });
+    } catch (error) {
+      console.error('Error handling webhook:', error);
+      res.status(500).json({ error: 'Webhook handling failed' });
+    }
+  };
 }

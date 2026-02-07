@@ -142,10 +142,10 @@ const Register = () => {
         throw new Error(data.message || 'Registration failed');
       }
 
-      // Success - redirect to onboarding or login
-      navigate('/login', {
-        state: { message: 'Account created! Please sign in to continue.' }
-      });
+      // Auto-login: store token and redirect to dashboard
+      localStorage.setItem('flowlogic_token', data.token);
+      localStorage.setItem('flowlogic_user', JSON.stringify(data.user));
+      navigate('/dashboard');
 
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');

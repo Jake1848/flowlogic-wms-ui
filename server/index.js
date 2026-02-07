@@ -24,10 +24,11 @@ import auditLogRoutes from './routes/auditLogs.js';
 import intelligenceRoutes from './routes/intelligence.js';
 import aiRoutes from './routes/ai.js';
 import connectorRoutes from './routes/connectors.js';
-import billingRoutes from './routes/billing.js';
+import billingRoutes, { billingWebhookHandler } from './routes/billing.js';
 
 // Import auth middleware
 import { authMiddleware, optionalAuth } from './middleware/auth.js';
+import { trialEnforcement } from './middleware/trialEnforcement.js';
 
 // Import tools for AI
 import { tools, createToolExecutor } from './tools.js';
@@ -431,21 +432,25 @@ app.post('/api/ofbiz/sync/stop-auto', authMiddleware, (req, res) => {
 // Public routes (no authentication required)
 app.use('/api/auth', authLimiter, authRoutes(prisma));
 
+// Trial enforcement middleware (checks trial expiry)
+const enforceTrials = trialEnforcement(prisma);
+
 // Protected routes (authentication required) - Core AI Platform
-app.use('/api/alerts', authMiddleware, alertRoutes(prisma));
-app.use('/api/chat-history', authMiddleware, chatRoutes(prisma));
-app.use('/api/users', authMiddleware, userRoutes(prisma));
-app.use('/api/integrations', authMiddleware, integrationRoutes(prisma));
-app.use('/api/connectors', authMiddleware, connectorRoutes(prisma));
-app.use('/api/billing', authMiddleware, billingRoutes(prisma));
-app.use('/api/settings', authMiddleware, settingsRoutes(prisma));
-app.use('/api/audit-logs', authMiddleware, auditLogRoutes(prisma));
+app.use('/api/alerts', authMiddleware, enforceTrials, alertRoutes(prisma));
+app.use('/api/chat-history', authMiddleware, enforceTrials, chatRoutes(prisma));
+app.use('/api/users', authMiddleware, userRoutes(prisma)); // No trial gate (need account management)
+app.use('/api/integrations', authMiddleware, enforceTrials, integrationRoutes(prisma));
+app.use('/api/connectors', authMiddleware, enforceTrials, connectorRoutes(prisma));
+app.post('/api/billing/webhook', billingWebhookHandler(prisma)); // Public - no auth (Stripe calls this)
+app.use('/api/billing', authMiddleware, billingRoutes(prisma)); // No trial gate (need to upgrade)
+app.use('/api/settings', authMiddleware, settingsRoutes(prisma)); // No trial gate (need settings access)
+app.use('/api/audit-logs', authMiddleware, enforceTrials, auditLogRoutes(prisma));
 
-// FlowLogic Intelligence Platform routes (protected)
-app.use('/api/intelligence', authMiddleware, intelligenceRoutes(prisma));
+// FlowLogic Intelligence Platform routes (protected + trial enforced)
+app.use('/api/intelligence', authMiddleware, enforceTrials, intelligenceRoutes(prisma));
 
-// AI Engine routes (protected)
-app.use('/api/ai', authMiddleware, aiRoutes);
+// AI Engine routes (protected + trial enforced)
+app.use('/api/ai', authMiddleware, enforceTrials, aiRoutes);
 
 // Dashboard summary endpoint - AI Intelligence Platform metrics (protected)
 app.get('/api/dashboard', authMiddleware, async (req, res) => {
