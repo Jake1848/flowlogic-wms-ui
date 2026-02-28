@@ -92,7 +92,7 @@ export function DataImport() {
           error: data.error || data.message || 'Upload failed'
         })
       }
-    } catch (error) {
+    } catch (_error) {
       setResult({
         success: false,
         error: 'Network error. Please try again.'

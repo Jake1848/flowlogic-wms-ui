@@ -1,12 +1,12 @@
 import { Bot, CheckCircle, Loader2 } from 'lucide-react'
-import type { Message, AnalysisStep } from './types'
+import type { Message, AnalysisStep, SuggestedAction } from './types'
 import AnalysisResultCard from './AnalysisResultCard'
 import SuggestedActionsCard from './SuggestedActionsCard'
 
 interface MessageBubbleProps {
   message: Message
   onExecuteAction: (messageId: string, actionId: string) => void
-  onQueueAction: (action: any, messageId: string) => void
+  onQueueAction: (action: SuggestedAction, messageId: string) => void
   getSeverityColor: (severity: string) => string
   getImpactColor: (impact: string) => string
 }

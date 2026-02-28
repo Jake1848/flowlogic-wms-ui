@@ -28,7 +28,8 @@ test.describe('Login Page', () => {
 
     // Form should have validation
     const emailInput = page.getByPlaceholder(/email/i);
-    const passwordInput = page.getByPlaceholder(/password/i);
+    // passwordInput intentionally not used - testing email validation only
+    page.getByPlaceholder(/password/i);
 
     // HTML5 validation should prevent submission
     await expect(emailInput).toBeFocused();

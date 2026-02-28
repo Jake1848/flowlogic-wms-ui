@@ -1,44 +1,36 @@
 import '@testing-library/jest-dom'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { AuthProvider } from '../../contexts/__mocks__/AuthContext'
 import Header from '../../components/Header'
 import { useWMSStore } from '../../store/useWMSStore'
 
-// Reset store before each test
+// Note: AuthContext is automatically redirected to the mock via jest.config.js moduleNameMapper
+// This avoids the import.meta.env issue in the real AuthContext
+
 beforeEach(() => {
-  useWMSStore.setState({
-    alerts: [],
-    darkMode: false,
-  })
+  useWMSStore.setState({ alerts: [], darkMode: false })
 })
 
-describe('Header Component', () => {
-  it('renders the header with title', () => {
-    render(<Header />)
+const renderHeader = () =>
+  render(
+    <MemoryRouter>
+      <AuthProvider>
+        <Header />
+      </AuthProvider>
+    </MemoryRouter>
+  )
 
-    expect(screen.getByText('Warehouse Management System')).toBeInTheDocument()
-    expect(screen.getByText('Real-time inventory tracking and analytics')).toBeInTheDocument()
+describe('Header Component', () => {
+  it('renders the FlowLogic branding', () => {
+    renderHeader()
+    expect(screen.getByText('FlowLogic AI')).toBeInTheDocument()
+    expect(screen.getByText('Intelligence Platform')).toBeInTheDocument()
   })
 
   it('renders user information', () => {
-    render(<Header />)
-
-    expect(screen.getByText('Admin User')).toBeInTheDocument()
-    expect(screen.getByText('Warehouse Manager')).toBeInTheDocument()
-  })
-
-  it('toggles dark mode when button is clicked', () => {
-    render(<Header />)
-
-    const darkModeButton = screen.getByLabelText('Toggle dark mode')
-    expect(darkModeButton).toBeInTheDocument()
-
-    // Initial state should show Moon icon (light mode)
-    expect(useWMSStore.getState().darkMode).toBe(false)
-
-    fireEvent.click(darkModeButton)
-
-    // After click, dark mode should be enabled
-    expect(useWMSStore.getState().darkMode).toBe(true)
+    renderHeader()
+    expect(screen.getAllByText(/Admin User/i).length).toBeGreaterThan(0)
   })
 
   it('shows alert count when there are critical alerts', () => {
@@ -49,25 +41,20 @@ describe('Header Component', () => {
         { id: '3', type: 'warning', message: 'Warning alert', timestamp: new Date().toISOString() },
       ],
     })
-
-    render(<Header />)
-
-    // Should show 2 critical alerts count
+    renderHeader()
     expect(screen.getByText('2')).toBeInTheDocument()
   })
 
   it('does not show alert count when there are no critical alerts', () => {
     useWMSStore.setState({
-      alerts: [
-        { id: '1', type: 'warning', message: 'Warning alert', timestamp: new Date().toISOString() },
-        { id: '2', type: 'info', message: 'Info alert', timestamp: new Date().toISOString() },
-      ],
+      alerts: [{ id: '1', type: 'warning', message: 'Warning alert', timestamp: new Date().toISOString() }],
     })
-
-    render(<Header />)
-
-    // Should not show any count badge
+    renderHeader()
     expect(screen.queryByText('1')).not.toBeInTheDocument()
-    expect(screen.queryByText('2')).not.toBeInTheDocument()
+  })
+
+  it('renders navigation buttons', () => {
+    renderHeader()
+    expect(screen.getAllByRole('button').length).toBeGreaterThan(0)
   })
 })

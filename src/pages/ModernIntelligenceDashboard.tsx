@@ -191,7 +191,7 @@ export default function ModernIntelligenceDashboard() {
       await fetchAlerts()
 
       setAnalysisComplete(true)
-    } catch (err) {
+    } catch (_err) {
       setError('Analysis failed. Please try again.')
     } finally {
       setIsAnalyzing(false)

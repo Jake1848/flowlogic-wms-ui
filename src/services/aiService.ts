@@ -20,34 +20,34 @@ export interface WMSData {
     totalItems: number;
     totalValue: number;
     accuracy: number;
-    discrepancies: any[];
-    recentTransactions: any[];
-    hotItems: any[];
+    discrepancies: Record<string, unknown>[];
+    recentTransactions: Record<string, unknown>[];
+    hotItems: Record<string, unknown>[];
   };
   receiving: {
     openPOs: number;
     todayReceipts: number;
-    issues: any[];
-    dockUtilization: any[];
+    issues: Record<string, unknown>[];
+    dockUtilization: Record<string, unknown>[];
   };
   shipping: {
     pendingOrders: number;
     shippedToday: number;
     lateOrders: number;
-    lateOrderDetails: any[];
+    lateOrderDetails: Record<string, unknown>[];
   };
   labor: {
     activeUsers: number;
     totalUsers: number;
     productivity: number;
-    topPerformers: any[];
-    lowPerformers: any[];
+    topPerformers: Record<string, unknown>[];
+    lowPerformers: Record<string, unknown>[];
   };
   locations: {
     totalLocations: number;
     utilizationRate: number;
-    problemLocations: any[];
-    replenishmentNeeded: any[];
+    problemLocations: Record<string, unknown>[];
+    replenishmentNeeded: Record<string, unknown>[];
   };
   systemHealth: {
     status: string;
@@ -178,7 +178,7 @@ export async function streamMessage(
                 callbacks.onDone();
                 break;
             }
-          } catch (e) {
+          } catch (_e) {
             // Skip invalid JSON
           }
         }
@@ -194,8 +194,8 @@ export async function streamMessage(
 // Execute a specific action
 export async function executeAction(
   action: string,
-  params: Record<string, any>
-): Promise<{ success: boolean; message?: string; [key: string]: any }> {
+  params: Record<string, unknown>
+): Promise<{ success: boolean; message?: string; [key: string]: unknown }> {
   const response = await fetch(`${API_BASE}/api/actions/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

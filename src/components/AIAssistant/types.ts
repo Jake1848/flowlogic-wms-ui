@@ -167,8 +167,8 @@ export interface WMSSystemData {
     todayReceipts: number
     avgReceiveTime: number
     receiptsPerHour: number
-    issues: any[]
-    dockUtilization: any[]
+    issues: Record<string, unknown>[]
+    dockUtilization: Record<string, unknown>[]
   }
   shipping: {
     pendingOrders: number
@@ -177,16 +177,16 @@ export interface WMSSystemData {
     avgPickTime: number
     ordersPerHour: number
     waveInProgress: string
-    carrierPerformance: any[]
-    lateOrderDetails: any[]
+    carrierPerformance: Record<string, unknown>[]
+    lateOrderDetails: Record<string, unknown>[]
   }
   labor: {
     activeUsers: number
     totalUsers: number
     productivity: number
     avgProductivity: number
-    topPerformers: any[]
-    lowPerformers: any[]
+    topPerformers: Record<string, unknown>[]
+    lowPerformers: Record<string, unknown>[]
     attendance: {
       present: number
       absent: number
@@ -200,8 +200,8 @@ export interface WMSSystemData {
     fullLocations: number
     partialLocations: number
     utilizationRate: number
-    problemLocations: any[]
-    replenishmentNeeded: any[]
+    problemLocations: Record<string, unknown>[]
+    replenishmentNeeded: Record<string, unknown>[]
   }
   systemHealth: {
     status: string
@@ -210,8 +210,8 @@ export interface WMSSystemData {
     pendingTasks: number
     errors: number
     warnings: number
-    integrations: any[]
-    recentAlerts: any[]
+    integrations: Record<string, unknown>[]
+    recentAlerts: Record<string, unknown>[]
   }
   analytics: {
     dailyOrders: number[]

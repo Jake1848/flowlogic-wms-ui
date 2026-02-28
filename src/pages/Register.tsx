@@ -147,8 +147,8 @@ const Register = () => {
       localStorage.setItem('flowlogic_user', JSON.stringify(data.user));
       navigate('/dashboard');
 
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

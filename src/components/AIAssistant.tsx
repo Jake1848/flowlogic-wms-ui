@@ -97,7 +97,7 @@ interface DataPoint {
   label: string
   value: string
   trend?: 'up' | 'down' | 'stable'
-  icon: any
+  icon: React.ComponentType<{ className?: string }>
   change?: string
 }
 
@@ -152,7 +152,7 @@ interface InsightCard {
   change: number
   changeLabel: string
   trend: 'up' | 'down' | 'stable'
-  icon: any
+  icon: React.ComponentType<{ className?: string }>
   color: string
   sparkline?: number[]
 }

@@ -466,6 +466,48 @@ export class RecommendationEngine {
       });
     }
 
+    // From forecasts
+    if (analysis.forecasts?.success && analysis.forecasts?.summary) {
+      const { trend, averageDemand } = analysis.forecasts.summary;
+      const forecasts = analysis.forecasts.forecasts || [];
+      if (trend === 'increasing' && forecasts.length > 0) {
+        const maxPredicted = Math.max(...forecasts.map(f => f.predicted));
+        if (maxPredicted > averageDemand * 1.5) {
+          recommendations.push({
+            type: 'demand_surge_warning',
+            priority: 2,
+            title: 'Demand surge predicted',
+            description: `Forecasted demand (${maxPredicted}) is significantly above average (${averageDemand})`,
+            action: 'Increase stock levels to meet projected demand',
+            impact: 'high',
+            data: { trend, averageDemand, maxPredicted },
+            confidence: analysis.forecasts.accuracy?.confidence || 0.8
+          });
+        } else {
+          recommendations.push({
+            type: 'increase_stock',
+            priority: 3,
+            title: 'Increasing demand trend detected',
+            description: `Demand is trending upward. Average demand: ${averageDemand}`,
+            action: 'Consider increasing reorder quantities',
+            impact: 'medium',
+            data: { trend, averageDemand },
+            confidence: analysis.forecasts.accuracy?.confidence || 0.8
+          });
+        }
+      } else if (trend === 'decreasing') {
+        recommendations.push({
+          type: 'reduce_stock',
+          priority: 3,
+          title: 'Decreasing demand trend detected',
+          description: `Demand is trending downward. Average demand: ${averageDemand}`,
+          action: 'Consider reducing reorder quantities to avoid overstock',
+          impact: 'medium',
+          data: { trend, averageDemand },
+          confidence: analysis.forecasts.accuracy?.confidence || 0.8
+        });
+      }
+    }
     // From patterns
     if (analysis.patterns?.patterns) {
       const { behavioral, correlations, anomalousSequences } = analysis.patterns.patterns;
@@ -526,15 +568,114 @@ export class RecommendationEngine {
   }
 }
 
+
+// ============================================================
+// FORECASTING ENGINE
+// ============================================================
+export class ForecastingEngine {
+  /**
+   * Forecast demand for the next horizonDays days based on historical data.
+   * @param {Array<{date: string, quantity: number}>} historicalData
+   * @param {number} horizonDays
+   */
+  forecast(historicalData, horizonDays = 7) {
+    const MIN_REQUIRED = 7;
+
+    if (!historicalData || historicalData.length < MIN_REQUIRED) {
+      return {
+        success: false,
+        error: 'Insufficient data for forecasting',
+        minRequired: MIN_REQUIRED,
+        provided: historicalData ? historicalData.length : 0,
+      };
+    }
+
+    const quantities = historicalData.map(d => d.quantity);
+    const n = quantities.length;
+    const avg = quantities.reduce((a, b) => a + b, 0) / n;
+
+    // Simple linear regression for trend
+    const xMean = (n - 1) / 2;
+    let numerator = 0;
+    let denominator = 0;
+    for (let i = 0; i < n; i++) {
+      numerator += (i - xMean) * (quantities[i] - avg);
+      denominator += (i - xMean) ** 2;
+    }
+    const slope = denominator !== 0 ? numerator / denominator : 0;
+    const intercept = avg - slope * xMean;
+
+    // Standard deviation for confidence intervals
+    const variance = quantities.reduce((sum, q) => sum + (q - avg) ** 2, 0) / n;
+    const stdDev = Math.sqrt(variance);
+
+    // Determine trend direction
+    let trend = 'stable';
+    if (slope > stdDev * 0.1) trend = 'increasing';
+    else if (slope < -stdDev * 0.1) trend = 'decreasing';
+
+    // Generate forecasts
+    const lastDate = new Date(historicalData[historicalData.length - 1].date);
+    const forecasts = [];
+    for (let i = 1; i <= horizonDays; i++) {
+      const forecastDate = new Date(lastDate);
+      forecastDate.setDate(forecastDate.getDate() + i);
+      const predicted = Math.max(0, intercept + slope * (n - 1 + i));
+      const margin = stdDev * 1.645; // 90% confidence interval
+      forecasts.push({
+        date: forecastDate.toISOString().split('T')[0],
+        predicted: Math.round(predicted * 100) / 100,
+        lower: Math.max(0, Math.round((predicted - margin) * 100) / 100),
+        upper: Math.round((predicted + margin) * 100) / 100,
+        confidence: 0.9,
+      });
+    }
+
+    // Accuracy metrics (using leave-one-out on last 20% of data)
+    const testSize = Math.max(1, Math.floor(n * 0.2));
+    const trainSize = n - testSize;
+    let mapeSum = 0;
+    let rmseSum = 0;
+    for (let i = trainSize; i < n; i++) {
+      const predicted = intercept + slope * i;
+      const actual = quantities[i];
+      if (actual !== 0) mapeSum += Math.abs((actual - predicted) / actual);
+      rmseSum += (actual - predicted) ** 2;
+    }
+    const mape = (mapeSum / testSize) * 100;
+    const rmse = Math.sqrt(rmseSum / testSize);
+    const accuracyConfidence = Math.max(0, Math.min(1, 1 - mape / 100));
+
+    return {
+      success: true,
+      forecasts,
+      summary: {
+        dataPoints: n,
+        averageDemand: Math.round(avg * 100) / 100,
+        trend,
+        slope: Math.round(slope * 1000) / 1000,
+      },
+      accuracy: {
+        mape: Math.round(mape * 100) / 100,
+        rmse: Math.round(rmse * 100) / 100,
+        confidence: Math.round(accuracyConfidence * 100) / 100,
+      },
+    };
+  }
+}
+
 // Export singleton instances with default configuration
+export const forecastingEngine = new ForecastingEngine();
 export const anomalyDetectionEngine = new AnomalyDetectionEngine();
 export const patternRecognitionEngine = new PatternRecognitionEngine();
 export const recommendationEngine = new RecommendationEngine();
 
 export default {
+  ForecastingEngine,
   AnomalyDetectionEngine,
   PatternRecognitionEngine,
   RecommendationEngine,
+  forecastingEngine,
   anomalyDetectionEngine,
   patternRecognitionEngine,
   recommendationEngine

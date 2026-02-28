@@ -1,4 +1,10 @@
 import '@testing-library/jest-dom'
+import { TextEncoder, TextDecoder } from 'util'
+
+// Polyfill TextEncoder/TextDecoder for react-router in jsdom environment
+if (typeof globalThis.TextEncoder === 'undefined') {
+  Object.assign(globalThis, { TextEncoder, TextDecoder })
+}
 
 // Mock import.meta.env for Vite compatibility in Jest
 Object.defineProperty(globalThis, 'import', {
@@ -17,23 +23,23 @@ Object.defineProperty(globalThis, 'import', {
 // Mock matchMedia for tests
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: jest.fn().mockImplementation(query => ({
+  value: (query: string) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }),
 })
 
 // Mock IntersectionObserver
 class MockIntersectionObserver {
-  observe = jest.fn()
-  unobserve = jest.fn()
-  disconnect = jest.fn()
+  observe = () => {}
+  unobserve = () => {}
+  disconnect = () => {}
 }
 
 Object.defineProperty(window, 'IntersectionObserver', {
@@ -43,9 +49,9 @@ Object.defineProperty(window, 'IntersectionObserver', {
 
 // Mock ResizeObserver
 class MockResizeObserver {
-  observe = jest.fn()
-  unobserve = jest.fn()
-  disconnect = jest.fn()
+  observe = () => {}
+  unobserve = () => {}
+  disconnect = () => {}
 }
 
 Object.defineProperty(window, 'ResizeObserver', {
@@ -56,10 +62,10 @@ Object.defineProperty(window, 'ResizeObserver', {
 // Suppress console errors during tests (optional)
 const originalError = console.error
 beforeAll(() => {
-  console.error = (...args: any[]) => {
+  console.error = (...args: unknown[]) => {
     if (
       typeof args[0] === 'string' &&
-      args[0].includes('Warning: ReactDOM.render is no longer supported')
+      (args[0] as string).includes('Warning: ReactDOM.render is no longer supported')
     ) {
       return
     }

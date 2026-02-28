@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom'
+import { jest } from '@jest/globals'
 import { render, screen } from '@testing-library/react'
 import { Package } from 'lucide-react'
 import DashboardCard from '../../components/DashboardCard'
@@ -40,8 +41,8 @@ describe('DashboardCard', () => {
       />
     )
 
-    expect(screen.getByText('+12.5%')).toBeInTheDocument()
-    expect(screen.getByText('vs last week')).toBeInTheDocument()
+    // The trend text is rendered as separate nodes: '+12.5% vs last week'
+    expect(screen.getByText(/\+12\.5%.*vs last week/)).toBeInTheDocument()
   })
 
   it('renders negative trend correctly', () => {
@@ -52,7 +53,8 @@ describe('DashboardCard', () => {
       />
     )
 
-    expect(screen.getByText('-8.3%')).toBeInTheDocument()
+    // The trend text is rendered as separate nodes: '-8.3% vs last week'
+    expect(screen.getByText(/-8\.3%.*vs last week/)).toBeInTheDocument()
   })
 
   it('does not render trend when not provided', () => {
